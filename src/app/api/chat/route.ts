@@ -65,7 +65,7 @@ async function createArtifactFromProposal(input: {
   return artifacts.create(artifact);
 }
 
-function demoStreamResponse(product: Product, userId: string): Response {
+function offlineStreamResponse(product: Product, userId: string): Response {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -95,7 +95,7 @@ function demoStreamResponse(product: Product, userId: string): Response {
         productId: product.id,
         type: "positioning",
         title: `${product.title} — refined positioning`,
-        summary: "Demo positioning proposal ready for review.",
+        summary: "Positioning proposal ready for review.",
         payload: {
           positioning: `${product.title} is the premium everyday choice for customers who want durable design without disposable waste.`,
           audience: "Design-conscious shoppers aged 25–45 discovering elevated essentials",
@@ -175,7 +175,7 @@ export async function POST(req: Request) {
   const messages = body.messages ?? [];
 
   if (!hasOpenAI()) {
-    return demoStreamResponse(product, user.id);
+    return offlineStreamResponse(product, user.id);
   }
 
   const result = streamText({

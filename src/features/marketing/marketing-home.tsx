@@ -22,8 +22,8 @@ export function MarketingHome() {
           <Button variant="ghost" size="sm" render={<Link href="/login" />}>
             Sign in
           </Button>
-          <Button size="sm" render={<Link href="/api/auth/demo" />}>
-            Enter demo
+          <Button size="sm" render={<Link href="/signup" />}>
+            Sign up
           </Button>
         </div>
       </header>
@@ -44,8 +44,8 @@ export function MarketingHome() {
           and structured agent proposals in one workbench.
         </p>
         <div className="mt-10 flex flex-wrap items-center gap-3">
-          <Button size="lg" className="gap-2" render={<Link href="/api/auth/demo" />}>
-            Enter demo
+          <Button size="lg" className="gap-2" render={<Link href="/signup" />}>
+            Get started
             <ArrowRight className="size-4" />
           </Button>
           <Button size="lg" variant="outline" render={<Link href="/login" />}>

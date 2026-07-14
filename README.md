@@ -7,38 +7,36 @@ AI marketing workspace for commerce products — [product.ag](https://product.ag
 ## What this milestone includes
 
 - Marketing site for logged-out visitors; product catalog when authenticated (server-side, no flash)
-- Demo mode that runs with no Supabase or OpenAI credentials
 - Product workspace with intelligence, campaigns, performance chart, and reviewable agent artifacts
-- Streaming agent composer (OpenAI when configured; deterministic demo stream otherwise)
-- Supabase schema + repository adapters ready when you add credentials
+- Streaming agent composer (OpenAI when configured; deterministic offline stream otherwise)
+- Supabase schema + repository adapters
 
 ## Stack
 
 Next.js App Router · React · TypeScript · Tailwind · shadcn/ui · Supabase · Vercel AI SDK · Zod · Vitest · Playwright · pnpm
 
-## Quick start (demo mode)
+## Quick start
+
+1. Copy `.env.example` to `.env.local` and fill in Supabase (and optionally OpenAI) credentials.
+2. Apply `supabase/migrations/001_init.sql` in your Supabase project.
+3. Run:
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and click **Enter demo**.
+Open [http://localhost:3000](http://localhost:3000), sign up, and start a workspace.
 
-No `.env` file is required for demo mode.
+Create a public `product-assets` storage bucket when you are ready to store uploaded product images.
 
-## Production credentials
-
-Copy `.env.example` to `.env.local` and fill in:
+## Environment
 
 | Variable | Purpose |
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable/anon key (`NEXT_PUBLIC_SUPABASE_ANON_KEY` also accepted) |
-| `OPENAI_API_KEY` | Server-side OpenAI access for the agent |
-| `DEMO_SESSION_SECRET` | Optional HMAC secret for demo session cookies |
-
-Apply `supabase/migrations/001_init.sql` in your Supabase project. Create a public `product-assets` storage bucket when you are ready to store uploaded product images.
+| `OPENAI_API_KEY` | Server-side OpenAI access for the agent (optional; offline stream used when unset) |
 
 ## Scripts
 
@@ -60,8 +58,8 @@ Modular monolith under `src/`:
 - `app/` — routes and API handlers
 - `features/` — product, auth, agent, marketing UI
 - `domain/` — Zod schemas
-- `repositories/` — demo vs Supabase adapters
-- `lib/` — auth, mode detection, Supabase clients, demo store
+- `repositories/` — Supabase adapters
+- `lib/` — auth, env helpers, Supabase clients
 
 ## License
 

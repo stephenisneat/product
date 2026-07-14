@@ -17,7 +17,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-export function LoginForm({ demoMode }: { demoMode: boolean }) {
+export function LoginForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const {
@@ -30,10 +30,6 @@ export function LoginForm({ demoMode }: { demoMode: boolean }) {
 
   async function onSubmit(values: FormValues) {
     setError(null);
-    if (demoMode) {
-      setError("Supabase is not configured. Use Enter demo instead.");
-      return;
-    }
 
     const { createClient } = await import("@/lib/supabase/client");
     const supabase = createClient();
@@ -74,22 +70,17 @@ export function LoginForm({ demoMode }: { demoMode: boolean }) {
           ) : null}
         </div>
         {error ? <p className="text-xs text-destructive">{error}</p> : null}
-        <Button type="submit" className="w-full" disabled={isSubmitting || demoMode}>
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
           Sign in
         </Button>
       </form>
 
-      <div className="mt-6 space-y-3 text-center text-sm">
-        <Button variant="outline" className="w-full" render={<Link href="/api/auth/demo" />}>
-          Enter demo
-        </Button>
-        <p className="text-muted-foreground">
-          No account?{" "}
-          <Link href="/signup" className="text-foreground underline-offset-4 hover:underline">
-            Sign up
-          </Link>
-        </p>
-      </div>
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        No account?{" "}
+        <Link href="/signup" className="text-foreground underline-offset-4 hover:underline">
+          Sign up
+        </Link>
+      </p>
     </div>
   );
 }

@@ -1,13 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { getSupabasePublishableKey, isDemoMode } from "@/lib/mode";
+import { getSupabasePublishableKey } from "@/lib/mode";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
-
-  if (isDemoMode()) {
-    return supabaseResponse;
-  }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = getSupabasePublishableKey();

@@ -6,7 +6,7 @@ import type {
   Product,
   ProductIntelligence,
 } from "@/domain";
-import { buildPerformanceSeries } from "@/lib/demo/seed";
+import { buildPerformanceSeries } from "@/lib/performance/sample-series";
 import type { ArtifactRepository, ProductRepository } from "./types";
 
 type DbProduct = {

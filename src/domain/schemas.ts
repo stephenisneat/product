@@ -123,7 +123,6 @@ export const appUserSchema = z.object({
   id: z.string(),
   email: z.string().email(),
   name: z.string(),
-  isDemo: z.boolean().default(false),
 });
 
 export type AppUser = z.infer<typeof appUserSchema>;

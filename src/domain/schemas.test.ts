@@ -1,24 +1,38 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it } from "vitest";
 import { productSchema, artifactSchema } from "@/domain";
-import { isDemoMode, hasOpenAI } from "@/lib/mode";
-import { resetDemoStore } from "@/lib/demo/store";
-import { DemoProductRepository, DemoArtifactRepository } from "@/repositories/demo";
-import { seedProducts } from "@/lib/demo/seed";
-import {
-  createDemoSessionToken,
-  verifyDemoSessionToken,
-} from "@/lib/auth/demo-session";
+import { hasOpenAI } from "@/lib/mode";
+
+const sampleProduct = {
+  id: "prod_aurora_bottle",
+  title: "Aurora Insulated Bottle",
+  handle: "aurora-insulated-bottle",
+  description:
+    "A double-wall vacuum bottle built for all-day temperature control with a leak-proof lid and matte finish.",
+  status: "active" as const,
+  price: 48,
+  currency: "USD",
+  images: [
+    "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=800&q=80",
+  ],
+  channels: ["shopify", "meta", "google"],
+  sku: "AUR-750-BLK",
+  category: "Drinkware",
+  syncedAt: "2026-07-10T16:00:00.000Z",
+  createdAt: "2026-06-01T12:00:00.000Z",
+  updatedAt: "2026-07-10T16:00:00.000Z",
+  ownerId: "user_1",
+};
 
 describe("domain schemas", () => {
-  it("parses a seed product", () => {
-    const parsed = productSchema.parse(seedProducts[0]);
+  it("parses a sample product", () => {
+    const parsed = productSchema.parse(sampleProduct);
     expect(parsed.handle).toBe("aurora-insulated-bottle");
   });
 
   it("rejects empty product titles", () => {
     expect(() =>
       productSchema.parse({
-        ...seedProducts[0],
+        ...sampleProduct,
         title: "",
       }),
     ).toThrow();
@@ -42,71 +56,7 @@ describe("domain schemas", () => {
 });
 
 describe("mode", () => {
-  it("detects demo mode without supabase env", () => {
-    expect(isDemoMode()).toBe(true);
-  });
-
   it("reports missing openai by default", () => {
     expect(hasOpenAI()).toBe(false);
-  });
-});
-
-describe("demo session", () => {
-  it("round-trips a signed token", () => {
-    const token = createDemoSessionToken("demo-user");
-    expect(verifyDemoSessionToken(token)).toBe(true);
-    expect(verifyDemoSessionToken("tampered.token.value")).toBe(false);
-  });
-});
-
-describe("demo repositories", () => {
-  beforeEach(() => {
-    resetDemoStore();
-  });
-
-  it("lists products for the demo owner", async () => {
-    const repo = new DemoProductRepository();
-    const products = await repo.listProducts("demo-user");
-    expect(products.length).toBeGreaterThanOrEqual(4);
-  });
-
-  it("creates and approves an artifact path via update", async () => {
-    const artifacts = new DemoArtifactRepository();
-    const now = new Date().toISOString();
-    const created = await artifacts.create({
-      id: "art_test",
-      productId: "prod_aurora_bottle",
-      type: "campaign_concept",
-      status: "proposed",
-      title: "Summer push",
-      summary: "Concept draft",
-      payload: { name: "Summer", objective: "Sales", channels: ["meta"], angles: ["heat"] },
-      createdBy: "test",
-      createdAt: now,
-      updatedAt: now,
-    });
-    const updated = await artifacts.update({
-      ...created,
-      status: "approved",
-      updatedAt: now,
-    });
-    expect(updated.status).toBe("approved");
-  });
-
-  it("upserts intelligence", async () => {
-    const products = new DemoProductRepository();
-    const now = new Date().toISOString();
-    const saved = await products.upsertIntelligence({
-      productId: "prod_aurora_bottle",
-      positioning: "Updated positioning",
-      audience: "Pros",
-      valueProps: ["A"],
-      objections: ["B"],
-      tone: "Clear",
-      updatedAt: now,
-    });
-    expect(saved.positioning).toBe("Updated positioning");
-    const loaded = await products.getIntelligence("prod_aurora_bottle");
-    expect(loaded?.positioning).toBe("Updated positioning");
   });
 });

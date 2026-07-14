@@ -184,7 +184,7 @@ export function ProductWorkspace({
 
           <TabsContent value="performance" className="mt-4 space-y-3">
             <p className="text-xs text-muted-foreground">
-              Product-level performance demo (sample series). Live channel ingestion comes
+              Product-level performance (sample series). Live channel ingestion comes
               later.
             </p>
             <PerformanceChart data={performance} />

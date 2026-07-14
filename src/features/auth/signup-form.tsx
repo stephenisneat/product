@@ -18,7 +18,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-export function SignupForm({ demoMode }: { demoMode: boolean }) {
+export function SignupForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -33,10 +33,6 @@ export function SignupForm({ demoMode }: { demoMode: boolean }) {
   async function onSubmit(values: FormValues) {
     setError(null);
     setMessage(null);
-    if (demoMode) {
-      setError("Supabase is not configured. Use Enter demo instead.");
-      return;
-    }
 
     const { createClient } = await import("@/lib/supabase/client");
     const supabase = createClient();
@@ -51,7 +47,9 @@ export function SignupForm({ demoMode }: { demoMode: boolean }) {
       setError(signUpError.message);
       return;
     }
-    setMessage("Check your email to confirm your account, or continue if confirmations are disabled.");
+    setMessage(
+      "Check your email to confirm your account, or continue if confirmations are disabled.",
+    );
     router.refresh();
   }
 
@@ -91,22 +89,17 @@ export function SignupForm({ demoMode }: { demoMode: boolean }) {
         </div>
         {error ? <p className="text-xs text-destructive">{error}</p> : null}
         {message ? <p className="text-xs text-muted-foreground">{message}</p> : null}
-        <Button type="submit" className="w-full" disabled={isSubmitting || demoMode}>
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
           Sign up
         </Button>
       </form>
 
-      <div className="mt-6 space-y-3 text-center text-sm">
-        <Button variant="outline" className="w-full" render={<Link href="/api/auth/demo" />}>
-          Enter demo
-        </Button>
-        <p className="text-muted-foreground">
-          Already have an account?{" "}
-          <Link href="/login" className="text-foreground underline-offset-4 hover:underline">
-            Sign in
-          </Link>
-        </p>
-      </div>
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        Already have an account?{" "}
+        <Link href="/login" className="text-foreground underline-offset-4 hover:underline">
+          Sign in
+        </Link>
+      </p>
     </div>
   );
 }

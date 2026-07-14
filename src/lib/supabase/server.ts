@@ -1,15 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { getSupabasePublishableKey, isDemoMode } from "@/lib/mode";
+import { getSupabaseConfig } from "@/lib/mode";
 
 export async function createClient() {
-  if (isDemoMode()) {
-    throw new Error("Supabase server client is unavailable in demo mode");
-  }
-
   const cookieStore = await cookies();
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = getSupabasePublishableKey()!;
+  const { url, key } = getSupabaseConfig();
 
   return createServerClient(url, key, {
     cookies: {
