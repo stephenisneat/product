@@ -18,8 +18,14 @@ Next.js App Router · React · TypeScript · Tailwind · shadcn/ui · Supabase �
 ## Quick start
 
 1. Copy `.env.example` to `.env.local` and fill in Supabase (and optionally OpenAI) credentials.
-2. Apply `supabase/migrations/001_init.sql` in your Supabase project.
-3. Run:
+2. Apply migrations in your Supabase project:
+   - `supabase/migrations/001_init.sql`
+   - `supabase/migrations/002_sync_profile_email.sql`
+3. In the Supabase dashboard under **Authentication**:
+   - Add redirect URLs: `http://localhost:3000/auth/callback` and your production `https://…/auth/callback`
+   - Enable the **Google** provider (OAuth client ID/secret from Google Cloud Console)
+   - Keep **Confirm email** enabled for signup verification and change-email
+4. Run:
 
 ```bash
 pnpm install
@@ -27,6 +33,8 @@ pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000), sign up, and start a workspace.
+
+Auth includes email/password, magic link, Google sign-in, password reset, email verification, and change-email from **Account**.
 
 Create a public `product-assets` storage bucket when you are ready to store uploaded product images.
 

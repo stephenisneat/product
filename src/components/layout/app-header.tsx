@@ -31,6 +31,9 @@ export function AppHeader({
               <span className="hidden text-xs text-muted-foreground sm:inline">
                 {user.email}
               </span>
+              <Button size="sm" variant="ghost" render={<Link href="/account" />}>
+                Account
+              </Button>
               <SignOutButton />
             </>
           ) : (

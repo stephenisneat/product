@@ -9,6 +9,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AuthDivider, GoogleAuthButton } from "@/features/auth/oauth-buttons";
+import { authCallbackUrl } from "@/lib/auth/redirect";
 
 const schema = z.object({
   email: z.string().email(),
@@ -21,7 +23,6 @@ type FormValues = z.infer<typeof schema>;
 export function SignupForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -32,25 +33,30 @@ export function SignupForm() {
 
   async function onSubmit(values: FormValues) {
     setError(null);
-    setMessage(null);
 
     const { createClient } = await import("@/lib/supabase/client");
     const supabase = createClient();
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
       options: {
         data: { full_name: values.name },
+        emailRedirectTo: authCallbackUrl(window.location.origin, "/auth/verified"),
       },
     });
     if (signUpError) {
       setError(signUpError.message);
       return;
     }
-    setMessage(
-      "Check your email to confirm your account, or continue if confirmations are disabled.",
-    );
-    router.refresh();
+
+    // Confirmations disabled: session is created immediately.
+    if (data.session) {
+      router.push("/");
+      router.refresh();
+      return;
+    }
+
+    router.push(`/auth/check-email?email=${encodeURIComponent(values.email)}`);
   }
 
   return (
@@ -60,7 +66,18 @@ export function SignupForm() {
         Start a Product Agent workspace for your catalog.
       </p>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-4">
+      <div className="mt-8 space-y-4">
+        <GoogleAuthButton
+          next="/auth/verified"
+          label="Sign up with Google"
+          onError={(msg) => {
+            setError(msg || null);
+          }}
+        />
+        <AuthDivider />
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4">
         <div className="space-y-2">
           <Label htmlFor="name">Name</Label>
           <Input id="name" autoComplete="name" {...register("name")} />
@@ -88,7 +105,6 @@ export function SignupForm() {
           ) : null}
         </div>
         {error ? <p className="text-xs text-destructive">{error}</p> : null}
-        {message ? <p className="text-xs text-muted-foreground">{message}</p> : null}
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           Sign up
         </Button>
