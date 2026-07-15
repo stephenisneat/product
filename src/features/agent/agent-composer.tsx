@@ -27,16 +27,18 @@ export function AgentComposer({
   productId,
   productTitle,
 }: {
-  productId: string;
-  productTitle: string;
+  productId?: string;
+  productTitle?: string;
 }) {
   const router = useRouter();
   const [input, setInput] = useState("");
+  const isWorkspace = !productId;
+
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
-        body: { productId },
+        body: productId ? { productId } : {},
       }),
     [productId],
   );
@@ -64,7 +66,9 @@ export function AgentComposer({
         <Sparkles className="size-3.5 text-muted-foreground" />
         <div className="min-w-0">
           <p className="text-xs font-medium">Agent</p>
-          <p className="truncate text-[11px] text-muted-foreground">{productTitle}</p>
+          <p className="truncate text-[11px] text-muted-foreground">
+            {isWorkspace ? "Workspace" : (productTitle ?? "Product")}
+          </p>
         </div>
       </div>
 
@@ -72,8 +76,9 @@ export function AgentComposer({
         <div className="space-y-3">
           {messages.length === 0 ? (
             <div className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
-              Ask for positioning, ad copy, or a campaign concept. Proposals appear as
-              reviewable artifacts.
+              {isWorkspace
+                ? "Ask about your catalog, prioritize products, or request proposals across the workspace."
+                : "Ask for positioning, ad copy, or a campaign concept. Proposals appear as reviewable artifacts."}
             </div>
           ) : null}
           {messages.map((message) => (
@@ -101,7 +106,11 @@ export function AgentComposer({
         <Textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Propose Meta ad copy for this product…"
+          placeholder={
+            isWorkspace
+              ? "What should we improve across the catalog?"
+              : "Propose Meta ad copy for this product…"
+          }
           rows={3}
           className="resize-none text-sm"
           onKeyDown={(e) => {

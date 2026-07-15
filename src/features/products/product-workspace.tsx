@@ -6,7 +6,6 @@ import type {
   Product,
   ProductIntelligence,
 } from "@/domain";
-import { AgentComposer } from "@/features/agent/agent-composer";
 import { ArtifactCard } from "@/features/artifacts/artifact-card";
 import { PerformanceChart } from "@/features/reporting/performance-chart";
 import { Badge } from "@/components/ui/badge";
@@ -29,8 +28,7 @@ export function ProductWorkspace({
   const proposed = artifacts.filter((a) => a.status === "proposed");
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-[1600px]">
-      <div className="min-w-0 flex-1 px-4 py-4">
+    <div className="px-4 py-4">
         <div className="mb-4 flex flex-wrap items-start gap-4">
           <div className="relative size-20 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
             {product.images[0] ? (
@@ -212,13 +210,6 @@ export function ProductWorkspace({
             </div>
           </TabsContent>
         </Tabs>
-      </div>
-
-      <aside className="hidden w-[360px] shrink-0 lg:block xl:w-[400px]">
-        <div className="sticky top-12 h-[calc(100vh-3rem)]">
-          <AgentComposer productId={product.id} productTitle={product.title} />
-        </div>
-      </aside>
     </div>
   );
 }

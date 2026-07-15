@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { AppHeader } from "@/components/layout/app-header";
+import { AgentProductSync } from "@/features/agent/agent-context";
 import { ProductWorkspace } from "@/features/products/product-workspace";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getArtifactRepository, getProductRepository } from "@/repositories";
@@ -29,8 +29,8 @@ export default async function ProductPage({
   ]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader user={user} productTitle={product.title} />
+    <>
+      <AgentProductSync productId={product.id} productTitle={product.title} />
       <ProductWorkspace
         product={product}
         intelligence={intelligence}
@@ -38,6 +38,6 @@ export default async function ProductPage({
         campaigns={campaigns}
         performance={performance}
       />
-    </div>
+    </>
   );
 }

@@ -1,4 +1,3 @@
-import { AppHeader } from "@/components/layout/app-header";
 import { MarketingHome } from "@/features/marketing/marketing-home";
 import { ProductCatalog } from "@/features/products/product-catalog";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -14,10 +13,5 @@ export default async function RootPage() {
   const products = await getProductRepository();
   const catalog = await products.listProducts(user.id);
 
-  return (
-    <div className="min-h-screen bg-background">
-      <AppHeader user={user} />
-      <ProductCatalog products={catalog} />
-    </div>
-  );
+  return <ProductCatalog products={catalog} />;
 }

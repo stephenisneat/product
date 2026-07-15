@@ -15,7 +15,7 @@ import { getArtifactRepository, getProductRepository } from "@/repositories";
 
 export const runtime = "nodejs";
 
-function buildSystemPrompt(
+function buildProductSystemPrompt(
   product: Product,
   intelligence: ProductIntelligence | null,
 ): string {
@@ -38,6 +38,27 @@ ${
     ? JSON.stringify(intelligence, null, 2)
     : "None yet — propose positioning if asked."
 }`;
+}
+
+function buildWorkspaceSystemPrompt(products: Product[]): string {
+  const catalog =
+    products.length === 0
+      ? "No products in the workspace yet."
+      : products
+          .map(
+            (p) =>
+              `- id: ${p.id} | ${p.title} | status: ${p.status} | price: ${p.price} ${p.currency} | channels: ${p.channels.join(", ") || "none"}`,
+          )
+          .join("\n");
+
+  return `You are Product Agent, an AI marketing collaborator for a commerce workspace.
+The user is chatting at the workspace (catalog) level, not a single product page.
+Help prioritize work, compare products, and propose marketing artifacts for specific products.
+When proposing an artifact, always call propose_artifact with the target productId from the catalog.
+Never invent inventory or prices that contradict the catalog.
+
+Workspace catalog:
+${catalog}`;
 }
 
 async function createArtifactFromProposal(input: {
@@ -65,7 +86,7 @@ async function createArtifactFromProposal(input: {
   return artifacts.create(artifact);
 }
 
-function offlineStreamResponse(product: Product, userId: string): Response {
+function offlineProductStreamResponse(product: Product, userId: string): Response {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -75,7 +96,6 @@ function offlineStreamResponse(product: Product, userId: string): Response {
         `Reviewing ${product.title}. I'll draft positioning and Meta ad copy as structured artifacts for your approval.\n\n` +
         `Creating two proposals now…`;
 
-      // Minimal UI message stream protocol for AI SDK client
       write(`data: ${JSON.stringify({ type: "start" })}\n\n`);
       const messageId = `msg_${crypto.randomUUID().slice(0, 8)}`;
       write(
@@ -149,6 +169,58 @@ function offlineStreamResponse(product: Product, userId: string): Response {
   });
 }
 
+function offlineWorkspaceStreamResponse(products: Product[]): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const write = (chunk: string) => controller.enqueue(encoder.encode(chunk));
+      const count = products.length;
+      const sample = products
+        .slice(0, 3)
+        .map((p) => p.title)
+        .join(", ");
+      const text =
+        count === 0
+          ? "Your workspace has no products yet. Add a product from the catalog, then ask me to develop positioning or ad copy."
+          : `Workspace view: ${count} product${count === 1 ? "" : "s"}${sample ? ` (e.g. ${sample})` : ""}. Open a product for focused proposals, or tell me which product to work on and what you need.`;
+
+      write(`data: ${JSON.stringify({ type: "start" })}\n\n`);
+      const messageId = `msg_${crypto.randomUUID().slice(0, 8)}`;
+      write(
+        `data: ${JSON.stringify({ type: "text-start", id: messageId })}\n\n`,
+      );
+
+      for (const word of text.split(/(\s+)/)) {
+        write(
+          `data: ${JSON.stringify({ type: "text-delta", id: messageId, delta: word })}\n\n`,
+        );
+        await new Promise((r) => setTimeout(r, 12));
+      }
+
+      write(`data: ${JSON.stringify({ type: "text-end", id: messageId })}\n\n`);
+      write(`data: ${JSON.stringify({ type: "finish" })}\n\n`);
+      write("data: [DONE]\n\n");
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "x-vercel-ai-ui-message-stream": "v1",
+    },
+  });
+}
+
+const artifactTypeSchema = z.enum([
+  "positioning",
+  "ad_copy",
+  "campaign_concept",
+  "listing_update",
+]);
+
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) {
@@ -161,45 +233,94 @@ export async function POST(req: Request) {
   };
 
   const productId = body.productId;
-  if (!productId) {
-    return Response.json({ error: "productId is required" }, { status: 400 });
-  }
-
-  const products = await getProductRepository();
-  const product = await products.getProduct(productId);
-  if (!product) {
-    return Response.json({ error: "Product not found" }, { status: 404 });
-  }
-
-  const intelligence = await products.getIntelligence(productId);
+  const productsRepo = await getProductRepository();
   const messages = body.messages ?? [];
 
+  if (productId) {
+    const product = await productsRepo.getProduct(productId);
+    if (!product) {
+      return Response.json({ error: "Product not found" }, { status: 404 });
+    }
+    if (product.ownerId !== user.id) {
+      return Response.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const intelligence = await productsRepo.getIntelligence(productId);
+
+    if (!hasOpenAI()) {
+      return offlineProductStreamResponse(product, user.id);
+    }
+
+    const result = streamText({
+      model: openai("gpt-4.1-mini"),
+      system: buildProductSystemPrompt(product, intelligence),
+      messages: await convertToModelMessages(messages),
+      tools: {
+        propose_artifact: tool({
+          description:
+            "Propose a structured marketing artifact for human review before it is applied.",
+          inputSchema: z.object({
+            type: artifactTypeSchema,
+            title: z.string(),
+            summary: z.string(),
+            payload: z.record(z.string(), z.unknown()),
+          }),
+          execute: async (input) => {
+            const artifact = await createArtifactFromProposal({
+              productId,
+              type: input.type,
+              title: input.title,
+              summary: input.summary,
+              payload: input.payload,
+              userId: user.id,
+            });
+            return {
+              ok: true,
+              artifactId: artifact.id,
+              message: `Created proposal "${artifact.title}" for review.`,
+            };
+          },
+        }),
+      },
+    });
+
+    return createUIMessageStreamResponse({
+      stream: toUIMessageStream({ stream: result.stream }),
+    });
+  }
+
+  // Workspace mode
+  const catalog = await productsRepo.listProducts(user.id);
+  const ownedIds = new Set(catalog.map((p) => p.id));
+
   if (!hasOpenAI()) {
-    return offlineStreamResponse(product, user.id);
+    return offlineWorkspaceStreamResponse(catalog);
   }
 
   const result = streamText({
     model: openai("gpt-4.1-mini"),
-    system: buildSystemPrompt(product, intelligence),
+    system: buildWorkspaceSystemPrompt(catalog),
     messages: await convertToModelMessages(messages),
     tools: {
       propose_artifact: tool({
         description:
-          "Propose a structured marketing artifact for human review before it is applied.",
+          "Propose a structured marketing artifact for a specific product in the workspace. productId must be one of the catalog ids.",
         inputSchema: z.object({
-          type: z.enum([
-            "positioning",
-            "ad_copy",
-            "campaign_concept",
-            "listing_update",
-          ]),
+          productId: z.string(),
+          type: artifactTypeSchema,
           title: z.string(),
           summary: z.string(),
           payload: z.record(z.string(), z.unknown()),
         }),
         execute: async (input) => {
+          if (!ownedIds.has(input.productId)) {
+            return {
+              ok: false,
+              message: "productId is not in this workspace catalog.",
+            };
+          }
           const artifact = await createArtifactFromProposal({
-            productId,
+            productId: input.productId,
             type: input.type,
             title: input.title,
             summary: input.summary,
