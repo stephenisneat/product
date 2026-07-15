@@ -30,6 +30,7 @@ export async function POST(req: Request) {
     price: input.price,
     currency: input.currency,
     images: input.images,
+    imageAvgColors: input.imageAvgColors,
     channels: [],
     sku: input.sku || undefined,
     category: input.category || undefined,

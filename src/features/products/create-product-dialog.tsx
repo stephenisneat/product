@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { productStatusSchema } from "@/domain";
+import { averageColorFromFile } from "@/lib/images/average-color";
 import { createProductId, slugify } from "@/lib/products/slugify";
 
 const formSchema = z.object({
@@ -72,31 +73,39 @@ async function uploadProductImages(
   ownerId: string,
   productId: string,
   images: ImageDraft[],
-): Promise<string[]> {
-  if (images.length === 0) return [];
+): Promise<{ urls: string[]; avgColors: string[] }> {
+  if (images.length === 0) return { urls: [], avgColors: [] };
 
   const { createClient } = await import("@/lib/supabase/client");
   const supabase = createClient();
   const urls: string[] = [];
+  const avgColors: string[] = [];
 
   for (const [index, image] of images.entries()) {
-    const path = `${ownerId}/${productId}/${index}-${crypto.randomUUID().slice(0, 8)}.${extensionFor(image.file)}`;
-    const { error } = await supabase.storage
-      .from("product-assets")
-      .upload(path, image.file, {
-        cacheControl: "3600",
-        contentType: image.file.type,
-        upsert: false,
-      });
-    if (error) {
-      throw new Error(error.message || "Failed to upload image");
-    }
+    const [publicUrl, avgColor] = await Promise.all([
+      (async () => {
+        const path = `${ownerId}/${productId}/${index}-${crypto.randomUUID().slice(0, 8)}.${extensionFor(image.file)}`;
+        const { error } = await supabase.storage
+          .from("product-assets")
+          .upload(path, image.file, {
+            cacheControl: "3600",
+            contentType: image.file.type,
+            upsert: false,
+          });
+        if (error) {
+          throw new Error(error.message || "Failed to upload image");
+        }
+        const { data } = supabase.storage.from("product-assets").getPublicUrl(path);
+        return data.publicUrl;
+      })(),
+      averageColorFromFile(image.file),
+    ]);
 
-    const { data } = supabase.storage.from("product-assets").getPublicUrl(path);
-    urls.push(data.publicUrl);
+    urls.push(publicUrl);
+    avgColors.push(avgColor);
   }
 
-  return urls;
+  return { urls, avgColors };
 }
 
 export function CreateProductButton({
@@ -240,7 +249,8 @@ export function CreateProductButton({
       }
 
       const productId = createProductId();
-      const imageUrls = await uploadProductImages(user.id, productId, images);
+      const { urls: imageUrls, avgColors: imageAvgColors } =
+        await uploadProductImages(user.id, productId, images);
 
       const res = await fetch("/api/products", {
         method: "POST",
@@ -254,6 +264,7 @@ export function CreateProductButton({
           currency: values.currency,
           status: values.status,
           images: imageUrls,
+          imageAvgColors,
           sku: values.sku.trim() || undefined,
           category: values.category.trim() || undefined,
         }),

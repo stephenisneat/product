@@ -77,6 +77,10 @@ export const collectionSchema = z.object({
 
 export type Collection = z.infer<typeof collectionSchema>;
 
+export const imageAvgColorSchema = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, "Expected a #rrggbb color");
+
 export const productSchema = z.object({
   id: z.string(),
   title: z.string().min(1),
@@ -86,6 +90,8 @@ export const productSchema = z.object({
   price: z.number().nonnegative(),
   currency: z.string().default("USD"),
   images: z.array(z.string().url()).default([]),
+  /** Parallel to `images` — average opaque pixel as #rrggbb. */
+  imageAvgColors: z.array(imageAvgColorSchema).default([]),
   channels: z.array(z.string()).default([]),
   sku: z.string().optional(),
   category: z.string().optional(),
@@ -111,6 +117,7 @@ export const canonicalProductSchema = z.object({
   description: z.string().default(""),
   status: productStatusSchema,
   images: z.array(z.string().url()).default([]),
+  imageAvgColors: z.array(imageAvgColorSchema).default([]),
   options: z.array(
     z.object({
       name: z.string().min(1),
@@ -164,6 +171,7 @@ export const createProductInputSchema = z.object({
   price: z.number().nonnegative("Price must be 0 or greater"),
   currency: z.string().min(1).default("USD"),
   images: z.array(z.string().url()).default([]),
+  imageAvgColors: z.array(imageAvgColorSchema).default([]),
   sku: z.string().optional(),
   category: z.string().optional(),
 });

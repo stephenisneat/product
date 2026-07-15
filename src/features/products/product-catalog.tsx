@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { SearchIcon } from "lucide-react";
 import type { Product } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { ProductImage } from "@/components/product-image";
 import { CreateProductMenu } from "@/features/products/create-product-menu";
 import { formatMoney } from "@/lib/format";
 
@@ -80,21 +80,19 @@ export function ProductCatalog({ products }: { products: Product[] }) {
                 href={`/products/${product.id}`}
                 className="group flex h-full flex-col outline-none transition-colors focus-visible:bg-muted/40"
               >
-                <div className="relative aspect-[4/3] overflow-hidden">
-                  {product.images[0] ? (
-                    <Image
-                      src={product.images[0]}
-                      alt=""
-                      fill
-                      className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                      sizes="(max-width: 640px) 100vw, 25vw"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                      No image
-                    </div>
-                  )}
-                </div>
+                {product.images[0] ? (
+                  <ProductImage
+                    src={product.images[0]}
+                    avgColor={product.imageAvgColors[0]}
+                    className="aspect-[4/3]"
+                    imageClassName="transition-transform duration-300 group-hover:scale-[1.02]"
+                    sizes="(max-width: 640px) 100vw, 25vw"
+                  />
+                ) : (
+                  <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden text-xs text-muted-foreground">
+                    No image
+                  </div>
+                )}
                 <div className="flex flex-1 flex-col gap-2 p-3">
                   <div className="flex items-start justify-between gap-2">
                     <h2 className="text-sm font-medium leading-snug">{product.title}</h2>

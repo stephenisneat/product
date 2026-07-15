@@ -34,6 +34,7 @@ export {
   commerceProviderSchema,
   connectionStatusSchema,
   createProductInputSchema,
+  imageAvgColorSchema,
   inventoryLevelSchema,
   listingUpdatePayloadSchema,
   performancePointSchema,

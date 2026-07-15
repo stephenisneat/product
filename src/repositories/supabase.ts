@@ -34,6 +34,7 @@ type DbProduct = {
   price: number;
   currency: string;
   images: string[];
+  image_avg_colors: string[];
   channels: string[];
   sku: string | null;
   category: string | null;
@@ -116,6 +117,7 @@ function mapProduct(row: DbProduct): Product {
     price: Number(row.price),
     currency: row.currency,
     images: row.images ?? [],
+    imageAvgColors: row.image_avg_colors ?? [],
     channels: row.channels ?? [],
     sku: row.sku ?? undefined,
     category: row.category ?? undefined,
@@ -278,6 +280,7 @@ export class SupabaseProductRepository implements ProductRepository {
       price: product.price,
       currency: product.currency,
       images: product.images,
+      image_avg_colors: product.imageAvgColors ?? [],
       channels: product.channels,
       sku: product.sku ?? null,
       category: product.category ?? null,
@@ -349,6 +352,7 @@ export class SupabaseProductRepository implements ProductRepository {
       price: summary.price,
       currency: summary.currency,
       images: canonical.images,
+      image_avg_colors: canonical.imageAvgColors ?? [],
       channels,
       sku: summary.sku ?? null,
       category: summary.category ?? null,

@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import type {
@@ -10,6 +9,7 @@ import type {
 } from "@/domain";
 import { ArtifactCard } from "@/features/artifacts/artifact-card";
 import { PerformanceChart } from "@/features/reporting/performance-chart";
+import { ProductImage } from "@/components/product-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,11 +45,10 @@ export function ProductWorkspace({
         <div className="mb-4 flex flex-wrap items-start gap-4">
           <div className="relative size-20 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
             {product.images[0] ? (
-              <Image
+              <ProductImage
                 src={product.images[0]}
-                alt=""
-                fill
-                className="object-cover"
+                avgColor={product.imageAvgColors[0]}
+                className="size-full"
                 sizes="80px"
               />
             ) : null}
