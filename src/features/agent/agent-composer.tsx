@@ -5,6 +5,8 @@ import { DefaultChatTransport } from "ai";
 import { Loader2, Send, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { AppUser } from "@/domain";
+import { UserMenu } from "@/components/layout/user-menu";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -24,9 +26,11 @@ function messageText(message: {
 }
 
 export function AgentComposer({
+  user,
   productId,
   productTitle,
 }: {
+  user: AppUser;
   productId?: string;
   productTitle?: string;
 }) {
@@ -63,13 +67,14 @@ export function AgentComposer({
   return (
     <div className="flex h-full min-h-0 flex-col border-l border-border bg-card/20">
       <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
-        <Sparkles className="size-3.5 text-muted-foreground" />
-        <div className="min-w-0">
+        <Sparkles className="size-3.5 shrink-0 text-muted-foreground" />
+        <div className="min-w-0 flex-1">
           <p className="text-xs font-medium">Agent</p>
           <p className="truncate text-[11px] text-muted-foreground">
             {isWorkspace ? "Workspace" : (productTitle ?? "Product")}
           </p>
         </div>
+        <UserMenu user={user} />
       </div>
 
       <ScrollArea className="flex-1 px-3 py-3">

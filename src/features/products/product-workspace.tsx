@@ -1,4 +1,6 @@
 import Image from "next/image";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import type {
   Artifact,
   Campaign,
@@ -9,6 +11,7 @@ import type {
 import { ArtifactCard } from "@/features/artifacts/artifact-card";
 import { PerformanceChart } from "@/features/reporting/performance-chart";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatMoney } from "@/lib/format";
 
@@ -29,6 +32,15 @@ export function ProductWorkspace({
 
   return (
     <div className="px-4 py-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mb-3 -ml-2 gap-1.5 text-muted-foreground"
+          render={<Link href="/" />}
+        >
+          <ArrowLeft className="size-3.5" />
+          Back
+        </Button>
         <div className="mb-4 flex flex-wrap items-start gap-4">
           <div className="relative size-20 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
             {product.images[0] ? (

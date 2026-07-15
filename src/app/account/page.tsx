@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AppHeader } from "@/components/layout/app-header";
+import { UserMenu } from "@/components/layout/user-menu";
 import { ChangeEmailForm } from "@/features/auth/change-email-form";
 import { getCurrentUser } from "@/lib/auth/session";
 
@@ -19,8 +19,10 @@ export default async function AccountPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader user={user} />
-      <main className="mx-auto max-w-lg px-4 py-10">
+      <div className="mx-auto flex max-w-lg items-center justify-end px-4 pt-4">
+        <UserMenu user={user} />
+      </div>
+      <main className="mx-auto max-w-lg px-4 py-6">
         <div className="mb-8">
           <p className="text-xs text-muted-foreground">
             <Link href="/" className="underline-offset-4 hover:underline">
