@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -45,30 +46,36 @@ export function UserMenu({ user }: { user: AppUser }) {
           <span className="sr-only">Open account menu</span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-56">
-          <DropdownMenuLabel className="font-normal">
-            <div className="flex flex-col gap-0.5">
-              {user.name ? (
-                <span className="text-sm font-medium text-foreground">
-                  {user.name}
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col gap-0.5">
+                {user.name ? (
+                  <span className="text-sm font-medium text-foreground">
+                    {user.name}
+                  </span>
+                ) : null}
+                <span className="truncate text-xs text-muted-foreground">
+                  {user.email}
                 </span>
-              ) : null}
-              <span className="truncate text-xs text-muted-foreground">
-                {user.email}
-              </span>
-            </div>
-          </DropdownMenuLabel>
+              </div>
+            </DropdownMenuLabel>
+          </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => setCreateOpen(true)}>
-            <PlusIcon />
-            Create product
-          </DropdownMenuItem>
-          <DropdownMenuItem render={<Link href="/account" />}>
-            Account
-          </DropdownMenuItem>
+          <DropdownMenuGroup>
+            <DropdownMenuItem onClick={() => setCreateOpen(true)}>
+              <PlusIcon />
+              Create product
+            </DropdownMenuItem>
+            <DropdownMenuItem render={<Link href="/account" />}>
+              Account
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onClick={onSignOut}>
-            Sign out
-          </DropdownMenuItem>
+          <DropdownMenuGroup>
+            <DropdownMenuItem variant="destructive" onClick={onSignOut}>
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
       <CreateProductButton
