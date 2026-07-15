@@ -23,6 +23,7 @@ function buildProductSystemPrompt(
 You help develop positioning, ad copy, campaign concepts, and listing updates.
 Always prefer calling propose_artifact when you have a concrete proposal ready for review.
 Never invent inventory or prices that contradict the product context.
+The user may navigate between pages during a conversation. Treat the product below as the current page context for this turn.
 
 Product:
 - Title: ${product.title}
@@ -56,6 +57,7 @@ The user is chatting at the workspace (catalog) level, not a single product page
 Help prioritize work, compare products, and propose marketing artifacts for specific products.
 When proposing an artifact, always call propose_artifact with the target productId from the catalog.
 Never invent inventory or prices that contradict the catalog.
+The user may navigate between pages during a conversation. Treat this workspace context as the current page for this turn.
 
 Workspace catalog:
 ${catalog}`;

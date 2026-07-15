@@ -23,7 +23,6 @@ type AgentContextValue = {
   activeProduct: ActiveProduct | null;
   setActiveProduct: (product: ActiveProduct | null) => void;
   route: AgentRouteContext;
-  contextKey: string;
 };
 
 const AgentContext = createContext<AgentContextValue | null>(null);
@@ -50,17 +49,13 @@ export function AgentContextProvider({ children }: { children: ReactNode }) {
     return { mode: "workspace" };
   }, [pathProductId, activeProduct]);
 
-  const contextKey =
-    route.mode === "product" ? `product:${route.productId}` : "workspace";
-
   const value = useMemo(
     () => ({
       activeProduct,
       setActiveProduct,
       route,
-      contextKey,
     }),
-    [activeProduct, route, contextKey],
+    [activeProduct, route],
   );
 
   return <AgentContext.Provider value={value}>{children}</AgentContext.Provider>;
