@@ -7,6 +7,7 @@ AI marketing workspace for commerce products — [product.ag](https://product.ag
 ## What this milestone includes
 
 - Marketing site for logged-out visitors; product catalog when authenticated (server-side, no flash)
+- Manual product creation (title, handle, description, price, images, status, SKU, category)
 - Product workspace with intelligence, campaigns, performance chart, and reviewable agent artifacts
 - Streaming agent composer (OpenAI when configured; deterministic offline stream otherwise)
 - Supabase schema + repository adapters
@@ -21,6 +22,7 @@ Next.js App Router · React · TypeScript · Tailwind · shadcn/ui · Supabase �
 2. Apply migrations in your Supabase project:
    - `supabase/migrations/001_init.sql`
    - `supabase/migrations/002_sync_profile_email.sql`
+   - `supabase/migrations/003_product_assets_bucket.sql`
 3. In the Supabase dashboard under **Authentication**:
    - Add redirect URLs: `http://localhost:3000/auth/callback` and your production `https://…/auth/callback`
    - Enable the **Google** provider (OAuth client ID/secret from Google Cloud Console)
@@ -36,7 +38,7 @@ Open [http://localhost:3000](http://localhost:3000), sign up, and start a worksp
 
 Auth includes email/password, magic link, Google sign-in, password reset, email verification, and change-email from **Account**.
 
-Create a public `product-assets` storage bucket when you are ready to store uploaded product images.
+Product images upload to the `product-assets` storage bucket created by migration `003_product_assets_bucket.sql`.
 
 ## Environment
 
