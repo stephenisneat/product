@@ -17,11 +17,16 @@ export type {
   ProductOption,
   ProductStatus,
   ProductVariant,
+  WalletBlockedReason,
+  WalletSummary,
+  WalletTransaction,
+  WalletTransactionType,
   Workspace,
   WorkspaceInvite,
   WorkspaceInviteRole,
   WorkspaceMember,
   WorkspaceRole,
+  WorkspaceWallet,
 } from "./schemas";
 
 export {
@@ -49,9 +54,14 @@ export {
   productSchema,
   productStatusSchema,
   productVariantSchema,
+  walletBlockedReasonSchema,
+  walletSummarySchema,
+  walletTransactionSchema,
+  walletTransactionTypeSchema,
   workspaceInviteRoleSchema,
   workspaceInviteSchema,
   workspaceMemberSchema,
   workspaceRoleSchema,
   workspaceSchema,
+  workspaceWalletSchema,
 } from "./schemas";

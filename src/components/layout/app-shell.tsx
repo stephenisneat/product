@@ -4,6 +4,21 @@ import type { ReactNode } from "react";
 import type { AppUser } from "@/domain";
 import { AgentComposer } from "@/features/agent/agent-composer";
 import { AgentContextProvider } from "@/features/agent/agent-context";
+import { WalletBlockedBanner } from "@/features/wallet/wallet-blocked-banner";
+import { WalletProvider, useWallet } from "@/features/wallet/wallet-context";
+import { BuyCreditsDialog } from "@/features/wallet/wallet-dialogs";
+
+function WalletBuyCreditsHost() {
+  const { wallet, openBuyCredits, setOpenBuyCredits } = useWallet();
+  if (!wallet) return null;
+  return (
+    <BuyCreditsDialog
+      open={openBuyCredits}
+      onOpenChange={setOpenBuyCredits}
+      wallet={wallet}
+    />
+  );
+}
 
 function AppShellFrame({
   user,
@@ -14,6 +29,7 @@ function AppShellFrame({
 }) {
   return (
     <div className="min-h-screen bg-background">
+      <WalletBlockedBanner />
       <div className="mx-auto flex min-h-screen">
         <div className="min-w-0 flex-1">{children}</div>
         <aside className="hidden w-[360px] shrink-0 lg:block xl:w-[400px]">
@@ -22,6 +38,7 @@ function AppShellFrame({
           </div>
         </aside>
       </div>
+      <WalletBuyCreditsHost />
     </div>
   );
 }
@@ -34,8 +51,10 @@ export function AppShell({
   children: ReactNode;
 }) {
   return (
-    <AgentContextProvider>
-      <AppShellFrame user={user}>{children}</AppShellFrame>
-    </AgentContextProvider>
+    <WalletProvider>
+      <AgentContextProvider>
+        <AppShellFrame user={user}>{children}</AppShellFrame>
+      </AgentContextProvider>
+    </WalletProvider>
   );
 }

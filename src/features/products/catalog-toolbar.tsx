@@ -9,7 +9,6 @@ import {
   CopyIcon,
   LightbulbIcon,
   Link2Icon,
-  WalletIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -19,10 +18,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { formatMoney } from "@/lib/format";
+import { WalletMenu } from "@/features/wallet/wallet-menu";
 
 const PLUGIN_SNIPPET = `<script
   src="https://cdn.product.app/v1/plugin.js"
@@ -36,9 +33,6 @@ const CHANNELS = [
   { id: "tiktok", name: "TikTok Ads", connected: false },
   { id: "pinterest", name: "Pinterest", connected: false },
 ] as const;
-
-const WALLET_BALANCE = 1240;
-const REFILL_PRESETS = [50, 100, 250, 500] as const;
 
 function ProductPluginMenu() {
   const [copied, setCopied] = useState(false);
@@ -165,94 +159,6 @@ function ChannelsMenu() {
         <p className="px-1.5 py-1 text-sm text-muted-foreground">
           Manage channels…
         </p>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function WalletMenu() {
-  const [refillAmount, setRefillAmount] = useState("100");
-  const [spendLimit, setSpendLimit] = useState("500");
-
-  return (
-    <Popover>
-      <PopoverTrigger
-        render={<Button type="button" variant="outline" size="sm" />}
-      >
-        <WalletIcon data-icon="inline-start" />
-        {formatMoney(WALLET_BALANCE)}
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 p-0">
-        <div className="space-y-3 p-3">
-          <div>
-            <p className="text-xs text-muted-foreground">Available balance</p>
-            <p className="font-heading text-lg font-semibold tracking-tight">
-              {formatMoney(WALLET_BALANCE)}
-            </p>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <Label htmlFor="wallet-refill" className="text-xs font-medium">
-              Refill wallet
-            </Label>
-            <div className="flex flex-wrap gap-1.5">
-              {REFILL_PRESETS.map((amount) => (
-                <Button
-                  key={amount}
-                  type="button"
-                  size="xs"
-                  variant={refillAmount === String(amount) ? "secondary" : "outline"}
-                  onClick={() => setRefillAmount(String(amount))}
-                >
-                  {formatMoney(amount)}
-                </Button>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                id="wallet-refill"
-                type="number"
-                min={1}
-                step={1}
-                value={refillAmount}
-                onChange={(e) => setRefillAmount(e.target.value)}
-                className="h-7"
-                aria-label="Custom refill amount"
-              />
-              <Button type="button" size="sm" variant="secondary" disabled>
-                Refill
-              </Button>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <Label htmlFor="wallet-spend-limit" className="text-xs font-medium">
-              Daily spend limit
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                id="wallet-spend-limit"
-                type="number"
-                min={0}
-                step={1}
-                value={spendLimit}
-                onChange={(e) => setSpendLimit(e.target.value)}
-                className="h-7"
-                aria-label="Daily spend limit"
-              />
-              <Button type="button" size="sm" variant="secondary" disabled>
-                Save
-              </Button>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Caps ad spend across connected channels.
-            </p>
-          </div>
-        </div>
       </PopoverContent>
     </Popover>
   );

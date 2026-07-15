@@ -12,6 +12,11 @@ import type { Artifact, Product, ProductIntelligence } from "@/domain";
 import { hasOpenAI } from "@/lib/mode";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
+import {
+  assertWalletAllowsAi,
+  chargeAiUsage,
+  CHAT_MODEL,
+} from "@/lib/wallet/gate";
 import { getArtifactRepository, getProductRepository } from "@/repositories";
 
 export const runtime = "nodejs";
@@ -255,10 +260,22 @@ export async function POST(req: Request) {
       return offlineProductStreamResponse(product, user.id);
     }
 
+    const gate = await assertWalletAllowsAi(active.workspace.id);
+    if (!gate.ok) return gate.response;
+
     const result = streamText({
-      model: openai("gpt-4.1-mini"),
+      model: openai(CHAT_MODEL),
       system: buildProductSystemPrompt(product, intelligence),
       messages: await convertToModelMessages(messages),
+      onFinish: async ({ usage }) => {
+        await chargeAiUsage({
+          workspaceId: active.workspace.id,
+          userId: user.id,
+          inputTokens: usage.inputTokens ?? 0,
+          outputTokens: usage.outputTokens ?? 0,
+          model: CHAT_MODEL,
+        });
+      },
       tools: {
         propose_artifact: tool({
           description:
@@ -305,10 +322,22 @@ export async function POST(req: Request) {
     return offlineWorkspaceStreamResponse(catalog);
   }
 
+  const gate = await assertWalletAllowsAi(activeWorkspace.workspace.id);
+  if (!gate.ok) return gate.response;
+
   const result = streamText({
-    model: openai("gpt-4.1-mini"),
+    model: openai(CHAT_MODEL),
     system: buildWorkspaceSystemPrompt(catalog),
     messages: await convertToModelMessages(messages),
+    onFinish: async ({ usage }) => {
+      await chargeAiUsage({
+        workspaceId: activeWorkspace.workspace.id,
+        userId: user.id,
+        inputTokens: usage.inputTokens ?? 0,
+        outputTokens: usage.outputTokens ?? 0,
+        model: CHAT_MODEL,
+      });
+    },
     tools: {
       propose_artifact: tool({
         description:

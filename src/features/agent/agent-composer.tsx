@@ -5,6 +5,7 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { History, Loader2, MessageSquarePlus, Send } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import type { AppUser } from "@/domain";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import {
   upsertConversation,
   type AgentConversation,
 } from "@/features/agent/agent-conversations";
+import { useWalletOptional } from "@/features/wallet/wallet-context";
 
 function formatUpdatedAt(iso: string) {
   const date = new Date(iso);
@@ -44,6 +46,7 @@ function formatUpdatedAt(iso: string) {
 export function AgentComposer({ user }: { user: AppUser }) {
   const router = useRouter();
   const { route } = useAgentContext();
+  const walletCtx = useWalletOptional();
   const productId = route.mode === "product" ? route.productId : undefined;
   const productTitle =
     route.mode === "product" ? route.productTitle : undefined;
@@ -94,10 +97,27 @@ export function AgentComposer({ user }: { user: AppUser }) {
     transport,
     onFinish: () => {
       router.refresh();
+      void walletCtx?.refresh();
+    },
+    onError: (err) => {
+      const msg = err.message || "";
+      if (
+        msg.includes("402") ||
+        msg.includes("wallet_blocked") ||
+        msg.includes("Wallet blocked")
+      ) {
+        toast.error(
+          "AI is blocked until you add credits or raise your usage limit.",
+        );
+        void walletCtx?.refresh();
+        return;
+      }
+      toast.error(msg || "Something went wrong");
     },
   });
 
   const busy = status === "submitted" || status === "streaming";
+  const walletBlocked = walletCtx?.wallet?.blocked === true;
 
   messagesRef.current = messages;
 
@@ -195,6 +215,12 @@ export function AgentComposer({ user }: { user: AppUser }) {
     e.preventDefault();
     const text = input.trim();
     if (!text || busy) return;
+    if (walletBlocked) {
+      toast.error(
+        "AI is blocked until you add credits or raise your usage limit.",
+      );
+      return;
+    }
     setInput("");
     await sendMessage({ text });
   }
@@ -303,12 +329,15 @@ export function AgentComposer({ user }: { user: AppUser }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={
-            isWorkspace
-              ? "What should we improve across the catalog?"
-              : `Propose Meta ad copy for ${productTitle ?? "this product"}…`
+            walletBlocked
+              ? "AI is paused — add credits or raise your usage limit"
+              : isWorkspace
+                ? "What should we improve across the catalog?"
+                : `Propose Meta ad copy for ${productTitle ?? "this product"}…`
           }
           rows={3}
           className="resize-none text-sm"
+          disabled={walletBlocked}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -320,7 +349,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
           <Button
             type="submit"
             size="sm"
-            disabled={busy || !input.trim()}
+            disabled={busy || !input.trim() || walletBlocked}
             className="gap-1.5"
           >
             {busy ? (

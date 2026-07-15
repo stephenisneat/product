@@ -322,3 +322,70 @@ export const appUserSchema = z.object({
 });
 
 export type AppUser = z.infer<typeof appUserSchema>;
+
+export const walletTransactionTypeSchema = z.enum([
+  "credit_purchase",
+  "auto_reload",
+  "ai_usage",
+  "ad_spend",
+  "adjustment",
+  "refund",
+]);
+export type WalletTransactionType = z.infer<typeof walletTransactionTypeSchema>;
+
+export const workspaceWalletSchema = z.object({
+  workspaceId: z.string().uuid(),
+  stripeCustomerId: z.string().nullable(),
+  balanceCents: z.number().int().nonnegative(),
+  currency: z.string(),
+  adSpendLimitCents: z.number().int().nonnegative().nullable(),
+  usageLimitCents: z.number().int().nonnegative().nullable(),
+  usageMtdCents: z.number().int().nonnegative(),
+  adSpendMtdCents: z.number().int().nonnegative(),
+  mtdPeriodStart: z.string(),
+  autoReloadEnabled: z.boolean(),
+  autoReloadThresholdCents: z.number().int().nonnegative().nullable(),
+  autoReloadTargetCents: z.number().int().nonnegative().nullable(),
+  stripeDefaultPaymentMethodId: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type WorkspaceWallet = z.infer<typeof workspaceWalletSchema>;
+
+export const walletTransactionSchema = z.object({
+  id: z.string().uuid(),
+  workspaceId: z.string().uuid(),
+  type: walletTransactionTypeSchema,
+  amountCents: z.number().int(),
+  balanceAfterCents: z.number().int().nonnegative(),
+  description: z.string(),
+  metadata: z.record(z.string(), z.unknown()),
+  stripeObjectId: z.string().nullable(),
+  createdBy: z.string().nullable(),
+  createdAt: z.string().datetime(),
+});
+export type WalletTransaction = z.infer<typeof walletTransactionSchema>;
+
+export const walletBlockedReasonSchema = z.enum([
+  "zero_balance",
+  "usage_limit",
+]);
+export type WalletBlockedReason = z.infer<typeof walletBlockedReasonSchema>;
+
+export const walletSummarySchema = z.object({
+  balanceCents: z.number().int().nonnegative(),
+  currency: z.string(),
+  adSpendLimitCents: z.number().int().nonnegative().nullable(),
+  usageLimitCents: z.number().int().nonnegative().nullable(),
+  usageMtdCents: z.number().int().nonnegative(),
+  adSpendMtdCents: z.number().int().nonnegative(),
+  resetsOn: z.string(),
+  autoReloadEnabled: z.boolean(),
+  autoReloadThresholdCents: z.number().int().nonnegative().nullable(),
+  autoReloadTargetCents: z.number().int().nonnegative().nullable(),
+  hasPaymentMethod: z.boolean(),
+  blocked: z.boolean(),
+  blockedReason: walletBlockedReasonSchema.nullable(),
+  canManage: z.boolean(),
+});
+export type WalletSummary = z.infer<typeof walletSummarySchema>;

@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { SupabaseArtifactRepository, SupabaseProductRepository } from "./supabase";
+import { SupabaseWalletRepository } from "./wallet";
 import { SupabaseWorkspaceRepository } from "./workspaces";
 import type {
   ArtifactRepository,
@@ -22,9 +24,25 @@ export async function getWorkspaceRepository(): Promise<WorkspaceRepository> {
   return new SupabaseWorkspaceRepository(client);
 }
 
+/** Read path uses the user session (RLS). */
+export async function getWalletRepository(): Promise<SupabaseWalletRepository> {
+  const client = await createClient();
+  return new SupabaseWalletRepository(client);
+}
+
+/** Write path (credits/debits/ensure) uses the service role. */
+export function getWalletWriteRepository(): SupabaseWalletRepository {
+  return new SupabaseWalletRepository(createServiceClient());
+}
+
 export type {
   ArtifactRepository,
   ProductRepository,
   WorkspaceRepository,
   WorkspaceWithRole,
 } from "./types";
+export type { SupabaseWalletRepository } from "./wallet";
+export {
+  getWalletBlockedReason,
+  nextMonthResetIso,
+} from "./wallet";
