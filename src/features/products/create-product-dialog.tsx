@@ -292,8 +292,8 @@ export function CreateProductButton({
         <DialogHeader>
           <DialogTitle>New product</DialogTitle>
           <DialogDescription>
-            Add a product manually. Imports from Shopify, WooCommerce, and Amazon
-            are coming soon.
+            Add a product manually. Use Create product → Import from Shopify to
+            pull from a connected store.
           </DialogDescription>
         </DialogHeader>
 

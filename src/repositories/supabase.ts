@@ -2,12 +2,28 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   Artifact,
   Campaign,
+  CanonicalProduct,
+  Collection,
+  CommerceConnection,
+  CommerceProvider,
   PerformancePoint,
   Product,
   ProductIntelligence,
+  ProductOption,
+  ProductVariant,
 } from "@/domain";
 import { buildPerformanceSeries } from "@/lib/performance/sample-series";
-import type { ArtifactRepository, ProductRepository } from "./types";
+import {
+  createCollectionId,
+  createOptionId,
+  createProductId,
+  createVariantId,
+} from "@/lib/products/slugify";
+import type {
+  ArtifactRepository,
+  CommerceConnectionRecord,
+  ProductRepository,
+} from "./types";
 
 type DbProduct = {
   id: string;
@@ -21,10 +37,73 @@ type DbProduct = {
   channels: string[];
   sku: string | null;
   category: string | null;
+  source_provider: string | null;
+  source_product_id: string | null;
   synced_at: string | null;
   created_at: string;
   updated_at: string;
   owner_id: string;
+};
+
+type DbVariant = {
+  id: string;
+  product_id: string;
+  title: string;
+  sku: string | null;
+  barcode: string | null;
+  price: number;
+  compare_at_price: number | null;
+  currency: string;
+  option_values: Record<string, string> | null;
+  position: number;
+  source_variant_id: string | null;
+  image_url: string | null;
+  created_at: string;
+  updated_at: string;
+  inventory_levels?:
+    | {
+        variant_id: string;
+        quantity: number;
+        tracked: boolean;
+        updated_at: string;
+      }
+    | {
+        variant_id: string;
+        quantity: number;
+        tracked: boolean;
+        updated_at: string;
+      }[]
+    | null;
+};
+
+type DbOption = {
+  id: string;
+  product_id: string;
+  name: string;
+  position: number;
+};
+
+type DbCollection = {
+  id: string;
+  owner_id: string;
+  title: string;
+  handle: string;
+  source_provider: string | null;
+  source_collection_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type DbConnection = {
+  id: string;
+  owner_id: string;
+  provider: CommerceProvider;
+  shop_domain: string;
+  access_token: string;
+  scope: string;
+  status: CommerceConnection["status"];
+  created_at: string;
+  updated_at: string;
 };
 
 function mapProduct(row: DbProduct): Product {
@@ -40,10 +119,91 @@ function mapProduct(row: DbProduct): Product {
     channels: row.channels ?? [],
     sku: row.sku ?? undefined,
     category: row.category ?? undefined,
+    sourceProvider: (row.source_provider as Product["sourceProvider"]) ?? undefined,
+    sourceProductId: row.source_product_id ?? undefined,
     syncedAt: row.synced_at ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     ownerId: row.owner_id,
+  };
+}
+
+function mapOption(row: DbOption): ProductOption {
+  return {
+    id: row.id,
+    productId: row.product_id,
+    name: row.name,
+    position: row.position,
+  };
+}
+
+function mapVariant(row: DbVariant): ProductVariant {
+  const inventoryRow = Array.isArray(row.inventory_levels)
+    ? row.inventory_levels[0]
+    : row.inventory_levels;
+  return {
+    id: row.id,
+    productId: row.product_id,
+    title: row.title,
+    sku: row.sku ?? undefined,
+    barcode: row.barcode ?? undefined,
+    price: Number(row.price),
+    compareAtPrice:
+      row.compare_at_price != null ? Number(row.compare_at_price) : undefined,
+    currency: row.currency,
+    optionValues: row.option_values ?? {},
+    position: row.position,
+    sourceVariantId: row.source_variant_id ?? undefined,
+    imageUrl: row.image_url ?? undefined,
+    inventory: inventoryRow
+      ? {
+          variantId: inventoryRow.variant_id,
+          quantity: inventoryRow.quantity,
+          tracked: inventoryRow.tracked,
+          updatedAt: inventoryRow.updated_at,
+        }
+      : undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapCollection(row: DbCollection): Collection {
+  return {
+    id: row.id,
+    ownerId: row.owner_id,
+    title: row.title,
+    handle: row.handle,
+    sourceProvider:
+      (row.source_provider as Collection["sourceProvider"]) ?? undefined,
+    sourceCollectionId: row.source_collection_id ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapConnection(row: DbConnection): CommerceConnectionRecord {
+  return {
+    id: row.id,
+    ownerId: row.owner_id,
+    provider: row.provider,
+    shopDomain: row.shop_domain,
+    accessToken: row.access_token,
+    scope: row.scope,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function denormalizeFromCanonical(canonical: CanonicalProduct) {
+  const firstVariant = canonical.variants[0];
+  const firstCollection = canonical.collections[0];
+  return {
+    price: firstVariant?.price ?? 0,
+    currency: firstVariant?.currency ?? "USD",
+    sku: firstVariant?.sku,
+    category: firstCollection?.title,
   };
 }
 
@@ -67,10 +227,47 @@ export class SupabaseProductRepository implements ProductRepository {
       .eq("id", id)
       .maybeSingle();
     if (error) throw error;
-    return data ? mapProduct(data as DbProduct) : null;
+    if (!data) return null;
+
+    const product = mapProduct(data as DbProduct);
+
+    const [optionsRes, variantsRes, collectionsRes] = await Promise.all([
+      this.client
+        .from("product_options")
+        .select("*")
+        .eq("product_id", id)
+        .order("position"),
+      this.client
+        .from("product_variants")
+        .select("*, inventory_levels(*)")
+        .eq("product_id", id)
+        .order("position"),
+      this.client
+        .from("product_collections")
+        .select("collections(*)")
+        .eq("product_id", id),
+    ]);
+
+    if (optionsRes.error) throw optionsRes.error;
+    if (variantsRes.error) throw variantsRes.error;
+    if (collectionsRes.error) throw collectionsRes.error;
+
+    product.options = ((optionsRes.data ?? []) as DbOption[]).map(mapOption);
+    product.variants = ((variantsRes.data ?? []) as DbVariant[]).map(mapVariant);
+    product.collections = (
+      (collectionsRes.data ?? []) as unknown as {
+        collections: DbCollection | null;
+      }[]
+    )
+      .map((row) => row.collections)
+      .filter((row): row is DbCollection => Boolean(row))
+      .map(mapCollection);
+
+    return product;
   }
 
   async createProduct(product: Product): Promise<Product> {
+    const now = product.createdAt;
     const { error } = await this.client.from("products").insert({
       id: product.id,
       owner_id: product.ownerId,
@@ -84,12 +281,238 @@ export class SupabaseProductRepository implements ProductRepository {
       channels: product.channels,
       sku: product.sku ?? null,
       category: product.category ?? null,
+      source_provider: product.sourceProvider ?? null,
+      source_product_id: product.sourceProductId ?? null,
       synced_at: product.syncedAt ?? null,
       created_at: product.createdAt,
       updated_at: product.updatedAt,
     });
     if (error) throw error;
+
+    const variantId = createVariantId();
+    const { error: variantError } = await this.client
+      .from("product_variants")
+      .insert({
+        id: variantId,
+        product_id: product.id,
+        title: "Default Title",
+        sku: product.sku ?? null,
+        price: product.price,
+        currency: product.currency,
+        option_values: {},
+        position: 0,
+        created_at: now,
+        updated_at: now,
+      });
+    if (variantError) throw variantError;
+
+    const { error: inventoryError } = await this.client
+      .from("inventory_levels")
+      .insert({
+        variant_id: variantId,
+        quantity: 0,
+        tracked: false,
+        updated_at: now,
+      });
+    if (inventoryError) throw inventoryError;
+
     return product;
+  }
+
+  async upsertImportedProduct(
+    canonical: CanonicalProduct,
+    ownerId: string,
+  ): Promise<Product> {
+    const now = new Date().toISOString();
+    const summary = denormalizeFromCanonical(canonical);
+
+    const { data: existing, error: existingError } = await this.client
+      .from("products")
+      .select("id, created_at")
+      .eq("owner_id", ownerId)
+      .eq("source_provider", canonical.sourceProvider)
+      .eq("source_product_id", canonical.sourceProductId)
+      .maybeSingle();
+    if (existingError) throw existingError;
+
+    const productId = existing?.id ?? createProductId();
+    const createdAt = existing?.created_at ?? now;
+    const channels = [canonical.sourceProvider];
+
+    const productRow = {
+      id: productId,
+      owner_id: ownerId,
+      title: canonical.title,
+      handle: canonical.handle,
+      description: canonical.description,
+      status: canonical.status,
+      price: summary.price,
+      currency: summary.currency,
+      images: canonical.images,
+      channels,
+      sku: summary.sku ?? null,
+      category: summary.category ?? null,
+      source_provider: canonical.sourceProvider,
+      source_product_id: canonical.sourceProductId,
+      synced_at: now,
+      created_at: createdAt,
+      updated_at: now,
+    };
+
+    const { error: productError } = await this.client
+      .from("products")
+      .upsert(productRow, { onConflict: "id" });
+    if (productError) throw productError;
+
+    const { error: deleteOptionsError } = await this.client
+      .from("product_options")
+      .delete()
+      .eq("product_id", productId);
+    if (deleteOptionsError) throw deleteOptionsError;
+
+    if (canonical.options.length > 0) {
+      const { error: optionsError } = await this.client
+        .from("product_options")
+        .insert(
+          canonical.options.map((option) => ({
+            id: createOptionId(),
+            product_id: productId,
+            name: option.name,
+            position: option.position,
+          })),
+        );
+      if (optionsError) throw optionsError;
+    }
+
+    const { data: existingVariants, error: existingVariantsError } =
+      await this.client
+        .from("product_variants")
+        .select("id, source_variant_id")
+        .eq("product_id", productId);
+    if (existingVariantsError) throw existingVariantsError;
+
+    const variantIdBySource = new Map(
+      ((existingVariants ?? []) as { id: string; source_variant_id: string | null }[])
+        .filter((row) => row.source_variant_id)
+        .map((row) => [row.source_variant_id as string, row.id]),
+    );
+
+    const incomingSourceIds = new Set(
+      canonical.variants.map((variant) => variant.sourceVariantId),
+    );
+    const staleVariantIds = ((existingVariants ?? []) as {
+      id: string;
+      source_variant_id: string | null;
+    }[])
+      .filter(
+        (row) =>
+          !row.source_variant_id || !incomingSourceIds.has(row.source_variant_id),
+      )
+      .map((row) => row.id);
+
+    if (staleVariantIds.length > 0) {
+      const { error: deleteVariantsError } = await this.client
+        .from("product_variants")
+        .delete()
+        .in("id", staleVariantIds);
+      if (deleteVariantsError) throw deleteVariantsError;
+    }
+
+    for (const variant of canonical.variants) {
+      const variantId =
+        variantIdBySource.get(variant.sourceVariantId) ?? createVariantId();
+      const { error: variantError } = await this.client
+        .from("product_variants")
+        .upsert(
+          {
+            id: variantId,
+            product_id: productId,
+            title: variant.title,
+            sku: variant.sku ?? null,
+            barcode: variant.barcode ?? null,
+            price: variant.price,
+            compare_at_price: variant.compareAtPrice ?? null,
+            currency: variant.currency,
+            option_values: variant.optionValues,
+            position: variant.position,
+            source_variant_id: variant.sourceVariantId,
+            image_url: variant.imageUrl ?? null,
+            created_at: now,
+            updated_at: now,
+          },
+          { onConflict: "id" },
+        );
+      if (variantError) throw variantError;
+
+      const { error: inventoryError } = await this.client
+        .from("inventory_levels")
+        .upsert(
+          {
+            variant_id: variantId,
+            quantity: variant.inventoryQuantity,
+            tracked: variant.inventoryTracked,
+            updated_at: now,
+          },
+          { onConflict: "variant_id" },
+        );
+      if (inventoryError) throw inventoryError;
+    }
+
+    const collectionIds: string[] = [];
+    for (const collection of canonical.collections) {
+      const { data: existingCollection, error: collectionLookupError } =
+        await this.client
+          .from("collections")
+          .select("id")
+          .eq("owner_id", ownerId)
+          .eq("source_provider", canonical.sourceProvider)
+          .eq("source_collection_id", collection.sourceCollectionId)
+          .maybeSingle();
+      if (collectionLookupError) throw collectionLookupError;
+
+      const collectionId = existingCollection?.id ?? createCollectionId();
+      const { error: collectionError } = await this.client
+        .from("collections")
+        .upsert(
+          {
+            id: collectionId,
+            owner_id: ownerId,
+            title: collection.title,
+            handle: collection.handle,
+            source_provider: canonical.sourceProvider,
+            source_collection_id: collection.sourceCollectionId,
+            created_at: now,
+            updated_at: now,
+          },
+          { onConflict: "id" },
+        );
+      if (collectionError) throw collectionError;
+      collectionIds.push(collectionId);
+    }
+
+    const { error: clearLinksError } = await this.client
+      .from("product_collections")
+      .delete()
+      .eq("product_id", productId);
+    if (clearLinksError) throw clearLinksError;
+
+    if (collectionIds.length > 0) {
+      const { error: linkError } = await this.client
+        .from("product_collections")
+        .insert(
+          collectionIds.map((collectionId) => ({
+            product_id: productId,
+            collection_id: collectionId,
+          })),
+        );
+      if (linkError) throw linkError;
+    }
+
+    const saved = await this.getProduct(productId);
+    if (!saved) {
+      throw new Error("Failed to load imported product");
+    }
+    return saved;
   }
 
   async getIntelligence(productId: string): Promise<ProductIntelligence | null> {
@@ -148,6 +571,92 @@ export class SupabaseProductRepository implements ProductRepository {
   async getPerformance(productId: string): Promise<PerformancePoint[]> {
     // Live analytics ingestion is out of milestone scope; keep a consistent demo series.
     return buildPerformanceSeries(productId);
+  }
+
+  async listConnections(ownerId: string): Promise<CommerceConnection[]> {
+    const { data, error } = await this.client
+      .from("commerce_connections")
+      .select(
+        "id, owner_id, provider, shop_domain, scope, status, created_at, updated_at",
+      )
+      .eq("owner_id", ownerId)
+      .order("updated_at", { ascending: false });
+    if (error) throw error;
+    return ((data ?? []) as Omit<DbConnection, "access_token">[]).map((row) => ({
+      id: row.id,
+      ownerId: row.owner_id,
+      provider: row.provider,
+      shopDomain: row.shop_domain,
+      scope: row.scope,
+      status: row.status,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  }
+
+  async getConnection(
+    ownerId: string,
+    provider: CommerceProvider,
+    shopDomain?: string,
+  ): Promise<CommerceConnectionRecord | null> {
+    let query = this.client
+      .from("commerce_connections")
+      .select("*")
+      .eq("owner_id", ownerId)
+      .eq("provider", provider)
+      .eq("status", "active")
+      .order("updated_at", { ascending: false })
+      .limit(1);
+
+    if (shopDomain) {
+      query = query.eq("shop_domain", shopDomain);
+    }
+
+    const { data, error } = await query.maybeSingle();
+    if (error) throw error;
+    return data ? mapConnection(data as DbConnection) : null;
+  }
+
+  async upsertConnection(
+    connection: CommerceConnectionRecord,
+  ): Promise<CommerceConnection> {
+    const { data: existing, error: lookupError } = await this.client
+      .from("commerce_connections")
+      .select("id, created_at")
+      .eq("owner_id", connection.ownerId)
+      .eq("provider", connection.provider)
+      .eq("shop_domain", connection.shopDomain)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+
+    const id = existing?.id ?? connection.id;
+    const createdAt = existing?.created_at ?? connection.createdAt;
+    const { error } = await this.client.from("commerce_connections").upsert(
+      {
+        id,
+        owner_id: connection.ownerId,
+        provider: connection.provider,
+        shop_domain: connection.shopDomain,
+        access_token: connection.accessToken,
+        scope: connection.scope,
+        status: connection.status,
+        created_at: createdAt,
+        updated_at: connection.updatedAt,
+      },
+      { onConflict: "id" },
+    );
+    if (error) throw error;
+
+    return {
+      id,
+      ownerId: connection.ownerId,
+      provider: connection.provider,
+      shopDomain: connection.shopDomain,
+      scope: connection.scope,
+      status: connection.status,
+      createdAt,
+      updatedAt: connection.updatedAt,
+    };
   }
 }
 

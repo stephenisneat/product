@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, StoreIcon } from "lucide-react";
 import type { AppUser } from "@/domain";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CreateProductButton } from "@/features/products/create-product-dialog";
+import { ImportShopifyDialog } from "@/features/products/import-shopify-dialog";
 
 function initialsFor(user: AppUser) {
   const source = user.name?.trim() || user.email;
@@ -29,6 +30,7 @@ function initialsFor(user: AppUser) {
 export function UserMenu({ user }: { user: AppUser }) {
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
+  const [shopifyOpen, setShopifyOpen] = useState(false);
 
   async function onSignOut() {
     await fetch("/api/auth/sign-out", { method: "POST" });
@@ -66,6 +68,10 @@ export function UserMenu({ user }: { user: AppUser }) {
               <PlusIcon />
               Create product
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setShopifyOpen(true)}>
+              <StoreIcon />
+              Import from Shopify
+            </DropdownMenuItem>
             <DropdownMenuItem render={<Link href="/account" />}>
               Account
             </DropdownMenuItem>
@@ -83,6 +89,7 @@ export function UserMenu({ user }: { user: AppUser }) {
         onOpenChange={setCreateOpen}
         showTrigger={false}
       />
+      <ImportShopifyDialog open={shopifyOpen} onOpenChange={setShopifyOpen} />
     </>
   );
 }

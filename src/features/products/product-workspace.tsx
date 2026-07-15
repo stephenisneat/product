@@ -31,7 +31,8 @@ export function ProductWorkspace({
   const proposed = artifacts.filter((a) => a.status === "proposed");
 
   return (
-    <div className="px-4 py-4">
+    <div className="p-3 h-screen">
+    <div className="px-4 py-4 border border-border bg-card rounded-lg h-full">
         <Button
           variant="ghost"
           size="sm"
@@ -68,6 +69,15 @@ export function ProductWorkspace({
             <div className="mt-2 flex flex-wrap gap-3 font-mono text-[11px] text-muted-foreground">
               <span>{formatMoney(product.price, product.currency)}</span>
               {product.sku ? <span>SKU {product.sku}</span> : null}
+              {product.variants && product.variants.length > 0 ? (
+                <span>
+                  {product.variants.length} variant
+                  {product.variants.length === 1 ? "" : "s"}
+                </span>
+              ) : null}
+              {product.collections && product.collections.length > 0 ? (
+                <span>{product.collections.map((c) => c.title).join(" · ")}</span>
+              ) : null}
               <span>{product.channels.join(" · ") || "No channels"}</span>
             </div>
           </div>
@@ -115,6 +125,32 @@ export function ProductWorkspace({
                 </h2>
                 <p className="text-sm text-muted-foreground">{intelligence?.tone ?? "—"}</p>
               </div>
+            </section>
+            <section>
+              <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Variants
+              </h2>
+              {!product.variants || product.variants.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No variants.</p>
+              ) : (
+                <ul className="divide-y divide-border rounded-md border border-border">
+                  {product.variants.map((variant) => (
+                    <li
+                      key={variant.id}
+                      className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm"
+                    >
+                      <span className="font-medium">{variant.title}</span>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {formatMoney(variant.price, variant.currency)}
+                        {variant.sku ? ` · ${variant.sku}` : ""}
+                        {variant.inventory
+                          ? ` · qty ${variant.inventory.quantity}`
+                          : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </section>
             <section>
               <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -222,6 +258,7 @@ export function ProductWorkspace({
             </div>
           </TabsContent>
         </Tabs>
+    </div>
     </div>
   );
 }

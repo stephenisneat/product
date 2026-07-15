@@ -7,7 +7,7 @@ import { SearchIcon } from "lucide-react";
 import type { Product } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { CreateProductButton } from "@/features/products/create-product-dialog";
+import { CreateProductMenu } from "@/features/products/create-product-menu";
 import { formatMoney } from "@/lib/format";
 
 function matchesQuery(product: Product, query: string) {
@@ -33,11 +33,11 @@ export function ProductCatalog({ products }: { products: Product[] }) {
       <div className="mx-auto max-w-3xl px-4 py-24 text-center">
         <h1 className="font-heading text-xl font-semibold tracking-tight">No products yet</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Create your first product to start building marketing intelligence.
-          Imports from Shopify, WooCommerce, and Amazon are coming soon.
+          Create a product manually or import from Shopify to start building
+          marketing intelligence.
         </p>
         <div className="mt-6 flex justify-center">
-          <CreateProductButton label="Create product" />
+          <CreateProductMenu label="Create product" />
         </div>
       </div>
     );
@@ -62,7 +62,7 @@ export function ProductCatalog({ products }: { products: Product[] }) {
             aria-label="Search products"
           />
         </div>
-        <CreateProductButton label="Create product" className="ml-auto" />
+        <CreateProductMenu label="Create product" className="ml-auto" />
       </div>
 
       {filtered.length === 0 ? (

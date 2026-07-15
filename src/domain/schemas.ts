@@ -3,6 +3,80 @@ import { z } from "zod";
 export const productStatusSchema = z.enum(["draft", "active", "archived"]);
 export type ProductStatus = z.infer<typeof productStatusSchema>;
 
+export const commerceProviderSchema = z.enum(["shopify"]);
+export type CommerceProvider = z.infer<typeof commerceProviderSchema>;
+
+export const connectionStatusSchema = z.enum([
+  "active",
+  "disconnected",
+  "error",
+]);
+export type ConnectionStatus = z.infer<typeof connectionStatusSchema>;
+
+export const commerceConnectionSchema = z.object({
+  id: z.string(),
+  ownerId: z.string(),
+  provider: commerceProviderSchema,
+  shopDomain: z.string().min(1),
+  scope: z.string().default(""),
+  status: connectionStatusSchema,
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export type CommerceConnection = z.infer<typeof commerceConnectionSchema>;
+
+export const productOptionSchema = z.object({
+  id: z.string(),
+  productId: z.string(),
+  name: z.string().min(1),
+  position: z.number().int().nonnegative(),
+});
+
+export type ProductOption = z.infer<typeof productOptionSchema>;
+
+export const inventoryLevelSchema = z.object({
+  variantId: z.string(),
+  quantity: z.number().int(),
+  tracked: z.boolean().default(true),
+  updatedAt: z.string().datetime(),
+});
+
+export type InventoryLevel = z.infer<typeof inventoryLevelSchema>;
+
+export const productVariantSchema = z.object({
+  id: z.string(),
+  productId: z.string(),
+  title: z.string().min(1),
+  sku: z.string().optional(),
+  barcode: z.string().optional(),
+  price: z.number().nonnegative(),
+  compareAtPrice: z.number().nonnegative().optional(),
+  currency: z.string().default("USD"),
+  optionValues: z.record(z.string(), z.string()).default({}),
+  position: z.number().int().nonnegative().default(0),
+  sourceVariantId: z.string().optional(),
+  imageUrl: z.string().url().optional(),
+  inventory: inventoryLevelSchema.optional(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export type ProductVariant = z.infer<typeof productVariantSchema>;
+
+export const collectionSchema = z.object({
+  id: z.string(),
+  ownerId: z.string(),
+  title: z.string().min(1),
+  handle: z.string().min(1),
+  sourceProvider: commerceProviderSchema.optional(),
+  sourceCollectionId: z.string().optional(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export type Collection = z.infer<typeof collectionSchema>;
+
 export const productSchema = z.object({
   id: z.string(),
   title: z.string().min(1),
@@ -15,13 +89,62 @@ export const productSchema = z.object({
   channels: z.array(z.string()).default([]),
   sku: z.string().optional(),
   category: z.string().optional(),
+  sourceProvider: commerceProviderSchema.optional(),
+  sourceProductId: z.string().optional(),
   syncedAt: z.string().datetime().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   ownerId: z.string(),
+  options: z.array(productOptionSchema).optional(),
+  variants: z.array(productVariantSchema).optional(),
+  collections: z.array(collectionSchema).optional(),
 });
 
 export type Product = z.infer<typeof productSchema>;
+
+/** Provider-agnostic payload used by commerce importers. */
+export const canonicalProductSchema = z.object({
+  sourceProvider: commerceProviderSchema,
+  sourceProductId: z.string().min(1),
+  title: z.string().min(1),
+  handle: z.string().min(1),
+  description: z.string().default(""),
+  status: productStatusSchema,
+  images: z.array(z.string().url()).default([]),
+  options: z.array(
+    z.object({
+      name: z.string().min(1),
+      position: z.number().int().nonnegative(),
+    }),
+  ),
+  variants: z.array(
+    z.object({
+      sourceVariantId: z.string().min(1),
+      title: z.string().min(1),
+      sku: z.string().optional(),
+      barcode: z.string().optional(),
+      price: z.number().nonnegative(),
+      compareAtPrice: z.number().nonnegative().optional(),
+      currency: z.string().min(1),
+      optionValues: z.record(z.string(), z.string()).default({}),
+      position: z.number().int().nonnegative().default(0),
+      imageUrl: z.string().url().optional(),
+      inventoryQuantity: z.number().int().default(0),
+      inventoryTracked: z.boolean().default(true),
+    }),
+  ),
+  collections: z
+    .array(
+      z.object({
+        sourceCollectionId: z.string().min(1),
+        title: z.string().min(1),
+        handle: z.string().min(1),
+      }),
+    )
+    .default([]),
+});
+
+export type CanonicalProduct = z.infer<typeof canonicalProductSchema>;
 
 export const createProductInputSchema = z.object({
   id: z

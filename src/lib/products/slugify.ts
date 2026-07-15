@@ -7,6 +7,26 @@ export function slugify(value: string): string {
     .slice(0, 80);
 }
 
+function shortId(prefix: string): string {
+  return `${prefix}_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+}
+
 export function createProductId(): string {
-  return `prod_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+  return shortId("prod");
+}
+
+export function createVariantId(): string {
+  return shortId("var");
+}
+
+export function createOptionId(): string {
+  return shortId("opt");
+}
+
+export function createCollectionId(): string {
+  return shortId("col");
+}
+
+export function createConnectionId(): string {
+  return shortId("conn");
 }
