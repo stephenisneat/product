@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -22,6 +22,7 @@ type FormValues = z.infer<typeof schema>;
 
 export function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const {
     register,
@@ -51,7 +52,7 @@ export function SignupForm() {
 
     // Confirmations disabled: session is created immediately.
     if (data.session) {
-      router.push("/");
+      router.push(searchParams.get("next") || "/");
       router.refresh();
       return;
     }

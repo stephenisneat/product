@@ -56,7 +56,7 @@ export function LoginForm() {
       setError(signInError.message);
       return;
     }
-    router.push("/");
+    router.push(searchParams.get("next") || "/");
     router.refresh();
   }
 

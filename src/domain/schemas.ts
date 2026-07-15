@@ -13,9 +13,50 @@ export const connectionStatusSchema = z.enum([
 ]);
 export type ConnectionStatus = z.infer<typeof connectionStatusSchema>;
 
+export const workspaceRoleSchema = z.enum(["owner", "admin", "member"]);
+export type WorkspaceRole = z.infer<typeof workspaceRoleSchema>;
+
+export const workspaceInviteRoleSchema = z.enum(["admin", "member"]);
+export type WorkspaceInviteRole = z.infer<typeof workspaceInviteRoleSchema>;
+
+export const workspaceSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1),
+  createdBy: z.string(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export type Workspace = z.infer<typeof workspaceSchema>;
+
+export const workspaceMemberSchema = z.object({
+  workspaceId: z.string().uuid(),
+  userId: z.string(),
+  role: workspaceRoleSchema,
+  createdAt: z.string().datetime(),
+  email: z.string().email().optional(),
+  name: z.string().optional(),
+});
+
+export type WorkspaceMember = z.infer<typeof workspaceMemberSchema>;
+
+export const workspaceInviteSchema = z.object({
+  id: z.string().uuid(),
+  workspaceId: z.string().uuid(),
+  email: z.string().email(),
+  role: workspaceInviteRoleSchema,
+  token: z.string().min(1),
+  invitedBy: z.string(),
+  expiresAt: z.string().datetime(),
+  acceptedAt: z.string().datetime().optional(),
+  createdAt: z.string().datetime(),
+});
+
+export type WorkspaceInvite = z.infer<typeof workspaceInviteSchema>;
+
 export const commerceConnectionSchema = z.object({
   id: z.string(),
-  ownerId: z.string(),
+  workspaceId: z.string(),
   provider: commerceProviderSchema,
   shopDomain: z.string().min(1),
   scope: z.string().default(""),
@@ -66,7 +107,7 @@ export type ProductVariant = z.infer<typeof productVariantSchema>;
 
 export const collectionSchema = z.object({
   id: z.string(),
-  ownerId: z.string(),
+  workspaceId: z.string(),
   title: z.string().min(1),
   handle: z.string().min(1),
   sourceProvider: commerceProviderSchema.optional(),
@@ -100,7 +141,7 @@ export const productSchema = z.object({
   syncedAt: z.string().datetime().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
-  ownerId: z.string(),
+  workspaceId: z.string(),
   options: z.array(productOptionSchema).optional(),
   variants: z.array(productVariantSchema).optional(),
   collections: z.array(collectionSchema).optional(),

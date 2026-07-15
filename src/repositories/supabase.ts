@@ -43,7 +43,7 @@ type DbProduct = {
   synced_at: string | null;
   created_at: string;
   updated_at: string;
-  owner_id: string;
+  workspace_id: string;
 };
 
 type DbVariant = {
@@ -86,7 +86,7 @@ type DbOption = {
 
 type DbCollection = {
   id: string;
-  owner_id: string;
+  workspace_id: string;
   title: string;
   handle: string;
   source_provider: string | null;
@@ -97,7 +97,7 @@ type DbCollection = {
 
 type DbConnection = {
   id: string;
-  owner_id: string;
+  workspace_id: string;
   provider: CommerceProvider;
   shop_domain: string;
   access_token: string;
@@ -126,7 +126,7 @@ function mapProduct(row: DbProduct): Product {
     syncedAt: row.synced_at ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    ownerId: row.owner_id,
+    workspaceId: row.workspace_id,
   };
 }
 
@@ -173,7 +173,7 @@ function mapVariant(row: DbVariant): ProductVariant {
 function mapCollection(row: DbCollection): Collection {
   return {
     id: row.id,
-    ownerId: row.owner_id,
+    workspaceId: row.workspace_id,
     title: row.title,
     handle: row.handle,
     sourceProvider:
@@ -187,7 +187,7 @@ function mapCollection(row: DbCollection): Collection {
 function mapConnection(row: DbConnection): CommerceConnectionRecord {
   return {
     id: row.id,
-    ownerId: row.owner_id,
+    workspaceId: row.workspace_id,
     provider: row.provider,
     shopDomain: row.shop_domain,
     accessToken: row.access_token,
@@ -212,11 +212,11 @@ function denormalizeFromCanonical(canonical: CanonicalProduct) {
 export class SupabaseProductRepository implements ProductRepository {
   constructor(private readonly client: SupabaseClient) {}
 
-  async listProducts(ownerId: string): Promise<Product[]> {
+  async listProducts(workspaceId: string): Promise<Product[]> {
     const { data, error } = await this.client
       .from("products")
       .select("*")
-      .eq("owner_id", ownerId)
+      .eq("workspace_id", workspaceId)
       .order("title");
     if (error) throw error;
     return (data as DbProduct[]).map(mapProduct);
@@ -272,7 +272,7 @@ export class SupabaseProductRepository implements ProductRepository {
     const now = product.createdAt;
     const { error } = await this.client.from("products").insert({
       id: product.id,
-      owner_id: product.ownerId,
+      workspace_id: product.workspaceId,
       title: product.title,
       handle: product.handle,
       description: product.description,
@@ -324,7 +324,7 @@ export class SupabaseProductRepository implements ProductRepository {
 
   async upsertImportedProduct(
     canonical: CanonicalProduct,
-    ownerId: string,
+    workspaceId: string,
   ): Promise<Product> {
     const now = new Date().toISOString();
     const summary = denormalizeFromCanonical(canonical);
@@ -332,7 +332,7 @@ export class SupabaseProductRepository implements ProductRepository {
     const { data: existing, error: existingError } = await this.client
       .from("products")
       .select("id, created_at")
-      .eq("owner_id", ownerId)
+      .eq("workspace_id", workspaceId)
       .eq("source_provider", canonical.sourceProvider)
       .eq("source_product_id", canonical.sourceProductId)
       .maybeSingle();
@@ -344,7 +344,7 @@ export class SupabaseProductRepository implements ProductRepository {
 
     const productRow = {
       id: productId,
-      owner_id: ownerId,
+      workspace_id: workspaceId,
       title: canonical.title,
       handle: canonical.handle,
       description: canonical.description,
@@ -468,7 +468,7 @@ export class SupabaseProductRepository implements ProductRepository {
         await this.client
           .from("collections")
           .select("id")
-          .eq("owner_id", ownerId)
+          .eq("workspace_id", workspaceId)
           .eq("source_provider", canonical.sourceProvider)
           .eq("source_collection_id", collection.sourceCollectionId)
           .maybeSingle();
@@ -480,7 +480,7 @@ export class SupabaseProductRepository implements ProductRepository {
         .upsert(
           {
             id: collectionId,
-            owner_id: ownerId,
+            workspace_id: workspaceId,
             title: collection.title,
             handle: collection.handle,
             source_provider: canonical.sourceProvider,
@@ -577,18 +577,18 @@ export class SupabaseProductRepository implements ProductRepository {
     return buildPerformanceSeries(productId);
   }
 
-  async listConnections(ownerId: string): Promise<CommerceConnection[]> {
+  async listConnections(workspaceId: string): Promise<CommerceConnection[]> {
     const { data, error } = await this.client
       .from("commerce_connections")
       .select(
-        "id, owner_id, provider, shop_domain, scope, status, created_at, updated_at",
+        "id, workspace_id, provider, shop_domain, scope, status, created_at, updated_at",
       )
-      .eq("owner_id", ownerId)
+      .eq("workspace_id", workspaceId)
       .order("updated_at", { ascending: false });
     if (error) throw error;
     return ((data ?? []) as Omit<DbConnection, "access_token">[]).map((row) => ({
       id: row.id,
-      ownerId: row.owner_id,
+      workspaceId: row.workspace_id,
       provider: row.provider,
       shopDomain: row.shop_domain,
       scope: row.scope,
@@ -599,14 +599,14 @@ export class SupabaseProductRepository implements ProductRepository {
   }
 
   async getConnection(
-    ownerId: string,
+    workspaceId: string,
     provider: CommerceProvider,
     shopDomain?: string,
   ): Promise<CommerceConnectionRecord | null> {
     let query = this.client
       .from("commerce_connections")
       .select("*")
-      .eq("owner_id", ownerId)
+      .eq("workspace_id", workspaceId)
       .eq("provider", provider)
       .eq("status", "active")
       .order("updated_at", { ascending: false })
@@ -627,7 +627,7 @@ export class SupabaseProductRepository implements ProductRepository {
     const { data: existing, error: lookupError } = await this.client
       .from("commerce_connections")
       .select("id, created_at")
-      .eq("owner_id", connection.ownerId)
+      .eq("workspace_id", connection.workspaceId)
       .eq("provider", connection.provider)
       .eq("shop_domain", connection.shopDomain)
       .maybeSingle();
@@ -638,7 +638,7 @@ export class SupabaseProductRepository implements ProductRepository {
     const { error } = await this.client.from("commerce_connections").upsert(
       {
         id,
-        owner_id: connection.ownerId,
+        workspace_id: connection.workspaceId,
         provider: connection.provider,
         shop_domain: connection.shopDomain,
         access_token: connection.accessToken,
@@ -653,7 +653,7 @@ export class SupabaseProductRepository implements ProductRepository {
 
     return {
       id,
-      ownerId: connection.ownerId,
+      workspaceId: connection.workspaceId,
       provider: connection.provider,
       shopDomain: connection.shopDomain,
       scope: connection.scope,

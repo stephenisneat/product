@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { encryptSecret } from "@/lib/commerce/crypto";
 import {
   exchangeShopifyCode,
@@ -19,6 +20,11 @@ export async function GET(request: Request) {
 
   if (!user) {
     return NextResponse.redirect(`${appUrl}/login?error=auth`);
+  }
+
+  const active = await getActiveWorkspace();
+  if (!active) {
+    return NextResponse.redirect(`${appUrl}/?shopify=error&reason=no_workspace`);
   }
 
   const query: Record<string, string> = {};
@@ -69,7 +75,7 @@ export async function GET(request: Request) {
     const products = await getProductRepository();
     await products.upsertConnection({
       id: createConnectionId(),
-      ownerId: user.id,
+      workspaceId: active.workspace.id,
       provider: "shopify",
       shopDomain: shop,
       accessToken: encryptSecret(token.accessToken),

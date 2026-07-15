@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { decryptSecret } from "@/lib/commerce/crypto";
 import {
   fetchShopifyProductsByIds,
@@ -19,6 +20,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const active = await getActiveWorkspace();
+  if (!active) {
+    return NextResponse.json({ error: "No workspace available" }, { status: 400 });
+  }
+
   const parsed = importBodySchema.safeParse(await request.json());
   if (!parsed.success) {
     return NextResponse.json(
@@ -30,7 +36,7 @@ export async function POST(request: Request) {
   try {
     const repo = await getProductRepository();
     const connection = await repo.getConnection(
-      user.id,
+      active.workspace.id,
       "shopify",
       parsed.data.shop,
     );
@@ -55,7 +61,9 @@ export async function POST(request: Request) {
 
     const imported = [];
     for (const product of canonical) {
-      imported.push(await repo.upsertImportedProduct(product, user.id));
+      imported.push(
+        await repo.upsertImportedProduct(product, active.workspace.id),
+      );
     }
 
     return NextResponse.json({

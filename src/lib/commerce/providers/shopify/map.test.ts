@@ -133,7 +133,7 @@ describe("canonical product schema", () => {
       sourceProductId: "gid://shopify/Product/1",
       createdAt: "2026-07-14T00:00:00.000Z",
       updatedAt: "2026-07-14T00:00:00.000Z",
-      ownerId: "user_1",
+      workspaceId: "user_1",
     });
     expect(parsed.sourceProvider).toBe("shopify");
   });

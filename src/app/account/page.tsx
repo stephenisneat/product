@@ -45,6 +45,21 @@ export default async function AccountPage({
           <h2 className="text-sm font-medium">Email address</h2>
           <ChangeEmailForm currentEmail={user.email} />
         </section>
+
+        <section className="mt-10 space-y-3">
+          <h2 className="text-sm font-medium">Workspace</h2>
+          <p className="text-sm text-muted-foreground">
+            Invite teammates and manage roles for your active workspace.
+          </p>
+          <p>
+            <Link
+              href="/settings/workspace"
+              className="text-sm font-medium underline-offset-4 hover:underline"
+            >
+              Open workspace settings →
+            </Link>
+          </p>
+        </section>
       </main>
     </div>
   );

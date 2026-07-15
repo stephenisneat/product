@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { Product } from "@/domain";
 import { createProductInputSchema } from "@/domain";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { createProductId } from "@/lib/products/slugify";
 import { getProductRepository } from "@/repositories";
 
@@ -9,6 +10,11 @@ export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const active = await getActiveWorkspace();
+  if (!active) {
+    return NextResponse.json({ error: "No workspace available" }, { status: 400 });
   }
 
   const parsed = createProductInputSchema.safeParse(await req.json());
@@ -36,7 +42,7 @@ export async function POST(req: Request) {
     category: input.category || undefined,
     createdAt: now,
     updatedAt: now,
-    ownerId: user.id,
+    workspaceId: active.workspace.id,
   };
 
   try {

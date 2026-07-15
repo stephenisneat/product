@@ -7,7 +7,7 @@ import {
   ListFilterIcon,
   SearchIcon,
 } from "lucide-react";
-import type { Product, ProductStatus } from "@/domain";
+import type { Product, ProductStatus, WorkspaceRole } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +23,9 @@ import { Input } from "@/components/ui/input";
 import { ProductImage } from "@/components/product-image";
 import { CatalogToolbar } from "@/features/products/catalog-toolbar";
 import { CreateProductMenu } from "@/features/products/create-product-menu";
+import { WorkspacePicker } from "@/features/workspaces/workspace-picker";
 import { formatMoney } from "@/lib/format";
+import type { WorkspaceWithRole } from "@/repositories/types";
 
 type StatusFilter = "all" | ProductStatus;
 type SortKey =
@@ -90,21 +92,42 @@ function sortProducts(products: Product[], sort: SortKey) {
   }
 }
 
-export function ProductCatalog({ products }: { products: Product[] }) {
+export function ProductCatalog({
+  products,
+  workspaces,
+  activeWorkspaceId,
+  activeRole,
+}: {
+  products: Product[];
+  workspaces: WorkspaceWithRole[];
+  activeWorkspaceId: string;
+  activeRole: WorkspaceRole;
+}) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortKey>("newest");
 
   if (products.length === 0) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-24 text-center">
-        <h1 className="font-heading text-xl font-semibold tracking-tight">No products yet</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Create a product manually or import from Shopify to start building
-          marketing intelligence.
-        </p>
-        <div className="mt-6 flex justify-center">
-          <CreateProductMenu label="Create product" />
+      <div className="mx-auto max-w-[1600px] px-4 py-6">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <WorkspacePicker
+            workspaces={workspaces}
+            activeWorkspaceId={activeWorkspaceId}
+            activeRole={activeRole}
+          />
+        </div>
+        <div className="mx-auto max-w-3xl py-24 text-center">
+          <h1 className="font-heading text-xl font-semibold tracking-tight">
+            No products yet
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Create a product manually or import from Shopify to start building
+            marketing intelligence.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <CreateProductMenu label="Create product" />
+          </div>
         </div>
       </div>
     );
@@ -128,6 +151,12 @@ export function ProductCatalog({ products }: { products: Product[] }) {
   return (
     <div className="mx-auto max-w-[1600px] px-4 py-6">
       <div className="mb-4 flex flex-wrap items-center gap-3">
+        <WorkspacePicker
+          workspaces={workspaces}
+          activeWorkspaceId={activeWorkspaceId}
+          activeRole={activeRole}
+        />
+
         <div className="relative min-w-[12rem] flex-1 sm:max-w-xs">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -212,7 +241,10 @@ export function ProductCatalog({ products }: { products: Product[] }) {
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((product) => (
-            <li key={product.id} className="bg-card rounded-lg border border-border overflow-hidden">
+            <li
+              key={product.id}
+              className="bg-card overflow-hidden rounded-lg border border-border"
+            >
               <Link
                 href={`/products/${product.id}`}
                 className="group flex h-full flex-col outline-none transition-colors focus-visible:bg-muted/40"
@@ -232,10 +264,12 @@ export function ProductCatalog({ products }: { products: Product[] }) {
                 )}
                 <div className="flex flex-1 flex-col gap-2 p-3">
                   <div className="flex items-start justify-between gap-2">
-                    <h2 className="text-sm font-medium leading-snug">{product.title}</h2>
+                    <h2 className="text-sm leading-snug font-medium">
+                      {product.title}
+                    </h2>
                     <Badge
                       variant="outline"
-                      className="shrink-0 text-[10px] uppercase tracking-wide"
+                      className="shrink-0 text-[10px] tracking-wide uppercase"
                     >
                       {product.status}
                     </Badge>
@@ -244,7 +278,9 @@ export function ProductCatalog({ products }: { products: Product[] }) {
                     {product.description}
                   </p>
                   <div className="mt-auto flex items-center justify-between pt-2 text-xs text-muted-foreground">
-                    <span className="font-mono">{formatMoney(product.price, product.currency)}</span>
+                    <span className="font-mono">
+                      {formatMoney(product.price, product.currency)}
+                    </span>
                     <span>{product.channels.length} channels</span>
                   </div>
                 </div>

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { productSchema, artifactSchema } from "@/domain";
+import {
+  productSchema,
+  artifactSchema,
+  workspaceSchema,
+  workspaceMemberSchema,
+} from "@/domain";
 import { hasOpenAI } from "@/lib/mode";
 
 const sampleProduct = {
@@ -20,13 +25,16 @@ const sampleProduct = {
   syncedAt: "2026-07-10T16:00:00.000Z",
   createdAt: "2026-06-01T12:00:00.000Z",
   updatedAt: "2026-07-10T16:00:00.000Z",
-  ownerId: "user_1",
+  workspaceId: "550e8400-e29b-41d4-a716-446655440000",
 };
 
 describe("domain schemas", () => {
   it("parses a sample product", () => {
     const parsed = productSchema.parse(sampleProduct);
     expect(parsed.handle).toBe("aurora-insulated-bottle");
+    expect(parsed.workspaceId).toBe(
+      "550e8400-e29b-41d4-a716-446655440000",
+    );
   });
 
   it("rejects empty product titles", () => {
@@ -52,6 +60,27 @@ describe("domain schemas", () => {
       updatedAt: "2026-07-14T00:00:00.000Z",
     });
     expect(artifact.type).toBe("ad_copy");
+  });
+
+  it("parses workspace and membership", () => {
+    const workspace = workspaceSchema.parse({
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      name: "Acme Workspace",
+      createdBy: "user_1",
+      createdAt: "2026-07-14T00:00:00.000Z",
+      updatedAt: "2026-07-14T00:00:00.000Z",
+    });
+    expect(workspace.name).toBe("Acme Workspace");
+
+    const member = workspaceMemberSchema.parse({
+      workspaceId: workspace.id,
+      userId: "user_1",
+      role: "owner",
+      createdAt: "2026-07-14T00:00:00.000Z",
+      email: "owner@acme.com",
+      name: "Owner",
+    });
+    expect(member.role).toBe("owner");
   });
 });
 

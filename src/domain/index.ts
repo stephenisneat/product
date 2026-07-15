@@ -17,6 +17,11 @@ export type {
   ProductOption,
   ProductStatus,
   ProductVariant,
+  Workspace,
+  WorkspaceInvite,
+  WorkspaceInviteRole,
+  WorkspaceMember,
+  WorkspaceRole,
 } from "./schemas";
 
 export {
@@ -44,4 +49,9 @@ export {
   productSchema,
   productStatusSchema,
   productVariantSchema,
+  workspaceInviteRoleSchema,
+  workspaceInviteSchema,
+  workspaceMemberSchema,
+  workspaceRoleSchema,
+  workspaceSchema,
 } from "./schemas";

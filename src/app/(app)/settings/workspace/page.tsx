@@ -1,0 +1,50 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth/session";
+import { getActiveWorkspace } from "@/lib/auth/workspace";
+import { WorkspaceSettingsPanel } from "@/features/workspaces/workspace-settings-panel";
+import { getWorkspaceRepository } from "@/repositories";
+
+export default async function WorkspaceSettingsPage() {
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect("/login?next=/settings/workspace");
+  }
+
+  const active = await getActiveWorkspace();
+  if (!active) {
+    redirect("/");
+  }
+
+  const repo = await getWorkspaceRepository();
+  const [members, invites] = await Promise.all([
+    repo.listMembers(active.workspace.id),
+    repo.listInvites(active.workspace.id),
+  ]);
+
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-6">
+      <div className="mb-8">
+        <p className="text-xs text-muted-foreground">
+          <Link href="/" className="underline-offset-4 hover:underline">
+            ← Back to catalog
+          </Link>
+        </p>
+        <h1 className="mt-3 font-heading text-2xl font-semibold tracking-tight">
+          Workspace settings
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Manage {active.workspace.name} members and invites.
+        </p>
+      </div>
+
+      <WorkspaceSettingsPanel
+        workspace={active.workspace}
+        role={active.role}
+        members={members}
+        invites={invites}
+        currentUserId={user.id}
+      />
+    </div>
+  );
+}

@@ -11,6 +11,7 @@ import { z } from "zod";
 import type { Artifact, Product, ProductIntelligence } from "@/domain";
 import { hasOpenAI } from "@/lib/mode";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { getArtifactRepository, getProductRepository } from "@/repositories";
 
 export const runtime = "nodejs";
@@ -243,7 +244,8 @@ export async function POST(req: Request) {
     if (!product) {
       return Response.json({ error: "Product not found" }, { status: 404 });
     }
-    if (product.ownerId !== user.id) {
+    const active = await getActiveWorkspace();
+    if (!active || product.workspaceId !== active.workspace.id) {
       return Response.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -292,7 +294,11 @@ export async function POST(req: Request) {
   }
 
   // Workspace mode
-  const catalog = await productsRepo.listProducts(user.id);
+  const activeWorkspace = await getActiveWorkspace();
+  if (!activeWorkspace) {
+    return Response.json({ error: "No workspace available" }, { status: 400 });
+  }
+  const catalog = await productsRepo.listProducts(activeWorkspace.workspace.id);
   const ownedIds = new Set(catalog.map((p) => p.id));
 
   if (!hasOpenAI()) {
