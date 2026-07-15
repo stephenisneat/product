@@ -205,7 +205,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card">
-      <div className="flex items-center gap-1 border-b border-border px-2 py-2">
+      <div className="relative flex items-center gap-1 border-b border-border px-2 py-2">
         <div className="flex min-w-0 flex-1 items-center gap-0.5">
           <Button
             type="button"
@@ -262,6 +262,9 @@ export function AgentComposer({ user }: { user: AppUser }) {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        <h1 className="pointer-events-none absolute left-1/2 -translate-x-1/2 font-heading text-sm font-semibold tracking-tight">
+          Product Agent
+        </h1>
         <UserMenu user={user} />
       </div>
 

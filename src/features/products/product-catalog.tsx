@@ -2,13 +2,53 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { SearchIcon } from "lucide-react";
-import type { Product } from "@/domain";
+import {
+  ArrowUpDownIcon,
+  ListFilterIcon,
+  SearchIcon,
+} from "lucide-react";
+import type { Product, ProductStatus } from "@/domain";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ProductImage } from "@/components/product-image";
+import { CatalogToolbar } from "@/features/products/catalog-toolbar";
 import { CreateProductMenu } from "@/features/products/create-product-menu";
 import { formatMoney } from "@/lib/format";
+
+type StatusFilter = "all" | ProductStatus;
+type SortKey =
+  | "newest"
+  | "oldest"
+  | "title-asc"
+  | "title-desc"
+  | "price-asc"
+  | "price-desc";
+
+const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
+  { value: "all", label: "All statuses" },
+  { value: "active", label: "Active" },
+  { value: "draft", label: "Draft" },
+  { value: "archived", label: "Archived" },
+];
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "newest", label: "Newest" },
+  { value: "oldest", label: "Oldest" },
+  { value: "title-asc", label: "Title A–Z" },
+  { value: "title-desc", label: "Title Z–A" },
+  { value: "price-asc", label: "Price: low to high" },
+  { value: "price-desc", label: "Price: high to low" },
+];
 
 function matchesQuery(product: Product, query: string) {
   const q = query.trim().toLowerCase();
@@ -25,8 +65,35 @@ function matchesQuery(product: Product, query: string) {
     .some((value) => value!.toLowerCase().includes(q));
 }
 
+function sortProducts(products: Product[], sort: SortKey) {
+  const sorted = [...products];
+  switch (sort) {
+    case "oldest":
+      return sorted.sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
+    case "title-asc":
+      return sorted.sort((a, b) => a.title.localeCompare(b.title));
+    case "title-desc":
+      return sorted.sort((a, b) => b.title.localeCompare(a.title));
+    case "price-asc":
+      return sorted.sort((a, b) => a.price - b.price);
+    case "price-desc":
+      return sorted.sort((a, b) => b.price - a.price);
+    case "newest":
+    default:
+      return sorted.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+  }
+}
+
 export function ProductCatalog({ products }: { products: Product[] }) {
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [sort, setSort] = useState<SortKey>("newest");
 
   if (products.length === 0) {
     return (
@@ -43,14 +110,24 @@ export function ProductCatalog({ products }: { products: Product[] }) {
     );
   }
 
-  const filtered = products.filter((product) => matchesQuery(product, query));
+  const filtered = sortProducts(
+    products.filter(
+      (product) =>
+        matchesQuery(product, query) &&
+        (statusFilter === "all" || product.status === statusFilter),
+    ),
+    sort,
+  );
+
+  const statusLabel =
+    STATUS_FILTERS.find((option) => option.value === statusFilter)?.label ??
+    "Filter";
+  const sortLabel =
+    SORT_OPTIONS.find((option) => option.value === sort)?.label ?? "Sort";
 
   return (
     <div className="mx-auto max-w-[1600px] px-4 py-6">
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="shrink-0 font-heading text-xl font-semibold tracking-tight">
-          Product Agent
-        </h1>
         <div className="relative min-w-[12rem] flex-1 sm:max-w-xs">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -62,14 +139,74 @@ export function ProductCatalog({ products }: { products: Product[] }) {
             aria-label="Search products"
           />
         </div>
-        <CreateProductMenu label="Create product" className="ml-auto" />
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<Button type="button" variant="outline" size="sm" />}
+          >
+            <ListFilterIcon data-icon="inline-start" />
+            {statusFilter === "all" ? "Filter" : statusLabel}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-44">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Status</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={statusFilter}
+                onValueChange={(value) =>
+                  setStatusFilter(value as StatusFilter)
+                }
+              >
+                {STATUS_FILTERS.map((option) => (
+                  <DropdownMenuRadioItem
+                    key={option.value}
+                    value={option.value}
+                  >
+                    {option.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<Button type="button" variant="outline" size="sm" />}
+          >
+            <ArrowUpDownIcon data-icon="inline-start" />
+            {sort === "newest" ? "Sort" : sortLabel}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-48">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={sort}
+                onValueChange={(value) => setSort(value as SortKey)}
+              >
+                {SORT_OPTIONS.map((option) => (
+                  <DropdownMenuRadioItem
+                    key={option.value}
+                    value={option.value}
+                  >
+                    {option.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <CatalogToolbar>
+          <CreateProductMenu label="Add products" />
+        </CatalogToolbar>
       </div>
 
       {filtered.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border px-4 py-16 text-center">
           <p className="text-sm font-medium">No matching products</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Try a different search, or clear the query to see all products.
+            Try a different search, filter, or clear the query to see all
+            products.
           </p>
         </div>
       ) : (
