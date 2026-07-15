@@ -23,6 +23,30 @@ export const productSchema = z.object({
 
 export type Product = z.infer<typeof productSchema>;
 
+export const createProductInputSchema = z.object({
+  id: z
+    .string()
+    .regex(/^prod_[a-z0-9]+$/, "Invalid product id")
+    .optional(),
+  title: z.string().min(1, "Title is required"),
+  handle: z
+    .string()
+    .min(1, "Handle is required")
+    .regex(
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+      "Use lowercase letters, numbers, and hyphens",
+    ),
+  description: z.string().default(""),
+  status: productStatusSchema.default("draft"),
+  price: z.number().nonnegative("Price must be 0 or greater"),
+  currency: z.string().min(1).default("USD"),
+  images: z.array(z.string().url()).default([]),
+  sku: z.string().optional(),
+  category: z.string().optional(),
+});
+
+export type CreateProductInput = z.infer<typeof createProductInputSchema>;
+
 export const productIntelligenceSchema = z.object({
   productId: z.string(),
   positioning: z.string(),

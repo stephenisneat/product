@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Product } from "@/domain";
 import { Badge } from "@/components/ui/badge";
+import { CreateProductButton } from "@/features/products/create-product-dialog";
 import { formatMoney } from "@/lib/format";
 
 export function ProductCatalog({ products }: { products: Product[] }) {
@@ -10,9 +11,12 @@ export function ProductCatalog({ products }: { products: Product[] }) {
       <div className="mx-auto max-w-3xl px-4 py-24 text-center">
         <h1 className="font-heading text-xl font-semibold tracking-tight">No products yet</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Import products from your commerce platform to start building marketing
-          intelligence.
+          Create your first product to start building marketing intelligence.
+          Imports from Shopify, WooCommerce, and Amazon are coming soon.
         </p>
+        <div className="mt-6 flex justify-center">
+          <CreateProductButton label="Create product" />
+        </div>
       </div>
     );
   }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { AppUser } from "@/domain";
 import { Button } from "@/components/ui/button";
-import { SignOutButton } from "@/features/auth/sign-out-button";
+import { UserMenu } from "@/components/layout/user-menu";
 
 export function AppHeader({
   user,
@@ -27,15 +27,7 @@ export function AppHeader({
         ) : null}
         <div className="ml-auto flex items-center gap-2">
           {user ? (
-            <>
-              <span className="hidden text-xs text-muted-foreground sm:inline">
-                {user.email}
-              </span>
-              <Button size="sm" variant="ghost" render={<Link href="/account" />}>
-                Account
-              </Button>
-              <SignOutButton />
-            </>
+            <UserMenu user={user} />
           ) : (
             <Button size="sm" variant="outline" render={<Link href="/login" />}>
               Sign in

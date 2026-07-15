@@ -70,6 +70,28 @@ export class SupabaseProductRepository implements ProductRepository {
     return data ? mapProduct(data as DbProduct) : null;
   }
 
+  async createProduct(product: Product): Promise<Product> {
+    const { error } = await this.client.from("products").insert({
+      id: product.id,
+      owner_id: product.ownerId,
+      title: product.title,
+      handle: product.handle,
+      description: product.description,
+      status: product.status,
+      price: product.price,
+      currency: product.currency,
+      images: product.images,
+      channels: product.channels,
+      sku: product.sku ?? null,
+      category: product.category ?? null,
+      synced_at: product.syncedAt ?? null,
+      created_at: product.createdAt,
+      updated_at: product.updatedAt,
+    });
+    if (error) throw error;
+    return product;
+  }
+
   async getIntelligence(productId: string): Promise<ProductIntelligence | null> {
     const { data, error } = await this.client
       .from("product_intelligence")
