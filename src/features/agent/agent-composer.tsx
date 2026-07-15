@@ -11,9 +11,9 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
@@ -234,30 +234,31 @@ export function AgentComposer({ user }: { user: AppUser }) {
               <History className="size-3.5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-64">
-              <DropdownMenuLabel>Conversation history</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {historyItems.length === 0 ? (
-                <div className="px-1.5 py-2 text-xs text-muted-foreground">
-                  No conversations yet.
-                </div>
-              ) : (
-                historyItems.map((conversation) => (
-                  <DropdownMenuItem
-                    key={conversation.id}
-                    onClick={() => selectConversation(conversation)}
-                    className="flex flex-col items-start gap-0.5"
-                  >
-                    <span className="w-full truncate text-sm">
-                      {conversation.title}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">
-                      {conversation.id === activeId
-                        ? "Current"
-                        : formatUpdatedAt(conversation.updatedAt)}
-                    </span>
-                  </DropdownMenuItem>
-                ))
-              )}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Conversation history</DropdownMenuLabel>
+                {historyItems.length === 0 ? (
+                  <div className="px-1.5 py-2 text-xs text-muted-foreground">
+                    No conversations yet.
+                  </div>
+                ) : (
+                  historyItems.map((conversation) => (
+                    <DropdownMenuItem
+                      key={conversation.id}
+                      onClick={() => selectConversation(conversation)}
+                      className="flex flex-col items-start gap-0.5"
+                    >
+                      <span className="w-full truncate text-sm">
+                        {conversation.title}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {conversation.id === activeId
+                          ? "Current"
+                          : formatUpdatedAt(conversation.updatedAt)}
+                      </span>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
