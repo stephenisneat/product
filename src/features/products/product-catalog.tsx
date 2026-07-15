@@ -17,6 +17,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -157,27 +158,34 @@ export function ProductCatalog({
           activeRole={activeRole}
         />
 
-        <div className="relative min-w-[12rem] flex-1 sm:max-w-xs">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search products…"
-            className="pl-8"
-            aria-label="Search products"
-          />
-        </div>
-
         <DropdownMenu>
           <DropdownMenuTrigger
             render={<Button type="button" variant="outline" size="sm" />}
           >
             <ListFilterIcon data-icon="inline-start" />
-            {statusFilter === "all" ? "Filter" : statusLabel}
+            {statusFilter !== "all"
+              ? statusLabel
+              : query.trim()
+                ? "Filtered"
+                : "Filter"}
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-44">
-            <DropdownMenuGroup>
+          <DropdownMenuContent align="start" className="min-w-56 p-0">
+            <div className="p-2">
+              <div className="relative">
+                <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  placeholder="Search products…"
+                  className="h-8 pl-8"
+                  aria-label="Search products"
+                />
+              </div>
+            </div>
+            <DropdownMenuSeparator className="my-0" />
+            <DropdownMenuGroup className="p-1">
               <DropdownMenuLabel>Status</DropdownMenuLabel>
               <DropdownMenuRadioGroup
                 value={statusFilter}

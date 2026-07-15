@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import {
+  BriefcaseIcon,
   ChartNoAxesCombinedIcon,
   CheckIcon,
   CodeXmlIcon,
@@ -101,6 +102,15 @@ function VisualizerButton() {
     <Button type="button" variant="outline" size="sm">
       <ChartNoAxesCombinedIcon data-icon="inline-start" />
       Visualizer
+    </Button>
+  );
+}
+
+function JobsButton() {
+  return (
+    <Button type="button" variant="outline" size="sm">
+      <BriefcaseIcon data-icon="inline-start" />
+      Jobs
     </Button>
   );
 }
@@ -250,6 +260,7 @@ export function CatalogToolbar({ children }: { children?: ReactNode }) {
     <div className="ml-auto flex flex-wrap items-center gap-2">
       <InsightsButton />
       <VisualizerButton />
+      <JobsButton />
       <Separator orientation="vertical" className="mx-1 h-5" />
       <WalletMenu />
       <ChannelsMenu />
