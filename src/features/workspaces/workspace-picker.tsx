@@ -2,21 +2,20 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { ChevronsUpDownIcon, SettingsIcon } from "lucide-react";
+import { CheckIcon, ChevronsUpDownIcon, SettingsIcon } from "lucide-react";
 import type { WorkspaceRole } from "@/domain";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 import type { WorkspaceWithRole } from "@/repositories/types";
+import { cn } from "@/lib/utils";
+
+const optionItemClass =
+  "flex w-full items-center gap-2 rounded-md py-1.5 pr-2 pl-2 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground";
 
 export function WorkspacePicker({
   workspaces,
@@ -28,6 +27,7 @@ export function WorkspacePicker({
   activeRole: WorkspaceRole;
 }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -38,8 +38,12 @@ export function WorkspacePicker({
   const canManage = activeRole === "owner" || activeRole === "admin";
 
   async function switchWorkspace(workspaceId: string) {
-    if (workspaceId === activeWorkspaceId) return;
+    if (workspaceId === activeWorkspaceId) {
+      setOpen(false);
+      return;
+    }
     setError(null);
+    setOpen(false);
     startTransition(async () => {
       try {
         const res = await fetch("/api/workspaces/active", {
@@ -62,8 +66,8 @@ export function WorkspacePicker({
 
   return (
     <div className="flex flex-col gap-1">
-      <DropdownMenu>
-        <DropdownMenuTrigger
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger
           render={
             <Button
               type="button"
@@ -76,41 +80,52 @@ export function WorkspacePicker({
         >
           <span className="truncate">{active.name}</span>
           <ChevronsUpDownIcon data-icon="inline-end" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="min-w-56">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={activeWorkspaceId}
-              onValueChange={(value) => {
-                if (value) void switchWorkspace(value);
-              }}
-            >
-              {workspaces.map((ws) => (
-                <DropdownMenuRadioItem key={ws.id} value={ws.id}>
-                  <span className="flex min-w-0 flex-col">
-                    <span className="truncate">{ws.name}</span>
-                    <span className="text-[10px] capitalize text-muted-foreground">
-                      {ws.role}
-                    </span>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="min-w-56 p-2">
+          <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
+            Workspaces
+          </p>
+          <div className="space-y-0.5">
+            {workspaces.map((ws) => (
+              <button
+                key={ws.id}
+                type="button"
+                className={optionItemClass}
+                onClick={() => void switchWorkspace(ws.id)}
+              >
+                <CheckIcon
+                  className={cn(
+                    "size-4 shrink-0",
+                    activeWorkspaceId === ws.id ? "opacity-100" : "opacity-0",
+                  )}
+                />
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate">{ws.name}</span>
+                  <span className="text-[10px] capitalize text-muted-foreground">
+                    {ws.role}
                   </span>
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuGroup>
+                </span>
+              </button>
+            ))}
+          </div>
           {canManage ? (
             <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => router.push("/settings/workspace")}
+              <Separator className="my-2" />
+              <button
+                type="button"
+                className={optionItemClass}
+                onClick={() => {
+                  setOpen(false);
+                  router.push("/settings/workspace");
+                }}
               >
-                <SettingsIcon />
+                <SettingsIcon className="size-4" />
                 Workspace settings
-              </DropdownMenuItem>
+              </button>
             </>
           ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </PopoverContent>
+      </Popover>
       {error ? (
         <p className="text-[10px] text-destructive">{error}</p>
       ) : null}

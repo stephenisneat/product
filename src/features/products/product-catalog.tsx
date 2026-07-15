@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowUpDownIcon,
+  CheckIcon,
   ListFilterIcon,
   SearchIcon,
 } from "lucide-react";
@@ -11,22 +12,22 @@ import type { Product, ProductStatus, WorkspaceRole } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { ProductImage } from "@/components/product-image";
 import { CatalogToolbar } from "@/features/products/catalog-toolbar";
 import { CreateProductMenu } from "@/features/products/create-product-menu";
 import { WorkspacePicker } from "@/features/workspaces/workspace-picker";
 import { formatMoney } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { WorkspaceWithRole } from "@/repositories/types";
+
+const optionItemClass =
+  "flex w-full items-center gap-2 rounded-md py-1.5 pr-2 pl-2 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground";
 
 type StatusFilter = "all" | ProductStatus;
 type SortKey =
@@ -107,6 +108,7 @@ export function ProductCatalog({
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortKey>("newest");
+  const [sortOpen, setSortOpen] = useState(false);
 
   if (products.length === 0) {
     return (
@@ -158,8 +160,8 @@ export function ProductCatalog({
           activeRole={activeRole}
         />
 
-        <DropdownMenu>
-          <DropdownMenuTrigger
+        <Popover>
+          <PopoverTrigger
             render={<Button type="button" variant="outline" size="sm" />}
           >
             <ListFilterIcon data-icon="inline-start" />
@@ -168,8 +170,8 @@ export function ProductCatalog({
               : query.trim()
                 ? "Filtered"
                 : "Filter"}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-56 p-0">
+          </PopoverTrigger>
+          <PopoverContent align="start" className="min-w-56 p-0">
             <div className="p-2">
               <div className="relative">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -184,54 +186,69 @@ export function ProductCatalog({
                 />
               </div>
             </div>
-            <DropdownMenuSeparator className="my-0" />
-            <DropdownMenuGroup className="p-1">
-              <DropdownMenuLabel>Status</DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                value={statusFilter}
-                onValueChange={(value) =>
-                  setStatusFilter(value as StatusFilter)
-                }
-              >
+            <Separator className="my-0" />
+            <div className="p-2">
+              <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
+                Status
+              </p>
+              <div className="space-y-0.5">
                 {STATUS_FILTERS.map((option) => (
-                  <DropdownMenuRadioItem
+                  <button
                     key={option.value}
-                    value={option.value}
+                    type="button"
+                    className={optionItemClass}
+                    onClick={() => setStatusFilter(option.value)}
                   >
+                    <CheckIcon
+                      className={cn(
+                        "size-4 shrink-0",
+                        statusFilter === option.value
+                          ? "opacity-100"
+                          : "opacity-0",
+                      )}
+                    />
                     {option.label}
-                  </DropdownMenuRadioItem>
+                  </button>
                 ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger
+        <Popover open={sortOpen} onOpenChange={setSortOpen}>
+          <PopoverTrigger
             render={<Button type="button" variant="outline" size="sm" />}
           >
             <ArrowUpDownIcon data-icon="inline-start" />
             {sort === "newest" ? "Sort" : sortLabel}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-48">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                value={sort}
-                onValueChange={(value) => setSort(value as SortKey)}
-              >
-                {SORT_OPTIONS.map((option) => (
-                  <DropdownMenuRadioItem
-                    key={option.value}
-                    value={option.value}
-                  >
-                    {option.label}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="min-w-48 p-2">
+            <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
+              Sort by
+            </p>
+            <div className="space-y-0.5">
+              {SORT_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={optionItemClass}
+                  onClick={() => {
+                    setSort(option.value);
+                    setSortOpen(false);
+                  }}
+                >
+                  <CheckIcon
+                    className={cn(
+                      "size-4 shrink-0",
+                      sort === option.value ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
 
         <CatalogToolbar>
           <CreateProductMenu label="Add products" />

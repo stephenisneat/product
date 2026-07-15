@@ -15,14 +15,10 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -54,19 +50,19 @@ function ProductPluginMenu() {
       toast.success("Plugin snippet copied");
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
-      toast.error("Couldn’t copy snippet");
+      toast.error("Couldn't copy snippet");
     }
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
+    <Popover>
+      <PopoverTrigger
         render={<Button type="button" variant="outline" size="sm" />}
       >
         <CodeXmlIcon data-icon="inline-start" />
         Plugin
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 p-0">
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-0">
         <div className="space-y-2 p-3">
           <div>
             <p className="text-sm font-medium">Product plugin</p>
@@ -92,8 +88,8 @@ function ProductPluginMenu() {
             {copied ? "Copied" : "Copy snippet"}
           </Button>
         </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -128,8 +124,8 @@ function ChannelsMenu() {
   const connectedCount = CHANNELS.filter((c) => c.connected).length;
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
+    <Popover>
+      <PopoverTrigger
         render={<Button type="button" variant="outline" size="sm" />}
       >
         <Link2Icon data-icon="inline-start" />
@@ -140,12 +136,17 @@ function ChannelsMenu() {
         >
           {connectedCount}
         </Badge>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-56">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Connected channels</DropdownMenuLabel>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="min-w-56 p-2">
+        <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
+          Connected channels
+        </p>
+        <ul className="space-y-0.5">
           {CHANNELS.map((channel) => (
-            <DropdownMenuItem key={channel.id} disabled className="opacity-100">
+            <li
+              key={channel.id}
+              className="flex items-center gap-2 rounded-md px-1.5 py-1 text-sm"
+            >
               <span className="flex-1">{channel.name}</span>
               <Badge
                 variant="outline"
@@ -157,13 +158,15 @@ function ChannelsMenu() {
               >
                 {channel.connected ? "Connected" : "Not connected"}
               </Badge>
-            </DropdownMenuItem>
+            </li>
           ))}
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem disabled>Manage channels…</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </ul>
+        <Separator className="my-2" />
+        <p className="px-1.5 py-1 text-sm text-muted-foreground">
+          Manage channels…
+        </p>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -172,14 +175,14 @@ function WalletMenu() {
   const [spendLimit, setSpendLimit] = useState("500");
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
+    <Popover>
+      <PopoverTrigger
         render={<Button type="button" variant="outline" size="sm" />}
       >
         <WalletIcon data-icon="inline-start" />
         {formatMoney(WALLET_BALANCE)}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72 p-0">
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72 p-0">
         <div className="space-y-3 p-3">
           <div>
             <p className="text-xs text-muted-foreground">Available balance</p>
@@ -250,8 +253,8 @@ function WalletMenu() {
             </p>
           </div>
         </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverContent>
+    </Popover>
   );
 }
 
