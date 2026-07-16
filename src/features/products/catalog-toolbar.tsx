@@ -19,7 +19,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import { WalletMenu } from "@/features/wallet/wallet-menu";
 
 const PLUGIN_SNIPPET = `<script
   src="https://cdn.product.app/v1/plugin.js"
@@ -171,7 +170,6 @@ export function CatalogToolbar({ children }: { children?: ReactNode }) {
       <VisualizerButton />
       <JobsButton />
       <Separator orientation="vertical" className="mx-1 h-5" />
-      <WalletMenu />
       <ChannelsMenu />
       <ProductPluginMenu />
       {children}

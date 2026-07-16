@@ -29,12 +29,5 @@ export default async function RootPage() {
   const products = await getProductRepository();
   const catalog = await products.listProducts(active.workspace.id);
 
-  return (
-    <ProductCatalog
-      products={catalog}
-      workspaces={active.workspaces}
-      activeWorkspaceId={active.workspace.id}
-      activeRole={active.role}
-    />
-  );
+  return <ProductCatalog products={catalog} />;
 }

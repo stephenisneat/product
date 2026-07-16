@@ -8,7 +8,7 @@ import {
   ListFilterIcon,
   SearchIcon,
 } from "lucide-react";
-import type { Product, ProductStatus, WorkspaceRole } from "@/domain";
+import type { Product, ProductStatus } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,10 +21,8 @@ import { Separator } from "@/components/ui/separator";
 import { ProductImage } from "@/components/product-image";
 import { CatalogToolbar } from "@/features/products/catalog-toolbar";
 import { CreateProductMenu } from "@/features/products/create-product-menu";
-import { WorkspacePicker } from "@/features/workspaces/workspace-picker";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { WorkspaceWithRole } from "@/repositories/types";
 
 const optionItemClass =
   "flex w-full items-center gap-2 rounded-md py-1.5 pr-2 pl-2 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground";
@@ -94,17 +92,7 @@ function sortProducts(products: Product[], sort: SortKey) {
   }
 }
 
-export function ProductCatalog({
-  products,
-  workspaces,
-  activeWorkspaceId,
-  activeRole,
-}: {
-  products: Product[];
-  workspaces: WorkspaceWithRole[];
-  activeWorkspaceId: string;
-  activeRole: WorkspaceRole;
-}) {
+export function ProductCatalog({ products }: { products: Product[] }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortKey>("newest");
@@ -112,14 +100,7 @@ export function ProductCatalog({
 
   if (products.length === 0) {
     return (
-      <div className="mx-auto max-w-[1600px] px-4 py-6">
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <WorkspacePicker
-            workspaces={workspaces}
-            activeWorkspaceId={activeWorkspaceId}
-            activeRole={activeRole}
-          />
-        </div>
+      <div className="mx-auto max-w-[1600px] px-4 pb-6">
         <div className="mx-auto max-w-3xl py-24 text-center">
           <h1 className="font-heading text-xl font-semibold tracking-tight">
             No products yet
@@ -146,14 +127,8 @@ export function ProductCatalog({
   );
 
   return (
-    <div className="mx-auto max-w-[1600px] px-4 py-6">
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <WorkspacePicker
-          workspaces={workspaces}
-          activeWorkspaceId={activeWorkspaceId}
-          activeRole={activeRole}
-        />
-
+    <div className="mx-auto max-w-[1600px] px-4 pb-6">
+      <div className="-mx-4 mb-4 flex min-h-14 flex-wrap items-center gap-2 border-b border-border px-4">
         <Popover>
           <PopoverTrigger
             render={

@@ -2,7 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { CheckIcon, ChevronsUpDownIcon, SettingsIcon } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronsUpDownIcon,
+  SettingsIcon,
+} from "lucide-react";
 import type { WorkspaceRole } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,12 +30,14 @@ export function WorkspacePicker({
   activeWorkspaceId,
   activeRole,
   plan = "free",
+  variant = "default",
 }: {
   workspaces: WorkspaceWithRole[];
   activeWorkspaceId: string;
   activeRole: WorkspaceRole;
   /** Account status shown on the trigger. Defaults to free until billing plans ship. */
   plan?: WorkspacePlan;
+  variant?: "default" | "header";
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -70,6 +77,8 @@ export function WorkspacePicker({
     });
   }
 
+  const mark = active.name.trim().slice(0, 1).toUpperCase() || "W";
+
   return (
     <div className="flex flex-col gap-1">
       <Popover open={open} onOpenChange={setOpen}>
@@ -77,21 +86,41 @@ export function WorkspacePicker({
           render={
             <Button
               type="button"
-              variant="outline"
+              variant={variant === "header" ? "ghost" : "outline"}
               size="sm"
               disabled={pending}
-              className="gap-1.5"
+              className={cn(
+                "gap-1.5",
+                variant === "header" &&
+                  "h-8 px-1.5 text-foreground hover:bg-white/5",
+              )}
             />
           }
         >
-          <span className="max-w-20 truncate">{active.name}</span>
+          {variant === "header" ? (
+            <span className="flex size-5 shrink-0 items-center justify-center rounded bg-muted text-[10px] font-semibold text-muted-foreground">
+              {mark}
+            </span>
+          ) : null}
+          <span
+            className={cn(
+              "truncate",
+              variant === "header" ? "max-w-48 font-medium" : "max-w-20",
+            )}
+          >
+            {active.name}
+          </span>
           <Badge
             variant="secondary"
             className="h-4 px-1.5 text-[10px] font-normal"
           >
             {plan === "pro" ? "Pro" : "Free"}
           </Badge>
-          <ChevronsUpDownIcon data-icon="inline-end" />
+          {variant === "header" ? (
+            <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronsUpDownIcon data-icon="inline-end" />
+          )}
         </PopoverTrigger>
         <PopoverContent align="start" className="min-w-56 p-2">
           <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">

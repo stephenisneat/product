@@ -1,0 +1,42 @@
+"use client";
+
+import type { AppUser, WorkspaceRole } from "@/domain";
+import { UserMenu } from "@/components/layout/user-menu";
+import { WalletMenu } from "@/features/wallet/wallet-menu";
+import { WorkspacePicker } from "@/features/workspaces/workspace-picker";
+import type { WorkspaceWithRole } from "@/repositories/types";
+
+export function AppHeader({
+  user,
+  workspaces,
+  activeWorkspaceId,
+  activeRole,
+}: {
+  user: AppUser;
+  workspaces: WorkspaceWithRole[];
+  activeWorkspaceId: string | null;
+  activeRole: WorkspaceRole | null;
+}) {
+  return (
+    <header className="flex h-12 shrink-0 items-center justify-between gap-4 px-4">
+      <div className="flex min-w-0 items-center gap-2">
+        {activeWorkspaceId && activeRole ? (
+          <WorkspacePicker
+            workspaces={workspaces}
+            activeWorkspaceId={activeWorkspaceId}
+            activeRole={activeRole}
+            variant="header"
+          />
+        ) : (
+          <span className="font-heading text-sm font-medium tracking-tight">
+            Product Agent
+          </span>
+        )}
+        <div className="flex items-center gap-2">
+          <WalletMenu />
+        </div>
+      </div>
+      <UserMenu user={user} showLabel />
+    </header>
+  );
+}

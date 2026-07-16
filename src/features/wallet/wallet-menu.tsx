@@ -113,7 +113,7 @@ function WalletPopoverShell({
       >
         {trigger}
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[320px] p-0">
+      <PopoverContent align="start" className="w-[320px] p-0">
         {children}
       </PopoverContent>
     </Popover>

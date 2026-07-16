@@ -31,8 +31,7 @@ export function ProductWorkspace({
   const proposed = artifacts.filter((a) => a.status === "proposed");
 
   return (
-    <div className="p-3 h-screen">
-    <div className="px-4 py-4 border border-border bg-card rounded-lg h-full">
+    <div className="px-4 py-4">
         <Button
           variant="ghost"
           size="sm"
@@ -257,7 +256,6 @@ export function ProductWorkspace({
             </div>
           </TabsContent>
         </Tabs>
-    </div>
     </div>
   );
 }

@@ -34,7 +34,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
-      <body className="min-h-full bg-background font-sans text-foreground">
+      <body className="min-h-full bg-black font-sans text-foreground">
         <TooltipProvider>
           {children}
           <Toaster richColors closeButton position="bottom-right" />

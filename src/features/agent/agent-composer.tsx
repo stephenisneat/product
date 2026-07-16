@@ -7,7 +7,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { AppUser } from "@/domain";
-import { UserMenu } from "@/components/layout/user-menu";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -232,68 +231,66 @@ export function AgentComposer({ user }: { user: AppUser }) {
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card">
-      <div className="relative flex items-center gap-1 border-b border-border px-2 py-2">
-        <div className="flex min-w-0 flex-1 items-center gap-0.5">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={startNewConversation}
-            disabled={busy || messages.length === 0}
-            title="New conversation"
-            aria-label="New conversation"
-          >
-            <MessageSquarePlus className="size-3.5" />
-          </Button>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-background">
+      <div className="relative flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={startNewConversation}
+          disabled={busy || messages.length === 0}
+          title="New conversation"
+          aria-label="New conversation"
+        >
+          <MessageSquarePlus className="size-3.5" />
+        </Button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  title="Conversation history"
-                  aria-label="Conversation history"
-                />
-              }
-            >
-              <History className="size-3.5" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-64">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Conversation history</DropdownMenuLabel>
-                {historyItems.length === 0 ? (
-                  <div className="px-1.5 py-2 text-xs text-muted-foreground">
-                    No conversations yet.
-                  </div>
-                ) : (
-                  historyItems.map((conversation) => (
-                    <DropdownMenuItem
-                      key={conversation.id}
-                      onClick={() => selectConversation(conversation)}
-                      className="flex flex-col items-start gap-0.5"
-                    >
-                      <span className="w-full truncate text-sm">
-                        {conversation.title}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground">
-                        {conversation.id === activeId
-                          ? "Current"
-                          : formatUpdatedAt(conversation.updatedAt)}
-                      </span>
-                    </DropdownMenuItem>
-                  ))
-                )}
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
         <h1 className="pointer-events-none absolute left-1/2 -translate-x-1/2 font-heading text-sm font-semibold tracking-tight">
           Product Agent
         </h1>
-        <UserMenu user={user} />
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                title="Conversation history"
+                aria-label="Conversation history"
+              />
+            }
+          >
+            <History className="size-3.5" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-64">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Conversation history</DropdownMenuLabel>
+              {historyItems.length === 0 ? (
+                <div className="px-1.5 py-2 text-xs text-muted-foreground">
+                  No conversations yet.
+                </div>
+              ) : (
+                historyItems.map((conversation) => (
+                  <DropdownMenuItem
+                    key={conversation.id}
+                    onClick={() => selectConversation(conversation)}
+                    className="flex flex-col items-start gap-0.5"
+                  >
+                    <span className="w-full truncate text-sm">
+                      {conversation.title}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {conversation.id === activeId
+                        ? "Current"
+                        : formatUpdatedAt(conversation.updatedAt)}
+                    </span>
+                  </DropdownMenuItem>
+                ))
+              )}
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <ScrollArea className="flex-1 px-3 py-3">
