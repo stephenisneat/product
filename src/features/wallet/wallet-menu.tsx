@@ -6,8 +6,6 @@ import {
   ChevronRightIcon,
   CreditCardIcon,
   FileTextIcon,
-  MegaphoneIcon,
-  SparklesIcon,
   WalletIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -25,10 +23,15 @@ import {
   EditLimitDialog,
 } from "@/features/wallet/wallet-dialogs";
 import { formatCents } from "@/features/wallet/money";
+import { cn } from "@/lib/utils";
+
+function usagePercent(value: number, max: number | null): number {
+  if (max == null || max <= 0) return 0;
+  return Math.min(100, Math.max(0, (value / max) * 100));
+}
 
 function ProgressBar({ value, max }: { value: number; max: number | null }) {
-  const pct =
-    max == null || max <= 0 ? 0 : Math.min(100, Math.round((value / max) * 100));
+  const pct = Math.round(usagePercent(value, max));
   return (
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
       <div
@@ -36,6 +39,63 @@ function ProgressBar({ value, max }: { value: number; max: number | null }) {
         style={{ width: `${pct}%` }}
       />
     </div>
+  );
+}
+
+/** Compact circular progress for toolbar limit triggers. */
+function ProgressRing({
+  value,
+  max,
+  className,
+  "aria-label": ariaLabel,
+}: {
+  value: number;
+  max: number | null;
+  className?: string;
+  "aria-label"?: string;
+}) {
+  const size = 14;
+  const stroke = 2;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const pct = usagePercent(value, max);
+  const offset = circumference - (pct / 100) * circumference;
+  const atLimit = max != null && max > 0 && value >= max;
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      className={cn("shrink-0 -rotate-90", className)}
+      aria-label={ariaLabel}
+      role="img"
+    >
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={stroke}
+        className="text-muted-foreground/30"
+      />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        className={cn(
+          "transition-[stroke-dashoffset] duration-300",
+          atLimit ? "text-destructive" : "text-primary",
+        )}
+      />
+    </svg>
   );
 }
 
@@ -87,7 +147,12 @@ function AdSpendLimitMenu({
     <WalletPopoverShell
       trigger={
         <>
-          <MegaphoneIcon data-icon="inline-start" />
+          <ProgressRing
+            value={wallet?.adSpendMtdCents ?? 0}
+            max={wallet?.adSpendLimitCents ?? null}
+            aria-label="Ad spend limit progress"
+            className="mr-0.5"
+          />
           {loading && !wallet ? "…" : triggerLabel}
         </>
       }
@@ -155,7 +220,12 @@ function UsageLimitMenu({
     <WalletPopoverShell
       trigger={
         <>
-          <SparklesIcon data-icon="inline-start" />
+          <ProgressRing
+            value={wallet?.usageMtdCents ?? 0}
+            max={wallet?.usageLimitCents ?? null}
+            aria-label="Usage limit progress"
+            className="mr-0.5"
+          />
           {loading && !wallet ? "…" : triggerLabel}
         </>
       }
