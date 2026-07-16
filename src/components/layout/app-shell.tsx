@@ -50,7 +50,7 @@ function AppShellFrame({
         activeRole={activeRole}
       />
       <div className="flex min-h-0 flex-1 gap-2 px-3 pb-3">
-        <main className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-y-contain rounded-xl border border-border bg-card">
+        <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-canvas">
           {children}
         </main>
         {hideChatSidebar ? null : (

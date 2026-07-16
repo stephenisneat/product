@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { PageCanvas } from "@/components/layout/page-canvas";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { WorkspaceSettingsPanel } from "@/features/workspaces/workspace-settings-panel";
@@ -25,8 +26,8 @@ export default async function WorkspaceSettingsPage() {
   ]);
 
   return (
-    <div className="flex min-h-full flex-col">
-      <div className="sticky top-0 z-10 border-b border-border bg-card/95 px-4 py-2 backdrop-blur supports-backdrop-filter:bg-card/80">
+    <PageCanvas
+      header={
         <Button
           render={<Link href="/" />}
           variant="ghost"
@@ -36,8 +37,8 @@ export default async function WorkspaceSettingsPage() {
           <ArrowLeftIcon className="size-3.5" />
           Back
         </Button>
-      </div>
-
+      }
+    >
       <div className="mx-auto w-full max-w-2xl px-4 py-6">
         <div className="mb-8">
           <h1 className="font-heading text-2xl font-semibold tracking-tight">
@@ -58,6 +59,6 @@ export default async function WorkspaceSettingsPage() {
           currentUserEmail={user.email}
         />
       </div>
-    </div>
+    </PageCanvas>
   );
 }

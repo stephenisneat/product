@@ -1,3 +1,4 @@
+import { PageCanvas } from "@/components/layout/page-canvas";
 import { MarketingHome } from "@/features/marketing/marketing-home";
 import { ProductCatalog } from "@/features/products/product-catalog";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -14,15 +15,17 @@ export default async function RootPage() {
   const active = await getActiveWorkspace();
   if (!active) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-24 text-center">
-        <h1 className="font-heading text-xl font-semibold tracking-tight">
-          No workspace yet
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Your account does not have a workspace. Try signing out and back in,
-          or contact support.
-        </p>
-      </div>
+      <PageCanvas>
+        <div className="mx-auto max-w-lg px-4 py-24 text-center">
+          <h1 className="font-heading text-xl font-semibold tracking-tight">
+            No workspace yet
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Your account does not have a workspace. Try signing out and back in,
+            or contact support.
+          </p>
+        </div>
+      </PageCanvas>
     );
   }
 

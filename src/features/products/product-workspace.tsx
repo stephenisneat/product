@@ -9,6 +9,7 @@ import type {
 } from "@/domain";
 import { ArtifactCard } from "@/features/artifacts/artifact-card";
 import { PerformanceChart } from "@/features/reporting/performance-chart";
+import { PageCanvas } from "@/components/layout/page-canvas";
 import { ProductImage } from "@/components/product-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,16 +32,20 @@ export function ProductWorkspace({
   const proposed = artifacts.filter((a) => a.status === "proposed");
 
   return (
-    <div className="px-4 py-4">
+    <PageCanvas
+      header={
         <Button
           variant="ghost"
           size="sm"
-          className="mb-3 -ml-2 gap-1.5 text-muted-foreground"
+          className="-ml-2 gap-1.5 text-muted-foreground"
           render={<Link href="/" />}
         >
           <ArrowLeft className="size-3.5" />
           Back
         </Button>
+      }
+    >
+      <div className="px-4 py-6">
         <div className="mb-4 flex flex-wrap items-start gap-4">
           <div className="relative size-20 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
             {product.images[0] ? (
@@ -256,6 +261,7 @@ export function ProductWorkspace({
             </div>
           </TabsContent>
         </Tabs>
-    </div>
+      </div>
+    </PageCanvas>
   );
 }

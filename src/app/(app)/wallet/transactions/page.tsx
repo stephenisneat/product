@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
 import { redirect } from "next/navigation";
 import type { WalletTransaction } from "@/domain";
+import { PageCanvas } from "@/components/layout/page-canvas";
 import { Button } from "@/components/ui/button";
 import { formatCents } from "@/features/wallet/money";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -68,77 +69,79 @@ export default async function WalletTransactionsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-8">
-      <div className="mb-6 flex items-center gap-3">
+    <PageCanvas
+      header={
         <Button
           render={<Link href="/" />}
           variant="ghost"
           size="sm"
-          className="gap-1.5"
+          className="-ml-2 gap-1.5 text-muted-foreground"
         >
           <ArrowLeftIcon className="size-3.5" />
           Back
         </Button>
-        <div>
+      }
+    >
+      <div className="mx-auto w-full max-w-3xl px-4 py-6">
+        <div className="mb-6">
           <h1 className="font-heading text-xl font-semibold tracking-tight">
             Transaction history
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Credits, AI usage, and wallet activity for{" "}
-            {active.workspace.name}.
+          <p className="mt-1 text-sm text-muted-foreground">
+            Credits, AI usage, and wallet activity for {active.workspace.name}.
           </p>
         </div>
-      </div>
 
-      {loadError ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-          {loadError}
-        </div>
-      ) : transactions.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          No transactions yet. Buy credits from the wallet menu to get started.
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-lg border">
-          <table className="w-full text-sm">
-            <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2 font-medium">Date</th>
-                <th className="px-3 py-2 font-medium">Type</th>
-                <th className="px-3 py-2 font-medium">Description</th>
-                <th className="px-3 py-2 text-right font-medium">Amount</th>
-                <th className="px-3 py-2 text-right font-medium">Balance</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {transactions.map((tx) => (
-                <tr key={tx.id} className="hover:bg-muted/30">
-                  <td className="whitespace-nowrap px-3 py-2.5 text-muted-foreground">
-                    {formatWhen(tx.createdAt)}
-                  </td>
-                  <td className="px-3 py-2.5">{typeLabel(tx.type)}</td>
-                  <td className="max-w-[220px] truncate px-3 py-2.5 text-muted-foreground">
-                    {tx.description || "—"}
-                  </td>
-                  <td
-                    className={
-                      tx.amountCents < 0
-                        ? "px-3 py-2.5 text-right tabular-nums text-destructive"
-                        : "px-3 py-2.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400"
-                    }
-                  >
-                    {tx.amountCents > 0 ? "+" : ""}
-                    {formatCents(tx.amountCents)}
-                  </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">
-                    {formatCents(tx.balanceAfterCents)}
-                  </td>
+        {loadError ? (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+            {loadError}
+          </div>
+        ) : transactions.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+            No transactions yet. Buy credits from the wallet menu to get started.
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-lg border">
+            <table className="w-full text-sm">
+              <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 font-medium">Date</th>
+                  <th className="px-3 py-2 font-medium">Type</th>
+                  <th className="px-3 py-2 font-medium">Description</th>
+                  <th className="px-3 py-2 text-right font-medium">Amount</th>
+                  <th className="px-3 py-2 text-right font-medium">Balance</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+              </thead>
+              <tbody className="divide-y">
+                {transactions.map((tx) => (
+                  <tr key={tx.id} className="hover:bg-muted/30">
+                    <td className="whitespace-nowrap px-3 py-2.5 text-muted-foreground">
+                      {formatWhen(tx.createdAt)}
+                    </td>
+                    <td className="px-3 py-2.5">{typeLabel(tx.type)}</td>
+                    <td className="max-w-[220px] truncate px-3 py-2.5 text-muted-foreground">
+                      {tx.description || "—"}
+                    </td>
+                    <td
+                      className={
+                        tx.amountCents < 0
+                          ? "px-3 py-2.5 text-right tabular-nums text-destructive"
+                          : "px-3 py-2.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400"
+                      }
+                    >
+                      {tx.amountCents > 0 ? "+" : ""}
+                      {formatCents(tx.amountCents)}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      {formatCents(tx.balanceAfterCents)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </PageCanvas>
   );
 }

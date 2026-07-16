@@ -231,7 +231,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-background">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-canvas">
       <div className="relative flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
         <Button
           type="button"
