@@ -32,7 +32,11 @@ export async function POST() {
   }
 
   const repo = getWalletWriteRepository();
-  const { customerId } = await ensureStripeCustomer(active.workspace, repo);
+  const { customerId } = await ensureStripeCustomer(
+    active.workspace,
+    user.email,
+    repo,
+  );
   const appUrl = getAppUrl();
 
   const session = await getStripe().billingPortal.sessions.create({

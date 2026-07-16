@@ -54,7 +54,11 @@ export async function POST(req: Request) {
 
   const { amountCents } = parsed.data;
   const repo = getWalletWriteRepository();
-  const { customerId } = await ensureStripeCustomer(active.workspace, repo);
+  const { customerId } = await ensureStripeCustomer(
+    active.workspace,
+    user.email,
+    repo,
+  );
 
   const appUrl = getAppUrl();
   const session = await getStripe().checkout.sessions.create({
