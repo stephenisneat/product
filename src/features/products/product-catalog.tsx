@@ -145,15 +145,9 @@ export function ProductCatalog({
     sort,
   );
 
-  const statusLabel =
-    STATUS_FILTERS.find((option) => option.value === statusFilter)?.label ??
-    "Filter";
-  const sortLabel =
-    SORT_OPTIONS.find((option) => option.value === sort)?.label ?? "Sort";
-
   return (
     <div className="mx-auto max-w-[1600px] px-4 py-6">
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <WorkspacePicker
           workspaces={workspaces}
           activeWorkspaceId={activeWorkspaceId}
@@ -162,14 +156,17 @@ export function ProductCatalog({
 
         <Popover>
           <PopoverTrigger
-            render={<Button type="button" variant="outline" size="sm" />}
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                className="aspect-square"
+                aria-label="Filter products"
+              />
+            }
           >
-            <ListFilterIcon data-icon="inline-start" />
-            {statusFilter !== "all"
-              ? statusLabel
-              : query.trim()
-                ? "Filtered"
-                : "Filter"}
+            <ListFilterIcon />
           </PopoverTrigger>
           <PopoverContent align="start" className="min-w-56 p-0">
             <div className="p-2">
@@ -217,10 +214,17 @@ export function ProductCatalog({
 
         <Popover open={sortOpen} onOpenChange={setSortOpen}>
           <PopoverTrigger
-            render={<Button type="button" variant="outline" size="sm" />}
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                className="aspect-square"
+                aria-label="Sort products"
+              />
+            }
           >
-            <ArrowUpDownIcon data-icon="inline-start" />
-            {sort === "newest" ? "Sort" : sortLabel}
+            <ArrowUpDownIcon />
           </PopoverTrigger>
           <PopoverContent align="start" className="min-w-48 p-2">
             <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">

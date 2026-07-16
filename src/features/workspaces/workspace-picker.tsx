@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { CheckIcon, ChevronsUpDownIcon, SettingsIcon } from "lucide-react";
 import type { WorkspaceRole } from "@/domain";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -17,14 +18,19 @@ import { cn } from "@/lib/utils";
 const optionItemClass =
   "flex w-full items-center gap-2 rounded-md py-1.5 pr-2 pl-2 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground";
 
+export type WorkspacePlan = "free" | "pro";
+
 export function WorkspacePicker({
   workspaces,
   activeWorkspaceId,
   activeRole,
+  plan = "free",
 }: {
   workspaces: WorkspaceWithRole[];
   activeWorkspaceId: string;
   activeRole: WorkspaceRole;
+  /** Account status shown on the trigger. Defaults to free until billing plans ship. */
+  plan?: WorkspacePlan;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -74,11 +80,17 @@ export function WorkspacePicker({
               variant="outline"
               size="sm"
               disabled={pending}
-              className="max-w-[14rem]"
+              className="gap-1.5"
             />
           }
         >
-          <span className="truncate">{active.name}</span>
+          <span className="max-w-20 truncate">{active.name}</span>
+          <Badge
+            variant="secondary"
+            className="h-4 px-1.5 text-[10px] font-normal"
+          >
+            {plan === "pro" ? "Pro" : "Free"}
+          </Badge>
           <ChevronsUpDownIcon data-icon="inline-end" />
         </PopoverTrigger>
         <PopoverContent align="start" className="min-w-56 p-2">
