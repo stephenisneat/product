@@ -4,9 +4,9 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   ChevronRightIcon,
+  CircleAlertIcon,
   CreditCardIcon,
   FileTextIcon,
-  WalletIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { WalletSummary } from "@/domain";
@@ -25,9 +25,37 @@ import {
 import { formatCents } from "@/features/wallet/money";
 import { cn } from "@/lib/utils";
 
+/** Remaining capacity below this is treated as "getting low". */
+const RING_LOW_PCT = 20;
+
+function clampPercent(value: number): number {
+  return Math.min(100, Math.max(0, value));
+}
+
 function usagePercent(value: number, max: number | null): number {
   if (max == null || max <= 0) return 0;
-  return Math.min(100, Math.max(0, (value / max) * 100));
+  return clampPercent((value / max) * 100);
+}
+
+/** Remaining headroom for a monthly limit (100 = unused, 0 = exhausted). */
+function limitRemainingPercent(used: number, limit: number | null): number {
+  if (limit == null || limit <= 0) return 100;
+  return clampPercent(((limit - used) / limit) * 100);
+}
+
+/** Balance fullness vs auto-reload target (or healthy if no target). */
+function balanceRemainingPercent(
+  balance: number,
+  target: number | null,
+): number {
+  if (balance <= 0) return 0;
+  if (target == null || target <= 0) return 100;
+  return clampPercent((balance / target) * 100);
+}
+
+function ringToneClass(remainingPct: number): string {
+  if (remainingPct < RING_LOW_PCT) return "text-amber-500";
+  return "text-emerald-500";
 }
 
 function ProgressBar({ value, max }: { value: number; max: number | null }) {
@@ -42,25 +70,32 @@ function ProgressBar({ value, max }: { value: number; max: number | null }) {
   );
 }
 
-/** Compact circular progress for toolbar limit triggers. */
+/** Compact circular progress for toolbar triggers (fill = remaining). */
 function ProgressRing({
-  value,
-  max,
+  remainingPct,
   className,
   "aria-label": ariaLabel,
 }: {
-  value: number;
-  max: number | null;
+  remainingPct: number;
   className?: string;
   "aria-label"?: string;
 }) {
+  const pct = clampPercent(remainingPct);
+
+  if (pct <= 0) {
+    return (
+      <CircleAlertIcon
+        className={cn("size-3.5 shrink-0 text-red-500", className)}
+        aria-label={ariaLabel}
+      />
+    );
+  }
+
   const size = 14;
   const stroke = 2;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
-  const pct = usagePercent(value, max);
   const offset = circumference - (pct / 100) * circumference;
-  const atLimit = max != null && max > 0 && value >= max;
 
   return (
     <svg
@@ -91,8 +126,8 @@ function ProgressRing({
         strokeDasharray={circumference}
         strokeDashoffset={offset}
         className={cn(
-          "transition-[stroke-dashoffset] duration-300",
-          atLimit ? "text-destructive" : "text-primary",
+          "transition-[stroke-dashoffset,color] duration-300",
+          ringToneClass(pct),
         )}
       />
     </svg>
@@ -137,23 +172,19 @@ function AdSpendLimitMenu({
   loading: boolean;
   onChangeLimit: () => void;
 }) {
-  const triggerLabel = !wallet
-    ? "…"
-    : wallet.adSpendLimitCents != null
-      ? `${formatCents(wallet.adSpendMtdCents)} / ${formatCents(wallet.adSpendLimitCents)}`
-      : formatCents(wallet.adSpendMtdCents);
-
   return (
     <WalletPopoverShell
       trigger={
         <>
           <ProgressRing
-            value={wallet?.adSpendMtdCents ?? 0}
-            max={wallet?.adSpendLimitCents ?? null}
+            remainingPct={limitRemainingPercent(
+              wallet?.adSpendMtdCents ?? 0,
+              wallet?.adSpendLimitCents ?? null,
+            )}
             aria-label="Ad spend limit progress"
             className="mr-0.5"
           />
-          {loading && !wallet ? "…" : triggerLabel}
+          {loading && !wallet ? "…" : "Ad spend"}
         </>
       }
     >
@@ -210,23 +241,19 @@ function UsageLimitMenu({
   loading: boolean;
   onChangeLimit: () => void;
 }) {
-  const triggerLabel = !wallet
-    ? "…"
-    : wallet.usageLimitCents != null
-      ? `${formatCents(wallet.usageMtdCents)} / ${formatCents(wallet.usageLimitCents)}`
-      : formatCents(wallet.usageMtdCents);
-
   return (
     <WalletPopoverShell
       trigger={
         <>
           <ProgressRing
-            value={wallet?.usageMtdCents ?? 0}
-            max={wallet?.usageLimitCents ?? null}
+            remainingPct={limitRemainingPercent(
+              wallet?.usageMtdCents ?? 0,
+              wallet?.usageLimitCents ?? null,
+            )}
             aria-label="Usage limit progress"
             className="mr-0.5"
           />
-          {loading && !wallet ? "…" : triggerLabel}
+          {loading && !wallet ? "…" : "Usage"}
         </>
       }
     >
@@ -302,16 +329,19 @@ function CreditBalanceMenu({
     }
   }
 
-  const balanceLabel = wallet
-    ? formatCents(wallet.balanceCents, wallet.currency)
-    : "…";
-
   return (
     <WalletPopoverShell
       trigger={
         <>
-          <WalletIcon data-icon="inline-start" />
-          {loading && !wallet ? "…" : balanceLabel}
+          <ProgressRing
+            remainingPct={balanceRemainingPercent(
+              wallet?.balanceCents ?? 0,
+              wallet?.autoReloadTargetCents ?? null,
+            )}
+            aria-label="Credit balance progress"
+            className="mr-0.5"
+          />
+          {loading && !wallet ? "…" : "Balance"}
         </>
       }
     >
