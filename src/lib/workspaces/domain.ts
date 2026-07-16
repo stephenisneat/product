@@ -151,3 +151,12 @@ export function parseWorkEmailDomain(input: string): string {
   }
   return domain;
 }
+
+/** Normalize a brand/site domain for workspace primary_domain. */
+export function parsePrimaryDomain(input: string): string {
+  const domain = normalizeEmailDomain(input);
+  if (!domain) {
+    throw new Error("Enter a valid domain (e.g. company.com).");
+  }
+  return domain;
+}

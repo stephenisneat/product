@@ -68,6 +68,7 @@ describe("domain schemas", () => {
       name: "Acme Workspace",
       avatarUrl: "https://www.google.com/s2/favicons?domain=acme.com&sz=128",
       plan: "pro",
+      primaryDomain: "acme.com",
       joinDomain: "acme.com",
       domainJoinEnabled: true,
       createdBy: "user_1",
@@ -76,6 +77,7 @@ describe("domain schemas", () => {
     });
     expect(workspace.name).toBe("Acme Workspace");
     expect(workspace.plan).toBe("pro");
+    expect(workspace.primaryDomain).toBe("acme.com");
     expect(workspace.joinDomain).toBe("acme.com");
 
     const member = workspaceMemberSchema.parse({

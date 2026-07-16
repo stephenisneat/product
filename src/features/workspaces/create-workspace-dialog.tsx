@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
+  parsePrimaryDomain,
   parseWorkEmailDomain,
   workEmailDomainFromAddress,
 } from "@/lib/workspaces/domain";
@@ -40,6 +41,7 @@ export function CreateWorkspaceDialog({
 
   const defaultDomain = workEmailDomainFromAddress(userEmail) ?? "";
   const [name, setName] = useState("");
+  const [primaryDomain, setPrimaryDomain] = useState(defaultDomain);
   const [domainJoinEnabled, setDomainJoinEnabled] = useState(false);
   const [joinDomain, setJoinDomain] = useState(defaultDomain);
   const [file, setFile] = useState<File | null>(null);
@@ -49,6 +51,7 @@ export function CreateWorkspaceDialog({
 
   function reset() {
     setName("");
+    setPrimaryDomain(defaultDomain);
     setDomainJoinEnabled(false);
     setJoinDomain(defaultDomain);
     setFile(null);
@@ -89,10 +92,20 @@ export function CreateWorkspaceDialog({
       return;
     }
 
-    let normalizedDomain: string | null = null;
+    let normalizedPrimary: string | null = null;
+    if (primaryDomain.trim()) {
+      try {
+        normalizedPrimary = parsePrimaryDomain(primaryDomain);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Invalid primary domain");
+        return;
+      }
+    }
+
+    let normalizedJoinDomain: string | null = null;
     if (domainJoinEnabled) {
       try {
-        normalizedDomain = parseWorkEmailDomain(joinDomain);
+        normalizedJoinDomain = parseWorkEmailDomain(joinDomain);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Invalid work domain");
         return;
@@ -107,8 +120,9 @@ export function CreateWorkspaceDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: trimmed,
+          primaryDomain: normalizedPrimary,
           domainJoinEnabled,
-          joinDomain: normalizedDomain,
+          joinDomain: normalizedJoinDomain,
         }),
       });
       const body = (await res.json().catch(() => ({}))) as {
@@ -210,6 +224,20 @@ export function CreateWorkspaceDialog({
               disabled={busy}
               autoFocus
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="primary-domain">Primary domain</Label>
+            <Input
+              id="primary-domain"
+              value={primaryDomain}
+              onChange={(e) => setPrimaryDomain(e.target.value)}
+              placeholder="company.com"
+              disabled={busy}
+            />
+            <p className="text-xs text-muted-foreground">
+              Optional. Used by the plugin and related features.
+            </p>
           </div>
 
           <div className="space-y-3 rounded-lg border border-border p-3">

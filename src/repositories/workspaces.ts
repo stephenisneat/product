@@ -19,6 +19,7 @@ type DbWorkspace = {
   name: string;
   avatar_url: string | null;
   plan: WorkspacePlan;
+  primary_domain: string | null;
   join_domain: string | null;
   domain_join_enabled: boolean;
   created_by: string;
@@ -55,6 +56,7 @@ function mapWorkspace(row: DbWorkspace): Workspace {
     name: row.name,
     avatarUrl: row.avatar_url ?? null,
     plan: row.plan ?? "free",
+    primaryDomain: row.primary_domain ?? null,
     joinDomain: row.join_domain ?? null,
     domainJoinEnabled: Boolean(row.domain_join_enabled),
     createdBy: row.created_by,
@@ -129,6 +131,7 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
         created_by: input.createdBy,
         avatar_url: input.avatarUrl ?? null,
         plan: input.plan ?? "free",
+        primary_domain: input.primaryDomain ?? null,
         join_domain: input.joinDomain ?? null,
         domain_join_enabled: input.domainJoinEnabled ?? false,
         created_at: now,
@@ -162,6 +165,9 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
     if (input.name !== undefined) patch.name = input.name;
     if (input.avatarUrl !== undefined) patch.avatar_url = input.avatarUrl;
     if (input.plan !== undefined) patch.plan = input.plan;
+    if (input.primaryDomain !== undefined) {
+      patch.primary_domain = input.primaryDomain;
+    }
     if (input.joinDomain !== undefined) patch.join_domain = input.joinDomain;
     if (input.domainJoinEnabled !== undefined) {
       patch.domain_join_enabled = input.domainJoinEnabled;

@@ -6,7 +6,10 @@ import {
   canManageMembers,
   canManageWorkspace,
 } from "@/lib/auth/workspace";
-import { parseWorkEmailDomain } from "@/lib/workspaces/domain";
+import {
+  parsePrimaryDomain,
+  parseWorkEmailDomain,
+} from "@/lib/workspaces/domain";
 import { resolveAvatarUrl } from "@/lib/workspaces/favicon";
 import { getWorkspaceRepository } from "@/repositories";
 
@@ -25,6 +28,7 @@ const patchSchema = z
     avatarUrl: z.string().url().nullable().optional(),
     clearAvatar: z.boolean().optional(),
     plan: workspacePlanSchema.optional(),
+    primaryDomain: z.string().trim().nullable().optional(),
     joinDomain: z.string().trim().nullable().optional(),
     domainJoinEnabled: z.boolean().optional(),
   })
@@ -34,6 +38,7 @@ const patchSchema = z
       data.avatarUrl !== undefined ||
       data.clearAvatar !== undefined ||
       data.plan !== undefined ||
+      data.primaryDomain !== undefined ||
       data.joinDomain !== undefined ||
       data.domainJoinEnabled !== undefined,
     { message: "At least one field is required" },
@@ -108,10 +113,30 @@ export async function PATCH(req: Request, { params }: Params) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    let primaryDomain: string | null | undefined;
+    if (body.primaryDomain !== undefined) {
+      if (body.primaryDomain === null || body.primaryDomain === "") {
+        primaryDomain = null;
+      } else {
+        try {
+          primaryDomain = parsePrimaryDomain(body.primaryDomain);
+        } catch (err) {
+          return NextResponse.json(
+            {
+              error:
+                err instanceof Error
+                  ? err.message
+                  : "Invalid primary domain",
+            },
+            { status: 400 },
+          );
+        }
+      }
+    }
+
     let joinDomain: string | null;
     try {
       if (body.joinDomain === undefined) {
-        // Drop any previously stored personal domains.
         joinDomain = storedWorkJoinDomain(current.joinDomain);
       } else if (body.joinDomain === null || body.joinDomain === "") {
         joinDomain = null;
@@ -147,9 +172,15 @@ export async function PATCH(req: Request, { params }: Params) {
       );
     }
 
+    const nextPrimaryDomain =
+      primaryDomain !== undefined
+        ? primaryDomain
+        : (current.primaryDomain ?? null);
+
     const avatarUrl = resolveAvatarUrl({
       currentAvatarUrl: current.avatarUrl,
       nextAvatarUrl: body.avatarUrl,
+      primaryDomain: nextPrimaryDomain,
       joinDomain: domainJoinEnabled ? joinDomain : null,
       clearAvatar: body.clearAvatar,
     });
@@ -159,11 +190,13 @@ export async function PATCH(req: Request, { params }: Params) {
       avatarUrl:
         body.avatarUrl !== undefined ||
         body.clearAvatar ||
+        body.primaryDomain !== undefined ||
         body.joinDomain !== undefined ||
         body.domainJoinEnabled !== undefined
           ? avatarUrl
           : undefined,
       plan: body.plan,
+      primaryDomain,
       joinDomain:
         body.joinDomain !== undefined || body.domainJoinEnabled !== undefined
           ? joinDomain

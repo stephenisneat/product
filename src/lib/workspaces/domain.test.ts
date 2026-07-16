@@ -3,6 +3,7 @@ import {
   emailDomainFromAddress,
   isConsumerEmailDomain,
   normalizeEmailDomain,
+  parsePrimaryDomain,
   parseWorkEmailDomain,
   workEmailDomainFromAddress,
 } from "./domain";
@@ -41,6 +42,11 @@ describe("workspace domain helpers", () => {
     expect(workEmailDomainFromAddress("ada@acme.com")).toBe("acme.com");
     expect(workEmailDomainFromAddress("stephen@protonmail.com")).toBeNull();
     expect(workEmailDomainFromAddress("you@gmail.com")).toBeNull();
+  });
+
+  it("parses primary domains", () => {
+    expect(parsePrimaryDomain("https://www.Acme.com/path")).toBe("www.acme.com");
+    expect(() => parsePrimaryDomain("not-a-domain")).toThrow(/valid domain/);
   });
 });
 

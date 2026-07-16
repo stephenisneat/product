@@ -5,7 +5,10 @@ import {
   WORKSPACE_COOKIE,
   workspaceCookieOptions,
 } from "@/lib/auth/workspace";
-import { parseWorkEmailDomain } from "@/lib/workspaces/domain";
+import {
+  parsePrimaryDomain,
+  parseWorkEmailDomain,
+} from "@/lib/workspaces/domain";
 import { resolveAvatarUrl } from "@/lib/workspaces/favicon";
 import { getWorkspaceRepository } from "@/repositories";
 
@@ -29,6 +32,7 @@ export async function GET() {
 const createBodySchema = z.object({
   name: z.string().trim().min(1).max(80),
   avatarUrl: z.string().url().nullable().optional(),
+  primaryDomain: z.string().trim().nullable().optional(),
   joinDomain: z.string().trim().nullable().optional(),
   domainJoinEnabled: z.boolean().optional(),
 });
@@ -48,6 +52,23 @@ export async function POST(req: Request) {
   }
 
   try {
+    let primaryDomain: string | null = null;
+    if (parsed.data.primaryDomain) {
+      try {
+        primaryDomain = parsePrimaryDomain(parsed.data.primaryDomain);
+      } catch (err) {
+        return NextResponse.json(
+          {
+            error:
+              err instanceof Error
+                ? err.message
+                : "Invalid primary domain",
+          },
+          { status: 400 },
+        );
+      }
+    }
+
     const wantsDomainJoin = parsed.data.domainJoinEnabled ?? false;
     let joinDomain: string | null = null;
 
@@ -80,6 +101,7 @@ export async function POST(req: Request) {
 
     const avatarUrl = resolveAvatarUrl({
       nextAvatarUrl: parsed.data.avatarUrl,
+      primaryDomain,
       joinDomain,
     });
 
@@ -88,6 +110,7 @@ export async function POST(req: Request) {
       name: parsed.data.name,
       createdBy: user.id,
       avatarUrl,
+      primaryDomain,
       joinDomain,
       domainJoinEnabled,
     });

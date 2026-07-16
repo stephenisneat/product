@@ -27,6 +27,7 @@ export const workspaceSchema = z.object({
   name: z.string().min(1),
   avatarUrl: z.string().url().nullable().optional(),
   plan: workspacePlanSchema.default("free"),
+  primaryDomain: z.string().nullable().optional(),
   joinDomain: z.string().nullable().optional(),
   domainJoinEnabled: z.boolean().default(false),
   createdBy: z.string(),

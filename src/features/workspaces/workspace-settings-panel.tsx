@@ -23,6 +23,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { WorkspaceAvatar } from "@/features/workspaces/workspace-avatar";
 import {
+  parsePrimaryDomain,
   parseWorkEmailDomain,
   workEmailDomainFromAddress,
 } from "@/lib/workspaces/domain";
@@ -55,6 +56,9 @@ export function WorkspaceSettingsPanel({
 
   const [workspace, setWorkspace] = useState(initialWorkspace);
   const [name, setName] = useState(initialWorkspace.name);
+  const [primaryDomain, setPrimaryDomain] = useState(
+    initialWorkspace.primaryDomain ?? "",
+  );
   const [plan, setPlan] = useState<WorkspacePlan>(initialWorkspace.plan ?? "free");
   const [domainJoinEnabled, setDomainJoinEnabled] = useState(
     initialWorkspace.domainJoinEnabled,
@@ -93,6 +97,7 @@ export function WorkspaceSettingsPanel({
       if (data.workspace) {
         setWorkspace(data.workspace);
         setName(data.workspace.name);
+        setPrimaryDomain(data.workspace.primaryDomain ?? "");
         setPlan(data.workspace.plan ?? "free");
         setDomainJoinEnabled(data.workspace.domainJoinEnabled);
         setJoinDomain(
@@ -115,6 +120,24 @@ export function WorkspaceSettingsPanel({
   async function saveName() {
     if (!canRename) return;
     await patchWorkspace({ name }, "Workspace name updated.");
+  }
+
+  async function savePrimaryDomain() {
+    if (!canManage) return;
+    let normalized: string | null = null;
+    if (primaryDomain.trim()) {
+      try {
+        normalized = parsePrimaryDomain(primaryDomain);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Invalid primary domain");
+        setMessage(null);
+        return;
+      }
+    }
+    await patchWorkspace(
+      { primaryDomain: normalized },
+      "Primary domain updated.",
+    );
   }
 
   async function savePlan(next: WorkspacePlan) {
@@ -329,8 +352,7 @@ export function WorkspaceSettingsPanel({
           ) : null}
         </div>
         <p className="text-xs text-muted-foreground">
-          If you enable domain join without a custom avatar, the domain favicon
-          is used by default.
+          Without a custom avatar, the primary domain favicon is used when set.
         </p>
       </section>
 
@@ -359,6 +381,36 @@ export function WorkspaceSettingsPanel({
             Only owners and admins can rename this workspace.
           </p>
         ) : null}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium">Primary domain</h2>
+        <div className="flex flex-wrap gap-2">
+          <Input
+            value={primaryDomain}
+            onChange={(e) => setPrimaryDomain(e.target.value)}
+            disabled={!canManage || busy}
+            className="max-w-sm"
+            placeholder="company.com"
+            aria-label="Primary domain"
+          />
+          {canManage ? (
+            <Button
+              type="button"
+              onClick={() => void savePrimaryDomain()}
+              disabled={
+                busy ||
+                (primaryDomain.trim() || null) ===
+                  (workspace.primaryDomain ?? null)
+              }
+            >
+              Save
+            </Button>
+          ) : null}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Your brand or site domain. Used by the plugin and related features.
+        </p>
       </section>
 
       {isOwner ? (

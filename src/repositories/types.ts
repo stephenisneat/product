@@ -27,6 +27,7 @@ export type WorkspaceCreateInput = {
   name: string;
   createdBy: string;
   avatarUrl?: string | null;
+  primaryDomain?: string | null;
   joinDomain?: string | null;
   domainJoinEnabled?: boolean;
   plan?: WorkspacePlan;
@@ -36,6 +37,7 @@ export type WorkspaceUpdateInput = {
   name?: string;
   avatarUrl?: string | null;
   plan?: WorkspacePlan;
+  primaryDomain?: string | null;
   joinDomain?: string | null;
   domainJoinEnabled?: boolean;
 };

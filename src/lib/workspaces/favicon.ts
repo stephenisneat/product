@@ -21,15 +21,25 @@ export function isFaviconAvatarUrl(url: string | null | undefined): boolean {
   }
 }
 
+function faviconDomainFor(input: {
+  primaryDomain?: string | null;
+  joinDomain?: string | null;
+}): string | null {
+  return input.primaryDomain || input.joinDomain || null;
+}
+
 /** Prefer keeping a custom upload; otherwise use/refresh the domain favicon. */
 export function resolveAvatarUrl(input: {
   currentAvatarUrl?: string | null;
   nextAvatarUrl?: string | null;
+  primaryDomain?: string | null;
   joinDomain?: string | null;
   clearAvatar?: boolean;
 }): string | null {
+  const faviconDomain = faviconDomainFor(input);
+
   if (input.clearAvatar) {
-    return input.joinDomain ? faviconUrlForDomain(input.joinDomain) : null;
+    return faviconDomain ? faviconUrlForDomain(faviconDomain) : null;
   }
 
   if (input.nextAvatarUrl !== undefined) {
@@ -41,8 +51,8 @@ export function resolveAvatarUrl(input: {
     return current;
   }
 
-  if (input.joinDomain) {
-    return faviconUrlForDomain(input.joinDomain);
+  if (faviconDomain) {
+    return faviconUrlForDomain(faviconDomain);
   }
 
   return current && isFaviconAvatarUrl(current) ? null : current;
