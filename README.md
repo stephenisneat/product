@@ -59,7 +59,8 @@ Product images upload to the `product-assets` storage bucket created by migratio
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable/anon key (`NEXT_PUBLIC_SUPABASE_ANON_KEY` also accepted) |
 | `NEXT_PUBLIC_APP_URL` | Public app origin for Shopify OAuth redirects |
-| `OPENAI_API_KEY` | Server-side OpenAI access for the agent (optional; offline stream used when unset) |
+| `VERCEL_OIDC_TOKEN` | AI Gateway auth for local dev (from `vercel env pull .env.local`; optional offline stream when unset) |
+| `AI_GATEWAY_API_KEY` | Optional static AI Gateway key for CI / non-Vercel environments |
 | `SHOPIFY_API_KEY` | Shopify Partner app Client ID (required for import) |
 | `SHOPIFY_API_SECRET` | Shopify Partner app Client secret (also used to encrypt stored tokens unless `TOKEN_ENCRYPTION_KEY` is set) |
 | `SHOPIFY_SCOPES` | OAuth scopes (default `read_products,read_inventory`) |
