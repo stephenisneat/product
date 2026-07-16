@@ -28,9 +28,9 @@ const optionItemClass =
 
 function planBadgeClass(plan: WorkspacePlan) {
   if (plan === "pro") {
-    return "border-blue-500/25 bg-blue-500/15 text-blue-800 dark:text-blue-200";
+    return "border-blue-500/30 bg-blue-500/40 text-blue-800 dark:text-blue-100 font-semibold";
   }
-  return "border-yellow-500/25 bg-yellow-500/15 text-yellow-800 dark:text-yellow-200";
+  return "border-yellow-500/30 bg-yellow-500/40 text-yellow-800 dark:text-yellow-100 font-semibold";
 }
 
 export function WorkspacePicker({
