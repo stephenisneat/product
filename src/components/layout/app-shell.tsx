@@ -6,7 +6,6 @@ import type { AppUser, WorkspaceRole } from "@/domain";
 import { AppHeader } from "@/components/layout/app-header";
 import { AgentComposer } from "@/features/agent/agent-composer";
 import { AgentContextProvider } from "@/features/agent/agent-context";
-import { WalletBlockedBanner } from "@/features/wallet/wallet-blocked-banner";
 import { WalletProvider, useWallet } from "@/features/wallet/wallet-context";
 import { BuyCreditsDialog } from "@/features/wallet/wallet-dialogs";
 import type { WorkspaceWithRole } from "@/repositories/types";
@@ -42,7 +41,6 @@ function AppShellFrame({
 
   return (
     <div className="flex h-svh flex-col overflow-hidden bg-black">
-      <WalletBlockedBanner />
       <AppHeader
         user={user}
         workspaces={workspaces}
