@@ -28,12 +28,12 @@ function AppShellFrame({
   children: ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex h-svh flex-col overflow-hidden bg-background">
       <WalletBlockedBanner />
-      <div className="mx-auto flex min-h-screen">
-        <div className="min-w-0 flex-1">{children}</div>
-        <aside className="hidden w-[360px] shrink-0 lg:block xl:w-[400px]">
-          <div className="sticky top-3 mr-3 mb-3 h-[calc(100vh-1.5rem)]">
+      <div className="mx-auto flex min-h-0 w-full flex-1">
+        <div className="min-h-0 min-w-0 flex-1 overflow-auto">{children}</div>
+        <aside className="hidden min-h-0 w-[360px] shrink-0 lg:block xl:w-[400px]">
+          <div className="mr-3 mt-3 mb-3 h-[calc(100%-1.5rem)]">
             <AgentComposer user={user} />
           </div>
         </aside>

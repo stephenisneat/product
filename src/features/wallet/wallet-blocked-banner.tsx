@@ -14,7 +14,7 @@ export function WalletBlockedBanner() {
       : "Your wallet balance is $0. Add credits to keep using AI features.";
 
   return (
-    <div className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-950 dark:text-amber-100">
+    <div className="shrink-0 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-950 dark:text-amber-100">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2">
         <p>{message}</p>
         {wallet.canManage && wallet.blockedReason === "zero_balance" ? (
