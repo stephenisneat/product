@@ -230,7 +230,10 @@ export function ProductCatalog({ products }: { products: Product[] }) {
         </Popover>
 
         <CatalogToolbar>
-          <CreateProductMenu label="Add products" />
+          <CreateProductMenu
+            label="Add products"
+            className="border border-transparent bg-[linear-gradient(#288DFF,#288DFF),linear-gradient(to_bottom,rgba(255,255,255,0.12),rgba(255,255,255,0))] bg-origin-border [background-clip:padding-box,border-box] text-white shadow-[0_0_0_1px_#288DFF,0_1px_2px_0_rgba(14,18,27,0.24)] hover:bg-[linear-gradient(#1f7ff5,#1f7ff5),linear-gradient(to_bottom,rgba(255,255,255,0.12),rgba(255,255,255,0))] hover:text-white focus-visible:border-[#288DFF] focus-visible:ring-[#288DFF]/40 dark:text-white"
+          />
         </CatalogToolbar>
       </div>
 
