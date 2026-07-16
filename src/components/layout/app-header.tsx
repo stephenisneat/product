@@ -2,6 +2,8 @@
 
 import type { AppUser, WorkspaceRole } from "@/domain";
 import { UserMenu } from "@/components/layout/user-menu";
+import { ChannelsMenu } from "@/features/channels/channels-menu";
+import { ProductPluginMenu } from "@/features/plugin/product-plugin-menu";
 import { WalletMenu } from "@/features/wallet/wallet-menu";
 import { WorkspacePicker } from "@/features/workspaces/workspace-picker";
 import type { WorkspaceWithRole } from "@/repositories/types";
@@ -33,6 +35,8 @@ export function AppHeader({
           </span>
         )}
         <div className="flex items-center gap-2">
+          <ChannelsMenu />
+          <ProductPluginMenu />
           <WalletMenu />
         </div>
       </div>
