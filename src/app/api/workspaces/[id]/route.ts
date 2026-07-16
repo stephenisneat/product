@@ -10,6 +10,15 @@ import { parseWorkEmailDomain } from "@/lib/workspaces/domain";
 import { resolveAvatarUrl } from "@/lib/workspaces/favicon";
 import { getWorkspaceRepository } from "@/repositories";
 
+function storedWorkJoinDomain(domain: string | null | undefined): string | null {
+  if (!domain) return null;
+  try {
+    return parseWorkEmailDomain(domain);
+  } catch {
+    return null;
+  }
+}
+
 const patchSchema = z
   .object({
     name: z.string().trim().min(1).max(80).optional(),
@@ -99,26 +108,43 @@ export async function PATCH(req: Request, { params }: Params) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    let joinDomain =
-      body.joinDomain === undefined
-        ? (current.joinDomain ?? null)
-        : body.joinDomain === null || body.joinDomain === ""
-          ? null
-          : parseWorkEmailDomain(body.joinDomain);
-
-    const domainJoinEnabled =
-      body.domainJoinEnabled ?? current.domainJoinEnabled;
-
-    if (domainJoinEnabled && !joinDomain) {
+    let joinDomain: string | null;
+    try {
+      if (body.joinDomain === undefined) {
+        // Drop any previously stored personal domains.
+        joinDomain = storedWorkJoinDomain(current.joinDomain);
+      } else if (body.joinDomain === null || body.joinDomain === "") {
+        joinDomain = null;
+      } else {
+        joinDomain = parseWorkEmailDomain(body.joinDomain);
+      }
+    } catch (err) {
       return NextResponse.json(
-        { error: "A work email domain is required when domain join is enabled." },
+        {
+          error:
+            err instanceof Error
+              ? err.message
+              : "Invalid work email domain",
+        },
         { status: 400 },
       );
     }
 
-    if (!domainJoinEnabled && body.joinDomain === undefined) {
-      // keep stored domain for convenience when toggling off
-      joinDomain = current.joinDomain ?? null;
+    const domainJoinEnabled =
+      (body.domainJoinEnabled ?? current.domainJoinEnabled) &&
+      Boolean(joinDomain);
+
+    if (
+      (body.domainJoinEnabled ?? current.domainJoinEnabled) &&
+      !joinDomain
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "A company email domain is required when domain join is enabled. Personal providers are not allowed.",
+        },
+        { status: 400 },
+      );
     }
 
     const avatarUrl = resolveAvatarUrl({

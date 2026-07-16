@@ -15,7 +15,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { emailDomainFromAddress } from "@/lib/workspaces/domain";
+import {
+  parseWorkEmailDomain,
+  workEmailDomainFromAddress,
+} from "@/lib/workspaces/domain";
 import {
   uploadWorkspaceAvatar,
   validateWorkspaceAvatarFile,
@@ -35,7 +38,7 @@ export function CreateWorkspaceDialog({
   const fileInputId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const defaultDomain = emailDomainFromAddress(userEmail) ?? "";
+  const defaultDomain = workEmailDomainFromAddress(userEmail) ?? "";
   const [name, setName] = useState("");
   const [domainJoinEnabled, setDomainJoinEnabled] = useState(false);
   const [joinDomain, setJoinDomain] = useState(defaultDomain);
@@ -86,6 +89,16 @@ export function CreateWorkspaceDialog({
       return;
     }
 
+    let normalizedDomain: string | null = null;
+    if (domainJoinEnabled) {
+      try {
+        normalizedDomain = parseWorkEmailDomain(joinDomain);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Invalid work domain");
+        return;
+      }
+    }
+
     setBusy(true);
     setError(null);
     try {
@@ -95,7 +108,7 @@ export function CreateWorkspaceDialog({
         body: JSON.stringify({
           name: trimmed,
           domainJoinEnabled,
-          joinDomain: domainJoinEnabled ? joinDomain.trim() : null,
+          joinDomain: normalizedDomain,
         }),
       });
       const body = (await res.json().catch(() => ({}))) as {
@@ -204,8 +217,9 @@ export function CreateWorkspaceDialog({
               <div className="space-y-1">
                 <Label htmlFor="domain-join">Domain join</Label>
                 <p className="text-xs text-muted-foreground">
-                  People with a matching work email can discover and join this
-                  workspace.
+                  People with a matching company email can discover and join.
+                  Personal providers like Gmail, Proton Mail, and Yahoo are not
+                  allowed.
                 </p>
               </div>
               <Switch

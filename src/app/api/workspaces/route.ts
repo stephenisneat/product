@@ -48,23 +48,35 @@ export async function POST(req: Request) {
   }
 
   try {
-    const domainJoinEnabled = parsed.data.domainJoinEnabled ?? false;
+    const wantsDomainJoin = parsed.data.domainJoinEnabled ?? false;
     let joinDomain: string | null = null;
 
-    if (domainJoinEnabled) {
+    if (wantsDomainJoin || parsed.data.joinDomain) {
       if (!parsed.data.joinDomain) {
         return NextResponse.json(
           {
             error:
-              "A work email domain is required when domain join is enabled.",
+              "A company email domain is required when domain join is enabled.",
           },
           { status: 400 },
         );
       }
-      joinDomain = parseWorkEmailDomain(parsed.data.joinDomain);
-    } else if (parsed.data.joinDomain) {
-      joinDomain = parseWorkEmailDomain(parsed.data.joinDomain);
+      try {
+        joinDomain = parseWorkEmailDomain(parsed.data.joinDomain);
+      } catch (err) {
+        return NextResponse.json(
+          {
+            error:
+              err instanceof Error
+                ? err.message
+                : "Invalid work email domain",
+          },
+          { status: 400 },
+        );
+      }
     }
+
+    const domainJoinEnabled = wantsDomainJoin && Boolean(joinDomain);
 
     const avatarUrl = resolveAvatarUrl({
       nextAvatarUrl: parsed.data.avatarUrl,
@@ -77,7 +89,7 @@ export async function POST(req: Request) {
       createdBy: user.id,
       avatarUrl,
       joinDomain,
-      domainJoinEnabled: domainJoinEnabled && Boolean(joinDomain),
+      domainJoinEnabled,
     });
     await repo.setActiveWorkspace(user.id, workspace.id);
 

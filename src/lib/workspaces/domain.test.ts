@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   emailDomainFromAddress,
+  isConsumerEmailDomain,
   normalizeEmailDomain,
   parseWorkEmailDomain,
+  workEmailDomainFromAddress,
 } from "./domain";
 import { faviconUrlForDomain, isFaviconAvatarUrl, resolveAvatarUrl } from "./favicon";
 
@@ -15,8 +17,30 @@ describe("workspace domain helpers", () => {
   });
 
   it("rejects consumer domains for work join", () => {
-    expect(() => parseWorkEmailDomain("gmail.com")).toThrow(/Personal email/);
+    for (const domain of [
+      "gmail.com",
+      "googlemail.com",
+      "protonmail.com",
+      "proton.me",
+      "pm.me",
+      "yahoo.com",
+      "yahoo.co.uk",
+      "outlook.com",
+      "hotmail.com",
+      "icloud.com",
+      "aol.com",
+    ]) {
+      expect(isConsumerEmailDomain(domain)).toBe(true);
+      expect(() => parseWorkEmailDomain(domain)).toThrow(/Personal email/);
+    }
     expect(parseWorkEmailDomain("acme.com")).toBe("acme.com");
+    expect(isConsumerEmailDomain("acme.com")).toBe(false);
+  });
+
+  it("prefills only company domains from email addresses", () => {
+    expect(workEmailDomainFromAddress("ada@acme.com")).toBe("acme.com");
+    expect(workEmailDomainFromAddress("stephen@protonmail.com")).toBeNull();
+    expect(workEmailDomainFromAddress("you@gmail.com")).toBeNull();
   });
 });
 

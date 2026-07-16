@@ -4,6 +4,11 @@ import {
   WORKSPACE_COOKIE,
   workspaceCookieOptions,
 } from "@/lib/auth/workspace";
+import {
+  emailDomainFromAddress,
+  isConsumerEmailDomain,
+  parseWorkEmailDomain,
+} from "@/lib/workspaces/domain";
 import { getWorkspaceRepository } from "@/repositories";
 
 type Params = { params: Promise<{ id: string }> };
@@ -17,7 +22,34 @@ export async function POST(_req: Request, { params }: Params) {
   const { id } = await params;
 
   try {
+    const userDomain = emailDomainFromAddress(user.email);
+    if (!userDomain || isConsumerEmailDomain(userDomain)) {
+      return NextResponse.json(
+        {
+          error:
+            "Domain join is only available for company email addresses, not personal providers.",
+        },
+        { status: 403 },
+      );
+    }
+
     const repo = await getWorkspaceRepository();
+    const target = await repo.getWorkspace(id);
+    if (!target?.domainJoinEnabled || !target.joinDomain) {
+      return NextResponse.json(
+        { error: "Domain join not allowed" },
+        { status: 403 },
+      );
+    }
+    try {
+      parseWorkEmailDomain(target.joinDomain);
+    } catch {
+      return NextResponse.json(
+        { error: "Domain join not allowed" },
+        { status: 403 },
+      );
+    }
+
     await repo.joinWorkspaceByDomain(id);
 
     const membership = await repo.getMembership(id, user.id);

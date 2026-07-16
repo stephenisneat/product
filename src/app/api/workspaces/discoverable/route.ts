@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
+import {
+  emailDomainFromAddress,
+  isConsumerEmailDomain,
+  parseWorkEmailDomain,
+} from "@/lib/workspaces/domain";
 import { getWorkspaceRepository } from "@/repositories";
 
 export async function GET() {
@@ -8,9 +13,24 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const userDomain = emailDomainFromAddress(user.email);
+  if (!userDomain || isConsumerEmailDomain(userDomain)) {
+    return NextResponse.json({ workspaces: [] });
+  }
+
   try {
     const repo = await getWorkspaceRepository();
-    const workspaces = await repo.listDiscoverableWorkspaces();
+    const workspaces = (await repo.listDiscoverableWorkspaces()).filter(
+      (workspace) => {
+        if (!workspace.joinDomain) return false;
+        try {
+          parseWorkEmailDomain(workspace.joinDomain);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    );
     return NextResponse.json({ workspaces });
   } catch (error) {
     const message =

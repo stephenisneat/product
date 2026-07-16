@@ -22,7 +22,10 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { WorkspaceAvatar } from "@/features/workspaces/workspace-avatar";
-import { emailDomainFromAddress } from "@/lib/workspaces/domain";
+import {
+  parseWorkEmailDomain,
+  workEmailDomainFromAddress,
+} from "@/lib/workspaces/domain";
 import {
   uploadWorkspaceAvatar,
   validateWorkspaceAvatarFile,
@@ -58,7 +61,7 @@ export function WorkspaceSettingsPanel({
   );
   const [joinDomain, setJoinDomain] = useState(
     initialWorkspace.joinDomain ??
-      emailDomainFromAddress(currentUserEmail) ??
+      workEmailDomainFromAddress(currentUserEmail) ??
       "",
   );
   const [members, setMembers] = useState(initialMembers);
@@ -94,7 +97,7 @@ export function WorkspaceSettingsPanel({
         setDomainJoinEnabled(data.workspace.domainJoinEnabled);
         setJoinDomain(
           data.workspace.joinDomain ??
-            emailDomainFromAddress(currentUserEmail) ??
+            workEmailDomainFromAddress(currentUserEmail) ??
             "",
         );
       }
@@ -124,10 +127,20 @@ export function WorkspaceSettingsPanel({
 
   async function saveDomainJoin() {
     if (!isOwner) return;
+    let normalizedDomain: string | null = null;
+    if (domainJoinEnabled || joinDomain.trim()) {
+      try {
+        normalizedDomain = parseWorkEmailDomain(joinDomain);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Invalid work domain");
+        setMessage(null);
+        return;
+      }
+    }
     await patchWorkspace(
       {
-        domainJoinEnabled,
-        joinDomain: joinDomain.trim() || null,
+        domainJoinEnabled: domainJoinEnabled && Boolean(normalizedDomain),
+        joinDomain: normalizedDomain,
       },
       "Domain join settings updated.",
     );
@@ -383,8 +396,9 @@ export function WorkspaceSettingsPanel({
                   Allow matching work emails to join
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Teammates with this email domain can discover and join from
-                  the workspace picker. Personal email domains are not allowed.
+                  Teammates with this company email domain can discover and join
+                  from the workspace picker. Personal providers (Gmail, Proton
+                  Mail, Yahoo, Outlook.com, etc.) are not allowed.
                 </p>
               </div>
               <Switch
