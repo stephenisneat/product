@@ -1,12 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import type {
   Workspace,
   WorkspaceInvite,
   WorkspaceInviteRole,
   WorkspaceMember,
+  WorkspacePlan,
   WorkspaceRole,
 } from "@/domain";
 import { Button } from "@/components/ui/button";
@@ -19,25 +20,47 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { WorkspaceAvatar } from "@/features/workspaces/workspace-avatar";
+import { emailDomainFromAddress } from "@/lib/workspaces/domain";
+import {
+  uploadWorkspaceAvatar,
+  validateWorkspaceAvatarFile,
+} from "@/lib/workspaces/upload-avatar";
 
 export function WorkspaceSettingsPanel({
-  workspace,
+  workspace: initialWorkspace,
   role,
   members: initialMembers,
   invites: initialInvites,
   currentUserId,
+  currentUserEmail,
 }: {
   workspace: Workspace;
   role: WorkspaceRole;
   members: WorkspaceMember[];
   invites: WorkspaceInvite[];
   currentUserId: string;
+  currentUserEmail: string;
 }) {
   const router = useRouter();
-  const canRename = role === "owner";
+  const fileInputId = useId();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const canRename = role === "owner" || role === "admin";
   const canManage = role === "owner" || role === "admin";
+  const isOwner = role === "owner";
 
-  const [name, setName] = useState(workspace.name);
+  const [workspace, setWorkspace] = useState(initialWorkspace);
+  const [name, setName] = useState(initialWorkspace.name);
+  const [plan, setPlan] = useState<WorkspacePlan>(initialWorkspace.plan ?? "free");
+  const [domainJoinEnabled, setDomainJoinEnabled] = useState(
+    initialWorkspace.domainJoinEnabled,
+  );
+  const [joinDomain, setJoinDomain] = useState(
+    initialWorkspace.joinDomain ??
+      emailDomainFromAddress(currentUserEmail) ??
+      "",
+  );
   const [members, setMembers] = useState(initialMembers);
   const [invites, setInvites] = useState(initialInvites);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -46,8 +69,10 @@ export function WorkspaceSettingsPanel({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function saveName() {
-    if (!canRename) return;
+  async function patchWorkspace(
+    body: Record<string, unknown>,
+    success?: string,
+  ): Promise<boolean> {
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -55,20 +80,78 @@ export function WorkspaceSettingsPanel({
       const res = await fetch(`/api/workspaces/${workspace.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify(body),
       });
-      const body = (await res.json().catch(() => ({}))) as {
+      const data = (await res.json().catch(() => ({}))) as {
         error?: string;
         workspace?: Workspace;
       };
-      if (!res.ok) throw new Error(body.error || "Failed to rename");
-      setMessage("Workspace name updated.");
+      if (!res.ok) throw new Error(data.error || "Failed to update workspace");
+      if (data.workspace) {
+        setWorkspace(data.workspace);
+        setName(data.workspace.name);
+        setPlan(data.workspace.plan ?? "free");
+        setDomainJoinEnabled(data.workspace.domainJoinEnabled);
+        setJoinDomain(
+          data.workspace.joinDomain ??
+            emailDomainFromAddress(currentUserEmail) ??
+            "",
+        );
+      }
+      if (success) setMessage(success);
       router.refresh();
+      return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to rename");
+      setError(err instanceof Error ? err.message : "Failed to update");
+      return false;
     } finally {
       setBusy(false);
     }
+  }
+
+  async function saveName() {
+    if (!canRename) return;
+    await patchWorkspace({ name }, "Workspace name updated.");
+  }
+
+  async function savePlan(next: WorkspacePlan) {
+    if (!isOwner) return;
+    const previous = plan;
+    setPlan(next);
+    const ok = await patchWorkspace({ plan: next }, "Plan updated.");
+    if (!ok) setPlan(previous);
+  }
+
+  async function saveDomainJoin() {
+    if (!isOwner) return;
+    await patchWorkspace(
+      {
+        domainJoinEnabled,
+        joinDomain: joinDomain.trim() || null,
+      },
+      "Domain join settings updated.",
+    );
+  }
+
+  async function onAvatarSelected(file: File | null) {
+    if (!canManage || !file) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      validateWorkspaceAvatarFile(file);
+      const avatarUrl = await uploadWorkspaceAvatar(workspace.id, file);
+      setBusy(false);
+      await patchWorkspace({ avatarUrl }, "Avatar updated.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to upload avatar");
+      setBusy(false);
+    }
+  }
+
+  async function clearAvatar() {
+    if (!canManage) return;
+    await patchWorkspace({ clearAvatar: true }, "Avatar removed.");
   }
 
   async function sendInvite() {
@@ -187,6 +270,58 @@ export function WorkspaceSettingsPanel({
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <section className="space-y-3">
+        <h2 className="text-sm font-medium">Avatar</h2>
+        <div className="flex flex-wrap items-center gap-4">
+          <WorkspaceAvatar
+            name={workspace.name}
+            avatarUrl={workspace.avatarUrl}
+            size="default"
+            className="size-14"
+          />
+          {canManage ? (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Upload
+              </Button>
+              {workspace.avatarUrl ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => void clearAvatar()}
+                >
+                  Remove
+                </Button>
+              ) : null}
+              <input
+                id={fileInputId}
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  e.target.value = "";
+                  void onAvatarSelected(file);
+                }}
+              />
+            </div>
+          ) : null}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          If you enable domain join without a custom avatar, the domain favicon
+          is used by default.
+        </p>
+      </section>
+
+      <section className="space-y-3">
         <h2 className="text-sm font-medium">Workspace name</h2>
         <div className="flex flex-wrap gap-2">
           <Input
@@ -208,21 +343,96 @@ export function WorkspaceSettingsPanel({
         </div>
         {!canRename ? (
           <p className="text-xs text-muted-foreground">
-            Only the owner can rename this workspace.
+            Only owners and admins can rename this workspace.
           </p>
         ) : null}
       </section>
+
+      {isOwner ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-medium">Plan</h2>
+          <Select
+            value={plan}
+            onValueChange={(value) => {
+              if (value === "free" || value === "pro") {
+                void savePlan(value);
+              }
+            }}
+          >
+            <SelectTrigger className="w-40" disabled={busy}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="free">Free</SelectItem>
+              <SelectItem value="pro">Pro</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Temporary control until billing is connected.
+          </p>
+        </section>
+      ) : null}
+
+      {isOwner ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-medium">Domain join</h2>
+          <div className="space-y-3 rounded-lg border border-border p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="settings-domain-join">
+                  Allow matching work emails to join
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Teammates with this email domain can discover and join from
+                  the workspace picker. Personal email domains are not allowed.
+                </p>
+              </div>
+              <Switch
+                id="settings-domain-join"
+                checked={domainJoinEnabled}
+                disabled={busy}
+                onCheckedChange={setDomainJoinEnabled}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="settings-join-domain">Email domain</Label>
+              <div className="flex max-w-sm items-center gap-2">
+                <span className="text-sm text-muted-foreground">@</span>
+                <Input
+                  id="settings-join-domain"
+                  value={joinDomain}
+                  onChange={(e) => setJoinDomain(e.target.value)}
+                  placeholder="company.com"
+                  disabled={busy}
+                />
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              disabled={
+                busy ||
+                (domainJoinEnabled === workspace.domainJoinEnabled &&
+                  (joinDomain.trim() || null) === (workspace.joinDomain ?? null))
+              }
+              onClick={() => void saveDomainJoin()}
+            >
+              Save domain settings
+            </Button>
+          </div>
+        </section>
+      ) : null}
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium">Members</h2>
         <ul className="divide-y divide-border rounded-lg border border-border">
           {members.map((member) => {
-            const isOwner = member.role === "owner";
+            const memberIsOwner = member.role === "owner";
             const isSelf = member.userId === currentUserId;
             const canEditRole =
-              canManage && !isOwner && (role === "owner" || member.role !== "admin");
+              canManage && !memberIsOwner && (role === "owner" || member.role !== "admin");
             const canRemove =
-              !isOwner &&
+              !memberIsOwner &&
               (isSelf ||
                 (canManage && (role === "owner" || member.role !== "admin")));
 

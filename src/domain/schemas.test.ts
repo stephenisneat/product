@@ -66,11 +66,17 @@ describe("domain schemas", () => {
     const workspace = workspaceSchema.parse({
       id: "550e8400-e29b-41d4-a716-446655440000",
       name: "Acme Workspace",
+      avatarUrl: "https://www.google.com/s2/favicons?domain=acme.com&sz=128",
+      plan: "pro",
+      joinDomain: "acme.com",
+      domainJoinEnabled: true,
       createdBy: "user_1",
       createdAt: "2026-07-14T00:00:00.000Z",
       updatedAt: "2026-07-14T00:00:00.000Z",
     });
     expect(workspace.name).toBe("Acme Workspace");
+    expect(workspace.plan).toBe("pro");
+    expect(workspace.joinDomain).toBe("acme.com");
 
     const member = workspaceMemberSchema.parse({
       workspaceId: workspace.id,

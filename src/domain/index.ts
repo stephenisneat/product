@@ -25,6 +25,7 @@ export type {
   WorkspaceInvite,
   WorkspaceInviteRole,
   WorkspaceMember,
+  WorkspacePlan,
   WorkspaceRole,
   WorkspaceWallet,
 } from "./schemas";
@@ -61,6 +62,7 @@ export {
   workspaceInviteRoleSchema,
   workspaceInviteSchema,
   workspaceMemberSchema,
+  workspacePlanSchema,
   workspaceRoleSchema,
   workspaceSchema,
   workspaceWalletSchema,

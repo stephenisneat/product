@@ -11,6 +11,7 @@ import type {
   WorkspaceInvite,
   WorkspaceInviteRole,
   WorkspaceMember,
+  WorkspacePlan,
   WorkspaceRole,
 } from "@/domain";
 
@@ -20,6 +21,23 @@ export type CommerceConnectionRecord = CommerceConnection & {
 
 export type WorkspaceWithRole = Workspace & {
   role: WorkspaceRole;
+};
+
+export type WorkspaceCreateInput = {
+  name: string;
+  createdBy: string;
+  avatarUrl?: string | null;
+  joinDomain?: string | null;
+  domainJoinEnabled?: boolean;
+  plan?: WorkspacePlan;
+};
+
+export type WorkspaceUpdateInput = {
+  name?: string;
+  avatarUrl?: string | null;
+  plan?: WorkspacePlan;
+  joinDomain?: string | null;
+  domainJoinEnabled?: boolean;
 };
 
 export interface ProductRepository {
@@ -55,8 +73,10 @@ export interface ArtifactRepository {
 export interface WorkspaceRepository {
   listWorkspacesForUser(userId: string): Promise<WorkspaceWithRole[]>;
   getWorkspace(id: string): Promise<Workspace | null>;
-  createWorkspace(name: string, createdBy: string): Promise<Workspace>;
-  updateWorkspace(id: string, name: string): Promise<Workspace>;
+  createWorkspace(input: WorkspaceCreateInput): Promise<Workspace>;
+  updateWorkspace(id: string, input: WorkspaceUpdateInput): Promise<Workspace>;
+  listDiscoverableWorkspaces(): Promise<Workspace[]>;
+  joinWorkspaceByDomain(workspaceId: string): Promise<void>;
   getMembership(
     workspaceId: string,
     userId: string,
@@ -85,3 +105,4 @@ export interface WorkspaceRepository {
   setActiveWorkspace(userId: string, workspaceId: string): Promise<void>;
   getActiveWorkspaceId(userId: string): Promise<string | null>;
 }
+

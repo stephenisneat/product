@@ -34,7 +34,8 @@ export default async function WorkspaceSettingsPage() {
           Workspace settings
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage {active.workspace.name} members and invites.
+          Manage {active.workspace.name} avatar, plan, domain join, members, and
+          invites.
         </p>
       </div>
 
@@ -44,6 +45,7 @@ export default async function WorkspaceSettingsPage() {
         members={members}
         invites={invites}
         currentUserId={user.id}
+        currentUserEmail={user.email}
       />
     </div>
   );

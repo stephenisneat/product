@@ -19,9 +19,16 @@ export type WorkspaceRole = z.infer<typeof workspaceRoleSchema>;
 export const workspaceInviteRoleSchema = z.enum(["admin", "member"]);
 export type WorkspaceInviteRole = z.infer<typeof workspaceInviteRoleSchema>;
 
+export const workspacePlanSchema = z.enum(["free", "pro"]);
+export type WorkspacePlan = z.infer<typeof workspacePlanSchema>;
+
 export const workspaceSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1),
+  avatarUrl: z.string().url().nullable().optional(),
+  plan: workspacePlanSchema.default("free"),
+  joinDomain: z.string().nullable().optional(),
+  domainJoinEnabled: z.boolean().default(false),
   createdBy: z.string(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),

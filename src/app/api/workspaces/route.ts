@@ -5,6 +5,8 @@ import {
   WORKSPACE_COOKIE,
   workspaceCookieOptions,
 } from "@/lib/auth/workspace";
+import { parseWorkEmailDomain } from "@/lib/workspaces/domain";
+import { resolveAvatarUrl } from "@/lib/workspaces/favicon";
 import { getWorkspaceRepository } from "@/repositories";
 
 export async function GET() {
@@ -26,6 +28,9 @@ export async function GET() {
 
 const createBodySchema = z.object({
   name: z.string().trim().min(1).max(80),
+  avatarUrl: z.string().url().nullable().optional(),
+  joinDomain: z.string().trim().nullable().optional(),
+  domainJoinEnabled: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
@@ -43,8 +48,37 @@ export async function POST(req: Request) {
   }
 
   try {
+    const domainJoinEnabled = parsed.data.domainJoinEnabled ?? false;
+    let joinDomain: string | null = null;
+
+    if (domainJoinEnabled) {
+      if (!parsed.data.joinDomain) {
+        return NextResponse.json(
+          {
+            error:
+              "A work email domain is required when domain join is enabled.",
+          },
+          { status: 400 },
+        );
+      }
+      joinDomain = parseWorkEmailDomain(parsed.data.joinDomain);
+    } else if (parsed.data.joinDomain) {
+      joinDomain = parseWorkEmailDomain(parsed.data.joinDomain);
+    }
+
+    const avatarUrl = resolveAvatarUrl({
+      nextAvatarUrl: parsed.data.avatarUrl,
+      joinDomain,
+    });
+
     const repo = await getWorkspaceRepository();
-    const workspace = await repo.createWorkspace(parsed.data.name, user.id);
+    const workspace = await repo.createWorkspace({
+      name: parsed.data.name,
+      createdBy: user.id,
+      avatarUrl,
+      joinDomain,
+      domainJoinEnabled: domainJoinEnabled && Boolean(joinDomain),
+    });
     await repo.setActiveWorkspace(user.id, workspace.id);
 
     const response = NextResponse.json({ workspace }, { status: 201 });

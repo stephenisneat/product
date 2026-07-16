@@ -1,14 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   CheckIcon,
   ChevronDownIcon,
   ChevronsUpDownIcon,
+  PlusIcon,
   SettingsIcon,
 } from "lucide-react";
-import type { WorkspaceRole } from "@/domain";
+import type { Workspace, WorkspacePlan, WorkspaceRole } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,38 +18,69 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { CreateWorkspaceDialog } from "@/features/workspaces/create-workspace-dialog";
+import { WorkspaceAvatar } from "@/features/workspaces/workspace-avatar";
 import type { WorkspaceWithRole } from "@/repositories/types";
 import { cn } from "@/lib/utils";
 
 const optionItemClass =
   "flex w-full items-center gap-2 rounded-md py-1.5 pr-2 pl-2 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground";
 
-export type WorkspacePlan = "free" | "pro";
+function planBadgeClass(plan: WorkspacePlan) {
+  if (plan === "pro") {
+    return "border-blue-500/25 bg-blue-500/15 text-blue-800 dark:text-blue-200";
+  }
+  return "border-yellow-500/25 bg-yellow-500/15 text-yellow-800 dark:text-yellow-200";
+}
 
 export function WorkspacePicker({
   workspaces,
   activeWorkspaceId,
   activeRole,
-  plan = "free",
+  userEmail,
+  plan: planOverride,
   variant = "default",
 }: {
   workspaces: WorkspaceWithRole[];
   activeWorkspaceId: string;
   activeRole: WorkspaceRole;
-  /** Account status shown on the trigger. Defaults to free until billing plans ship. */
+  userEmail: string;
+  /** Optional override; defaults to the active workspace plan. */
   plan?: WorkspacePlan;
   variant?: "default" | "header";
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [discoverable, setDiscoverable] = useState<Workspace[]>([]);
+  const [joiningId, setJoiningId] = useState<string | null>(null);
 
   const active =
     workspaces.find((ws) => ws.id === activeWorkspaceId) ?? workspaces[0];
-  if (!active) return null;
-
+  const plan = planOverride ?? active?.plan ?? "free";
   const canManage = activeRole === "owner" || activeRole === "admin";
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/workspaces/discoverable");
+        if (!res.ok) return;
+        const body = (await res.json()) as { workspaces?: Workspace[] };
+        if (!cancelled) setDiscoverable(body.workspaces ?? []);
+      } catch {
+        if (!cancelled) setDiscoverable([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  if (!active) return null;
 
   async function switchWorkspace(workspaceId: string) {
     if (workspaceId === activeWorkspaceId) {
@@ -77,7 +109,26 @@ export function WorkspacePicker({
     });
   }
 
-  const mark = active.name.trim().slice(0, 1).toUpperCase() || "W";
+  async function joinWorkspace(workspaceId: string) {
+    setJoiningId(workspaceId);
+    setError(null);
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/join`, {
+        method: "POST",
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        throw new Error(body.error || "Failed to join workspace");
+      }
+      setDiscoverable((prev) => prev.filter((ws) => ws.id !== workspaceId));
+      setOpen(false);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to join");
+    } finally {
+      setJoiningId(null);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-1">
@@ -98,21 +149,26 @@ export function WorkspacePicker({
           }
         >
           {variant === "header" ? (
-            <span className="flex size-5 shrink-0 items-center justify-center rounded bg-muted text-[10px] font-semibold text-muted-foreground">
-              {mark}
-            </span>
+            <WorkspaceAvatar
+              name={active.name}
+              avatarUrl={active.avatarUrl}
+              size="sm"
+            />
           ) : null}
           <span
             className={cn(
-              "truncate",
-              variant === "header" ? "max-w-48 font-medium" : "max-w-20",
+              "min-w-12 truncate text-left",
+              variant === "header" ? "max-w-28 font-medium" : "max-w-20",
             )}
           >
             {active.name}
           </span>
           <Badge
             variant="secondary"
-            className="h-4 px-1.5 text-[10px] font-normal"
+            className={cn(
+              "h-4 px-1.5 text-[10px] font-normal",
+              planBadgeClass(plan),
+            )}
           >
             {plan === "pro" ? "Pro" : "Free"}
           </Badge>
@@ -140,6 +196,11 @@ export function WorkspacePicker({
                     activeWorkspaceId === ws.id ? "opacity-100" : "opacity-0",
                   )}
                 />
+                <WorkspaceAvatar
+                  name={ws.name}
+                  avatarUrl={ws.avatarUrl}
+                  size="sm"
+                />
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate">{ws.name}</span>
                   <span className="text-[10px] capitalize text-muted-foreground">
@@ -149,27 +210,78 @@ export function WorkspacePicker({
               </button>
             ))}
           </div>
-          {canManage ? (
+
+          {discoverable.length > 0 ? (
             <>
               <Separator className="my-2" />
-              <button
-                type="button"
-                className={optionItemClass}
-                onClick={() => {
-                  setOpen(false);
-                  router.push("/settings/workspace");
-                }}
-              >
-                <SettingsIcon className="size-4" />
-                Workspace settings
-              </button>
+              <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
+                Available to join
+              </p>
+              <div className="space-y-0.5">
+                {discoverable.map((ws) => (
+                  <div
+                    key={ws.id}
+                    className="flex items-center gap-2 rounded-md py-1.5 pr-2 pl-2"
+                  >
+                    <WorkspaceAvatar
+                      name={ws.name}
+                      avatarUrl={ws.avatarUrl}
+                      size="sm"
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm">
+                      {ws.name}
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-xs"
+                      disabled={joiningId === ws.id}
+                      onClick={() => void joinWorkspace(ws.id)}
+                    >
+                      {joiningId === ws.id ? "Joining…" : "Join"}
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </>
+          ) : null}
+
+          <Separator className="my-2" />
+          <button
+            type="button"
+            className={optionItemClass}
+            onClick={() => {
+              setOpen(false);
+              setCreateOpen(true);
+            }}
+          >
+            <PlusIcon className="size-4" />
+            Create workspace
+          </button>
+          {canManage ? (
+            <button
+              type="button"
+              className={optionItemClass}
+              onClick={() => {
+                setOpen(false);
+                router.push("/settings/workspace");
+              }}
+            >
+              <SettingsIcon className="size-4" />
+              Workspace settings
+            </button>
           ) : null}
         </PopoverContent>
       </Popover>
       {error ? (
         <p className="text-[10px] text-destructive">{error}</p>
       ) : null}
+      <CreateWorkspaceDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        userEmail={userEmail}
+      />
     </div>
   );
 }

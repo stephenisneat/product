@@ -4,13 +4,23 @@ import type {
   WorkspaceInvite,
   WorkspaceInviteRole,
   WorkspaceMember,
+  WorkspacePlan,
   WorkspaceRole,
 } from "@/domain";
-import type { WorkspaceRepository, WorkspaceWithRole } from "./types";
+import type {
+  WorkspaceCreateInput,
+  WorkspaceRepository,
+  WorkspaceUpdateInput,
+  WorkspaceWithRole,
+} from "./types";
 
 type DbWorkspace = {
   id: string;
   name: string;
+  avatar_url: string | null;
+  plan: WorkspacePlan;
+  join_domain: string | null;
+  domain_join_enabled: boolean;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -43,6 +53,10 @@ function mapWorkspace(row: DbWorkspace): Workspace {
   return {
     id: row.id,
     name: row.name,
+    avatarUrl: row.avatar_url ?? null,
+    plan: row.plan ?? "free",
+    joinDomain: row.join_domain ?? null,
+    domainJoinEnabled: Boolean(row.domain_join_enabled),
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -106,13 +120,17 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
     return data ? mapWorkspace(data as DbWorkspace) : null;
   }
 
-  async createWorkspace(name: string, createdBy: string): Promise<Workspace> {
+  async createWorkspace(input: WorkspaceCreateInput): Promise<Workspace> {
     const now = new Date().toISOString();
     const { data, error } = await this.client
       .from("workspaces")
       .insert({
-        name,
-        created_by: createdBy,
+        name: input.name,
+        created_by: input.createdBy,
+        avatar_url: input.avatarUrl ?? null,
+        plan: input.plan ?? "free",
+        join_domain: input.joinDomain ?? null,
+        domain_join_enabled: input.domainJoinEnabled ?? false,
         created_at: now,
         updated_at: now,
       })
@@ -126,7 +144,7 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
       .from("workspace_members")
       .insert({
         workspace_id: workspace.id,
-        user_id: createdBy,
+        user_id: input.createdBy,
         role: "owner",
         created_at: now,
       });
@@ -135,16 +153,43 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
     return workspace;
   }
 
-  async updateWorkspace(id: string, name: string): Promise<Workspace> {
+  async updateWorkspace(
+    id: string,
+    input: WorkspaceUpdateInput,
+  ): Promise<Workspace> {
     const now = new Date().toISOString();
+    const patch: Record<string, unknown> = { updated_at: now };
+    if (input.name !== undefined) patch.name = input.name;
+    if (input.avatarUrl !== undefined) patch.avatar_url = input.avatarUrl;
+    if (input.plan !== undefined) patch.plan = input.plan;
+    if (input.joinDomain !== undefined) patch.join_domain = input.joinDomain;
+    if (input.domainJoinEnabled !== undefined) {
+      patch.domain_join_enabled = input.domainJoinEnabled;
+    }
+
     const { data, error } = await this.client
       .from("workspaces")
-      .update({ name, updated_at: now })
+      .update(patch)
       .eq("id", id)
       .select("*")
       .single();
     if (error) throw error;
     return mapWorkspace(data as DbWorkspace);
+  }
+
+  async listDiscoverableWorkspaces(): Promise<Workspace[]> {
+    const { data, error } = await this.client.rpc(
+      "list_discoverable_workspaces",
+    );
+    if (error) throw error;
+    return ((data ?? []) as DbWorkspace[]).map(mapWorkspace);
+  }
+
+  async joinWorkspaceByDomain(workspaceId: string): Promise<void> {
+    const { error } = await this.client.rpc("join_workspace_by_domain", {
+      p_workspace_id: workspaceId,
+    });
+    if (error) throw error;
   }
 
   async getMembership(

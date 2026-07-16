@@ -27,6 +27,7 @@ export function AppHeader({
             workspaces={workspaces}
             activeWorkspaceId={activeWorkspaceId}
             activeRole={activeRole}
+            userEmail={user.email}
             variant="header"
           />
         ) : (
