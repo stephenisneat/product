@@ -58,6 +58,13 @@ function ringToneClass(remainingPct: number): string {
   return "text-emerald-500";
 }
 
+/** Green / yellow / red for the balance toolbar amount. */
+function balanceToneClass(remainingPct: number): string {
+  if (remainingPct <= 0) return "text-red-500";
+  if (remainingPct < RING_LOW_PCT) return "text-amber-500";
+  return "text-emerald-500";
+}
+
 function ProgressBar({ value, max }: { value: number; max: number | null }) {
   const pct = Math.round(usagePercent(value, max));
   return (
@@ -329,19 +336,26 @@ function CreditBalanceMenu({
     }
   }
 
+  const remainingPct = balanceRemainingPercent(
+    wallet?.balanceCents ?? 0,
+    wallet?.autoReloadTargetCents ?? null,
+  );
+
   return (
     <WalletPopoverShell
       trigger={
         <>
-          <ProgressRing
-            remainingPct={balanceRemainingPercent(
-              wallet?.balanceCents ?? 0,
-              wallet?.autoReloadTargetCents ?? null,
+          <span
+            className={cn(
+              "mr-0.5 font-mono tabular-nums",
+              loading && !wallet
+                ? "text-muted-foreground"
+                : balanceToneClass(remainingPct),
             )}
-            aria-label="Credit balance progress"
-            className="mr-0.5"
-          />
-          {loading && !wallet ? "…" : "Balance"}
+          >
+            {loading && !wallet ? "…" : formatCents(wallet?.balanceCents ?? 0)}
+          </span>
+          Balance
         </>
       }
     >
