@@ -1,5 +1,10 @@
-export function hasOpenAI(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY);
+/** True when AI Gateway auth is available (OIDC, API key, or Vercel runtime). */
+export function hasAiGateway(): boolean {
+  return Boolean(
+    process.env.AI_GATEWAY_API_KEY ||
+      process.env.VERCEL_OIDC_TOKEN ||
+      process.env.VERCEL === "1",
+  );
 }
 
 export function getSupabasePublishableKey(): string | undefined {

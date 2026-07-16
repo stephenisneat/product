@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Product Agent",
-    template: "%s · Product Agent",
+    default: "Product",
+    template: "%s · Product",
   },
   description:
     "Import your products. Product Agent creates, manages, and improves their marketing everywhere.",

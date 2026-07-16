@@ -5,7 +5,7 @@ import {
   workspaceSchema,
   workspaceMemberSchema,
 } from "@/domain";
-import { hasOpenAI } from "@/lib/mode";
+import { hasAiGateway } from "@/lib/mode";
 
 const sampleProduct = {
   id: "prod_aurora_bottle",
@@ -93,7 +93,7 @@ describe("domain schemas", () => {
 });
 
 describe("mode", () => {
-  it("reports missing openai by default", () => {
-    expect(hasOpenAI()).toBe(false);
+  it("reports missing AI Gateway credentials by default", () => {
+    expect(hasAiGateway()).toBe(false);
   });
 });

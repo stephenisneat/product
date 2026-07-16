@@ -1,4 +1,3 @@
-import { openai } from "@ai-sdk/openai";
 import {
   convertToModelMessages,
   createUIMessageStreamResponse,
@@ -9,7 +8,7 @@ import {
 } from "ai";
 import { z } from "zod";
 import type { Artifact, Product, ProductIntelligence } from "@/domain";
-import { hasOpenAI } from "@/lib/mode";
+import { hasAiGateway } from "@/lib/mode";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import {
@@ -256,7 +255,7 @@ export async function POST(req: Request) {
 
     const intelligence = await productsRepo.getIntelligence(productId);
 
-    if (!hasOpenAI()) {
+    if (!hasAiGateway()) {
       return offlineProductStreamResponse(product, user.id);
     }
 
@@ -264,7 +263,7 @@ export async function POST(req: Request) {
     if (!gate.ok) return gate.response;
 
     const result = streamText({
-      model: openai(CHAT_MODEL),
+      model: CHAT_MODEL,
       system: buildProductSystemPrompt(product, intelligence),
       messages: await convertToModelMessages(messages),
       onFinish: async ({ usage }) => {
@@ -318,7 +317,7 @@ export async function POST(req: Request) {
   const catalog = await productsRepo.listProducts(activeWorkspace.workspace.id);
   const ownedIds = new Set(catalog.map((p) => p.id));
 
-  if (!hasOpenAI()) {
+  if (!hasAiGateway()) {
     return offlineWorkspaceStreamResponse(catalog);
   }
 
@@ -326,7 +325,7 @@ export async function POST(req: Request) {
   if (!gate.ok) return gate.response;
 
   const result = streamText({
-    model: openai(CHAT_MODEL),
+    model: CHAT_MODEL,
     system: buildWorkspaceSystemPrompt(catalog),
     messages: await convertToModelMessages(messages),
     onFinish: async ({ usage }) => {

@@ -14,8 +14,18 @@ export const MODEL_PRICING_PER_MILLION: Record<
 
 const DEFAULT_PRICING = MODEL_PRICING_PER_MILLION["gpt-4.1-mini"];
 
+/** Strip `provider/` prefix from AI Gateway model ids for pricing lookup. */
+function bareModelId(model: string): string {
+  const slash = model.lastIndexOf("/");
+  return slash >= 0 ? model.slice(slash + 1) : model;
+}
+
 export function getModelPricing(model: string) {
-  return MODEL_PRICING_PER_MILLION[model] ?? DEFAULT_PRICING;
+  return (
+    MODEL_PRICING_PER_MILLION[model] ??
+    MODEL_PRICING_PER_MILLION[bareModelId(model)] ??
+    DEFAULT_PRICING
+  );
 }
 
 /** Raw provider cost in USD (not cents). */

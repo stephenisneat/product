@@ -22,6 +22,15 @@ describe("AI pricing", () => {
     expect(usd).toBeCloseTo(2.0, 6);
   });
 
+  it("accepts AI Gateway provider/model ids", () => {
+    const usd = providerCostUsd({
+      model: "openai/gpt-4.1-mini",
+      inputTokens: 1_000_000,
+      outputTokens: 1_000_000,
+    });
+    expect(usd).toBeCloseTo(2.0, 6);
+  });
+
   it("bills at 1.5x and rounds up to cents", () => {
     // 1000 input tokens: 1000/1e6 * 0.4 = 0.0004 USD
     // 500 output: 500/1e6 * 1.6 = 0.0008 USD

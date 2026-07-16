@@ -7,7 +7,8 @@ import {
   getWalletWriteRepository,
 } from "@/repositories";
 
-const CHAT_MODEL = "gpt-4.1-mini";
+/** AI Gateway model id (`provider/model`). */
+const CHAT_MODEL = "openai/gpt-4.1-mini";
 
 export type WalletGateResult =
   | { ok: true; wallet: WorkspaceWallet }
