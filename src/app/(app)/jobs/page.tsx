@@ -18,14 +18,9 @@ export default async function JobsPage() {
   return (
     <PageCanvas header={<CatalogToolbar />}>
       <div className="mx-auto w-full max-w-3xl px-4 py-6">
-        <div className="mb-6">
-          <h1 className="font-heading text-xl font-semibold tracking-tight">
-            Jobs
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Background jobs and runs for {active.workspace.name}.
-          </p>
-        </div>
+        <p className="mb-6 text-sm text-muted-foreground">
+          Background jobs and runs for {active.workspace.name}.
+        </p>
         <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
           Jobs will appear here.
         </div>

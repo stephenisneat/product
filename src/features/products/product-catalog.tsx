@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { PageCanvas } from "@/components/layout/page-canvas";
 import { ProductImage } from "@/components/product-image";
-import { CatalogToolbar } from "@/features/products/catalog-toolbar";
+import { CatalogNav } from "@/features/products/catalog-toolbar";
 import { CreateProductMenu } from "@/features/products/create-product-menu";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -106,12 +106,12 @@ export function ProductCatalog({ products }: { products: Product[] }) {
     return (
       <PageCanvas
         header={
-          <CatalogToolbar>
+          <CatalogNav>
             <CreateProductMenu
               label="Add products"
               className={addProductsButtonClass}
             />
-          </CatalogToolbar>
+          </CatalogNav>
         }
       >
         <div className="mx-auto max-w-3xl px-4 py-24 text-center">
@@ -243,12 +243,12 @@ export function ProductCatalog({ products }: { products: Product[] }) {
             </PopoverContent>
           </Popover>
 
-          <CatalogToolbar>
+          <CatalogNav>
             <CreateProductMenu
               label="Add products"
               className={addProductsButtonClass}
             />
-          </CatalogToolbar>
+          </CatalogNav>
         </div>
       }
     >
