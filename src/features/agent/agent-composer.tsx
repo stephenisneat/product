@@ -106,6 +106,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
         msg.includes("wallet_blocked") ||
         msg.includes("Wallet blocked")
       ) {
+        walletCtx?.revealBlockedBanner();
         toast.error(
           "AI is blocked until you add credits or raise your usage limit.",
         );
@@ -216,6 +217,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
     const text = input.trim();
     if (!text || busy) return;
     if (walletBlocked) {
+      walletCtx?.revealBlockedBanner();
       toast.error(
         "AI is blocked until you add credits or raise your usage limit.",
       );
@@ -337,7 +339,6 @@ export function AgentComposer({ user }: { user: AppUser }) {
           }
           rows={3}
           className="resize-none text-sm"
-          disabled={walletBlocked}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -349,7 +350,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
           <Button
             type="submit"
             size="sm"
-            disabled={busy || !input.trim() || walletBlocked}
+            disabled={busy || !input.trim()}
             className="gap-1.5"
           >
             {busy ? (

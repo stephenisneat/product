@@ -19,15 +19,27 @@ type WalletContextValue = {
   setWallet: (wallet: WalletSummary | null) => void;
   openBuyCredits: boolean;
   setOpenBuyCredits: (open: boolean) => void;
+  blockedBannerDismissed: boolean;
+  dismissBlockedBanner: () => void;
+  /** Re-show the blocked banner after a paid-action attempt while still blocked. */
+  revealBlockedBanner: () => void;
 };
 
 const WalletContext = createContext<WalletContextValue | null>(null);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
-  const [wallet, setWallet] = useState<WalletSummary | null>(null);
+  const [wallet, setWalletState] = useState<WalletSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openBuyCredits, setOpenBuyCredits] = useState(false);
+  const [blockedBannerDismissed, setBlockedBannerDismissed] = useState(false);
+
+  const setWallet = useCallback((next: WalletSummary | null) => {
+    setWalletState(next);
+    if (!next?.blocked) {
+      setBlockedBannerDismissed(false);
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -46,13 +58,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setWallet]);
 
   useEffect(() => {
     // Initial wallet load for the active workspace session.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount
     void refresh();
   }, [refresh]);
+
+  const dismissBlockedBanner = useCallback(() => {
+    setBlockedBannerDismissed(true);
+  }, []);
+
+  const revealBlockedBanner = useCallback(() => {
+    setBlockedBannerDismissed(false);
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -63,8 +83,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setWallet,
       openBuyCredits,
       setOpenBuyCredits,
+      blockedBannerDismissed,
+      dismissBlockedBanner,
+      revealBlockedBanner,
     }),
-    [wallet, loading, error, refresh, openBuyCredits],
+    [
+      wallet,
+      loading,
+      error,
+      refresh,
+      setWallet,
+      openBuyCredits,
+      blockedBannerDismissed,
+      dismissBlockedBanner,
+      revealBlockedBanner,
+    ],
   );
 
   return (

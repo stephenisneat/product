@@ -1,12 +1,18 @@
 "use client";
 
+import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "@/features/wallet/wallet-context";
 
 export function WalletBlockedBanner() {
-  const { wallet, setOpenBuyCredits } = useWallet();
+  const {
+    wallet,
+    setOpenBuyCredits,
+    blockedBannerDismissed,
+    dismissBlockedBanner,
+  } = useWallet();
 
-  if (!wallet?.blocked) return null;
+  if (!wallet?.blocked || blockedBannerDismissed) return null;
 
   const message =
     wallet.blockedReason === "usage_limit"
@@ -16,18 +22,30 @@ export function WalletBlockedBanner() {
   return (
     <div className="shrink-0 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-950 dark:text-amber-100">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2">
-        <p>{message}</p>
-        {wallet.canManage && wallet.blockedReason === "zero_balance" ? (
+        <p className="min-w-0 flex-1">{message}</p>
+        <div className="flex items-center gap-1">
+          {wallet.canManage && wallet.blockedReason === "zero_balance" ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="border-amber-600/40 bg-background"
+              onClick={() => setOpenBuyCredits(true)}
+            >
+              Buy credits
+            </Button>
+          ) : null}
           <Button
             type="button"
-            size="sm"
-            variant="outline"
-            className="border-amber-600/40 bg-background"
-            onClick={() => setOpenBuyCredits(true)}
+            variant="ghost"
+            size="icon-sm"
+            className="text-amber-950 hover:bg-amber-500/15 dark:text-amber-100 dark:hover:bg-amber-500/20"
+            onClick={dismissBlockedBanner}
+            aria-label="Dismiss warning"
           >
-            Buy credits
+            <XIcon className="size-3.5" />
           </Button>
-        ) : null}
+        </div>
       </div>
     </div>
   );
