@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import type { AppUser, WorkspaceRole } from "@/domain";
 import { AppHeader } from "@/components/layout/app-header";
 import { AgentComposer } from "@/features/agent/agent-composer";
@@ -35,6 +36,10 @@ function AppShellFrame({
   activeRole: WorkspaceRole | null;
   children: ReactNode;
 }) {
+  const pathname = usePathname();
+  const hideChatSidebar =
+    pathname === "/settings" || pathname.startsWith("/settings/");
+
   return (
     <div className="flex h-svh flex-col overflow-hidden bg-black">
       <WalletBlockedBanner />
@@ -45,12 +50,14 @@ function AppShellFrame({
         activeRole={activeRole}
       />
       <div className="flex min-h-0 flex-1 gap-2 px-3 pb-3">
-        <main className="min-h-0 min-w-0 flex-1 overflow-auto rounded-xl border border-border bg-background">
+        <main className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-y-contain rounded-xl border border-border bg-card">
           {children}
         </main>
-        <aside className="hidden min-h-0 w-[360px] shrink-0 lg:block xl:w-[400px]">
-          <AgentComposer user={user} />
-        </aside>
+        {hideChatSidebar ? null : (
+          <aside className="hidden min-h-0 w-[360px] shrink-0 lg:block xl:w-[400px]">
+            <AgentComposer user={user} />
+          </aside>
+        )}
       </div>
       <WalletBuyCreditsHost />
     </div>
