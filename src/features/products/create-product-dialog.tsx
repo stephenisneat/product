@@ -1,13 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ImagePlusIcon, PlusIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -27,11 +28,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { productStatusSchema } from "@/domain";
+import {
+  mobileAppPlatformSchema,
+  productStatusSchema,
+  type ProductType,
+  websiteSiteKindSchema,
+} from "@/domain";
 import { averageColorFromFile } from "@/lib/images/average-color";
+import {
+  optionalText,
+  optionalUrl,
+  productTypeLabel,
+} from "@/lib/products/product-type";
 import { createProductId, slugify } from "@/lib/products/slugify";
 
-const formSchema = z.object({
+const optionalUrlField = z
+  .string()
+  .refine(
+    (value) => !value.trim() || z.string().url().safeParse(value.trim()).success,
+    "Enter a valid URL",
+  );
+
+const sharedFormFields = {
   title: z.string().min(1, "Title is required"),
   handle: z
     .string()
@@ -41,18 +59,86 @@ const formSchema = z.object({
       "Use lowercase letters, numbers, and hyphens",
     ),
   description: z.string(),
-  price: z.number().nonnegative("Price must be 0 or greater"),
-  currency: z.string().min(1),
   status: productStatusSchema,
-  sku: z.string(),
-  category: z.string(),
-});
+};
 
-type FormValues = z.infer<typeof formSchema>;
+function formSchemaFor(type: ProductType) {
+  switch (type) {
+    case "ecommerce":
+      return z.object({
+        ...sharedFormFields,
+        price: z.number().nonnegative("Price must be 0 or greater"),
+        currency: z.string().min(1),
+        sku: z.string(),
+        category: z.string(),
+        fulfillmentKind: z.enum(["physical", "digital"]),
+      });
+    case "mobile_app":
+      return z.object({
+        ...sharedFormFields,
+        platforms: z
+          .array(mobileAppPlatformSchema)
+          .min(1, "Select at least one platform"),
+        appStoreUrl: optionalUrlField,
+        playStoreUrl: optionalUrlField,
+        bundleId: z.string(),
+        appCategory: z.string(),
+      });
+    case "website":
+      return z.object({
+        ...sharedFormFields,
+        url: z.string().url("Enter a valid URL"),
+        primaryDomain: z.string(),
+        siteKind: websiteSiteKindSchema,
+      });
+    case "brick_and_mortar":
+      return z.object({
+        ...sharedFormFields,
+        addressLine1: z.string().min(1, "Address is required"),
+        addressLine2: z.string(),
+        city: z.string().min(1, "City is required"),
+        region: z.string().min(1, "Region is required"),
+        postalCode: z.string().min(1, "Postal code is required"),
+        country: z.string().min(1, "Country is required"),
+        phone: z.string(),
+        hours: z.string(),
+        websiteUrl: optionalUrlField,
+      });
+    case "event":
+      return z.object({
+        ...sharedFormFields,
+        startAt: z.string().min(1, "Start date is required"),
+        endAt: z.string(),
+        venue: z.string().min(1, "Venue is required"),
+        address: z.string(),
+        ticketUrl: optionalUrlField,
+        capacity: z.union([
+          z.nan(),
+          z.number().int().positive("Capacity must be positive"),
+        ]),
+      });
+    case "election":
+      return z.object({
+        ...sharedFormFields,
+        electionDate: z.string().min(1, "Election date is required"),
+        jurisdiction: z.string().min(1, "Jurisdiction is required"),
+        office: z.string().min(1, "Office is required"),
+        candidateName: z.string().min(1, "Candidate name is required"),
+        party: z.string(),
+      });
+  }
+}
+
+type FormValues = z.infer<ReturnType<typeof formSchemaFor>>;
 
 const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD"] as const;
 const MAX_IMAGES = 6;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const PLATFORMS = [
+  { value: "ios" as const, label: "iOS" },
+  { value: "android" as const, label: "Android" },
+  { value: "web" as const, label: "Web" },
+];
 
 type ImageDraft = {
   id: string;
@@ -95,7 +181,9 @@ async function uploadProductImages(
         if (error) {
           throw new Error(error.message || "Failed to upload image");
         }
-        const { data } = supabase.storage.from("product-assets").getPublicUrl(path);
+        const { data } = supabase.storage
+          .from("product-assets")
+          .getPublicUrl(path);
         return data.publicUrl;
       })(),
       averageColorFromFile(image.file),
@@ -108,7 +196,195 @@ async function uploadProductImages(
   return { urls, avgColors };
 }
 
+function defaultValuesFor(type: ProductType): FormValues {
+  const shared = {
+    title: "",
+    handle: "",
+    description: "",
+    status: "draft" as const,
+  };
+
+  switch (type) {
+    case "ecommerce":
+      return {
+        ...shared,
+        price: 0,
+        currency: "USD",
+        sku: "",
+        category: "",
+        fulfillmentKind: "physical",
+      };
+    case "mobile_app":
+      return {
+        ...shared,
+        platforms: ["ios"],
+        appStoreUrl: "",
+        playStoreUrl: "",
+        bundleId: "",
+        appCategory: "",
+      };
+    case "website":
+      return {
+        ...shared,
+        url: "",
+        primaryDomain: "",
+        siteKind: "marketing",
+      };
+    case "brick_and_mortar":
+      return {
+        ...shared,
+        addressLine1: "",
+        addressLine2: "",
+        city: "",
+        region: "",
+        postalCode: "",
+        country: "US",
+        phone: "",
+        hours: "",
+        websiteUrl: "",
+      };
+    case "event":
+      return {
+        ...shared,
+        startAt: "",
+        endAt: "",
+        venue: "",
+        address: "",
+        ticketUrl: "",
+        capacity: Number.NaN,
+      };
+    case "election":
+      return {
+        ...shared,
+        electionDate: "",
+        jurisdiction: "",
+        office: "",
+        candidateName: "",
+        party: "",
+      };
+  }
+}
+
+function buildCreatePayload(
+  type: ProductType,
+  values: FormValues,
+  productId: string,
+  imageUrls: string[],
+  imageAvgColors: string[],
+) {
+  const shared = {
+    id: productId,
+    title: values.title.trim(),
+    handle: values.handle.trim(),
+    description: values.description.trim(),
+    status: values.status,
+    images: imageUrls,
+    imageAvgColors,
+  };
+
+  switch (type) {
+    case "ecommerce": {
+      const v = values as Extract<FormValues, { fulfillmentKind: string }>;
+      return {
+        ...shared,
+        type,
+        price: v.price,
+        currency: v.currency,
+        sku: optionalText(v.sku),
+        category: optionalText(v.category),
+        metadata: { fulfillmentKind: v.fulfillmentKind },
+      };
+    }
+    case "mobile_app": {
+      const v = values as Extract<FormValues, { platforms: string[] }>;
+      return {
+        ...shared,
+        type,
+        metadata: {
+          platforms: v.platforms,
+          appStoreUrl: optionalUrl(v.appStoreUrl),
+          playStoreUrl: optionalUrl(v.playStoreUrl),
+          bundleId: optionalText(v.bundleId),
+          category: optionalText(v.appCategory),
+        },
+      };
+    }
+    case "website": {
+      const v = values as Extract<FormValues, { url: string; siteKind: string }>;
+      return {
+        ...shared,
+        type,
+        metadata: {
+          url: v.url.trim(),
+          primaryDomain: optionalText(v.primaryDomain),
+          siteKind: v.siteKind,
+        },
+      };
+    }
+    case "brick_and_mortar": {
+      const v = values as Extract<FormValues, { addressLine1: string }>;
+      return {
+        ...shared,
+        type,
+        metadata: {
+          addressLine1: v.addressLine1.trim(),
+          addressLine2: optionalText(v.addressLine2),
+          city: v.city.trim(),
+          region: v.region.trim(),
+          postalCode: v.postalCode.trim(),
+          country: v.country.trim(),
+          phone: optionalText(v.phone),
+          hours: optionalText(v.hours),
+          websiteUrl: optionalUrl(v.websiteUrl),
+        },
+      };
+    }
+    case "event": {
+      const v = values as Extract<FormValues, { venue: string; startAt: string }>;
+      return {
+        ...shared,
+        type,
+        metadata: {
+          startAt: v.startAt,
+          endAt: optionalText(v.endAt),
+          venue: v.venue.trim(),
+          address: optionalText(v.address),
+          ticketUrl: optionalUrl(v.ticketUrl),
+          capacity:
+            typeof v.capacity === "number" && !Number.isNaN(v.capacity)
+              ? v.capacity
+              : undefined,
+        },
+      };
+    }
+    case "election": {
+      const v = values as Extract<FormValues, { candidateName: string }>;
+      return {
+        ...shared,
+        type,
+        metadata: {
+          electionDate: v.electionDate,
+          jurisdiction: v.jurisdiction.trim(),
+          office: v.office.trim(),
+          candidateName: v.candidateName.trim(),
+          party: optionalText(v.party),
+        },
+      };
+    }
+  }
+}
+
+const TYPE_DESCRIPTIONS: Record<ProductType, string> = {
+  ecommerce: "Add an ecommerce product with pricing and fulfillment details.",
+  mobile_app: "Add a mobile or web app with store links and platforms.",
+  website: "Add a website or web product with its primary URL.",
+  brick_and_mortar: "Add a physical location with address and hours.",
+  event: "Add an event with schedule, venue, and ticketing details.",
+  election: "Add a candidate or race with jurisdiction and office.",
+};
+
 export function CreateProductButton({
+  productType = "ecommerce",
   variant = "default",
   size = "sm",
   label = "Product",
@@ -117,6 +393,7 @@ export function CreateProductButton({
   onOpenChange: onOpenChangeProp,
   showTrigger = true,
 }: {
+  productType?: ProductType;
   variant?: "default" | "outline" | "secondary" | "ghost";
   size?: "default" | "sm" | "lg";
   label?: string;
@@ -135,26 +412,25 @@ export function CreateProductButton({
   const [images, setImages] = useState<ImageDraft[]>([]);
   const [handleTouched, setHandleTouched] = useState(false);
 
+  const formSchema = useMemo(() => formSchemaFor(productType), [productType]);
+  const defaults = useMemo(() => defaultValuesFor(productType), [productType]);
+
   const {
     register,
     control,
     handleSubmit,
     setValue,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: "",
-      handle: "",
-      description: "",
-      price: 0,
-      currency: "USD",
-      status: "draft",
-      sku: "",
-      category: "",
-    },
+    defaultValues: defaults,
   });
+
+  useEffect(() => {
+    reset(defaultValuesFor(productType));
+  }, [productType, reset]);
 
   const imagesRef = useRef(images);
 
@@ -174,7 +450,9 @@ export function CreateProductButton({
   const handleRegister = register("handle", {
     onChange: () => setHandleTouched(true),
   });
-  const priceRegister = register("price", { valueAsNumber: true });
+  const platforms = watch("platforms" as never) as
+    | Array<"ios" | "android" | "web">
+    | undefined;
 
   function resetForm() {
     for (const image of images) {
@@ -183,7 +461,7 @@ export function CreateProductButton({
     setImages([]);
     setHandleTouched(false);
     setError(null);
-    reset();
+    reset(defaultValuesFor(productType));
   }
 
   function onOpenChange(next: boolean) {
@@ -234,6 +512,14 @@ export function CreateProductButton({
     });
   }
 
+  function togglePlatform(platform: "ios" | "android" | "web", checked: boolean) {
+    const current = platforms ?? [];
+    const next = checked
+      ? [...new Set([...current, platform])]
+      : current.filter((value) => value !== platform);
+    setValue("platforms" as never, next as never, { shouldValidate: true });
+  }
+
   async function onSubmit(values: FormValues) {
     setError(null);
 
@@ -252,22 +538,18 @@ export function CreateProductButton({
       const { urls: imageUrls, avgColors: imageAvgColors } =
         await uploadProductImages(user.id, productId, images);
 
+      const payload = buildCreatePayload(
+        productType,
+        values,
+        productId,
+        imageUrls,
+        imageAvgColors,
+      );
+
       const res = await fetch("/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: productId,
-          title: values.title.trim(),
-          handle: values.handle.trim(),
-          description: values.description.trim(),
-          price: values.price,
-          currency: values.currency,
-          status: values.status,
-          images: imageUrls,
-          imageAvgColors,
-          sku: values.sku.trim() || undefined,
-          category: values.category.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const body = (await res.json().catch(() => ({}))) as {
@@ -279,15 +561,19 @@ export function CreateProductButton({
         throw new Error(body.error || "Failed to create product");
       }
 
-      toast.success("Product created");
+      toast.success(`${productTypeLabel(productType)} created`);
       onOpenChange(false);
       router.push(`/products/${body.product?.id ?? productId}`);
       router.refresh();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to create product";
+      const message =
+        err instanceof Error ? err.message : "Failed to create product";
       setError(message);
     }
   }
+
+  const typeLabel = productTypeLabel(productType);
+  const fieldErrors = errors as Record<string, { message?: string } | undefined>;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -301,11 +587,8 @@ export function CreateProductButton({
       ) : null}
       <DialogContent className="max-h-[min(90vh,720px)] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>New product</DialogTitle>
-          <DialogDescription>
-            Add a product manually. Use Create product → Import from Shopify to
-            pull from a connected store.
-          </DialogDescription>
+          <DialogTitle>New {typeLabel.toLowerCase()}</DialogTitle>
+          <DialogDescription>{TYPE_DESCRIPTIONS[productType]}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -365,7 +648,13 @@ export function CreateProductButton({
             <Label htmlFor="product-title">Title</Label>
             <Input
               id="product-title"
-              placeholder="Aurora Insulated Bottle"
+              placeholder={
+                productType === "election"
+                  ? "Jordan Lee for Senate"
+                  : productType === "event"
+                    ? "Summer Launch Night"
+                    : "Product name"
+              }
               {...titleRegister}
               onChange={(event) => {
                 void titleRegister.onChange(event);
@@ -376,8 +665,8 @@ export function CreateProductButton({
                 }
               }}
             />
-            {errors.title ? (
-              <p className="text-xs text-destructive">{errors.title.message}</p>
+            {fieldErrors.title ? (
+              <p className="text-xs text-destructive">{fieldErrors.title.message}</p>
             ) : null}
           </div>
 
@@ -385,11 +674,13 @@ export function CreateProductButton({
             <Label htmlFor="product-handle">Handle</Label>
             <Input
               id="product-handle"
-              placeholder="aurora-insulated-bottle"
+              placeholder="url-friendly-handle"
               {...handleRegister}
             />
-            {errors.handle ? (
-              <p className="text-xs text-destructive">{errors.handle.message}</p>
+            {fieldErrors.handle ? (
+              <p className="text-xs text-destructive">
+                {fieldErrors.handle.message}
+              </p>
             ) : (
               <p className="text-xs text-muted-foreground">
                 URL-friendly identifier. Auto-fills from the title.
@@ -401,98 +692,500 @@ export function CreateProductButton({
             <Label htmlFor="product-description">Description</Label>
             <Textarea
               id="product-description"
-              placeholder="What makes this product worth buying?"
+              placeholder="What should people know about this?"
               className="min-h-24"
               {...register("description")}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="product-price">Price</Label>
-              <Input
-                id="product-price"
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min="0"
-                {...priceRegister}
-              />
-              {errors.price ? (
-                <p className="text-xs text-destructive">{errors.price.message}</p>
-              ) : null}
-            </div>
-            <div className="space-y-2">
-              <Label>Currency</Label>
-              <Controller
-                control={control}
-                name="currency"
-                render={({ field }) => (
-                  <Select
-                    value={field.value}
-                    onValueChange={(value) => {
-                      if (value) field.onChange(value);
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CURRENCIES.map((currency) => (
-                        <SelectItem key={currency} value={currency}>
-                          {currency}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Controller
-                control={control}
-                name="status"
-                render={({ field }) => (
-                  <Select
-                    value={field.value}
-                    onValueChange={(value) => {
-                      if (value) field.onChange(value);
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="archived">Archived</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="product-sku">SKU</Label>
-              <Input
-                id="product-sku"
-                placeholder="Optional"
-                {...register("sku")}
-              />
-            </div>
-          </div>
-
           <div className="space-y-2">
-            <Label htmlFor="product-category">Category</Label>
-            <Input
-              id="product-category"
-              placeholder="e.g. Drinkware"
-              {...register("category")}
+            <Label>Status</Label>
+            <Controller
+              control={control}
+              name="status"
+              render={({ field }) => (
+                <Select
+                  value={field.value}
+                  onValueChange={(value) => {
+                    if (value) field.onChange(value);
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             />
           </div>
+
+          {productType === "ecommerce" ? (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="product-price">Price</Label>
+                  <Input
+                    id="product-price"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    {...register("price" as never, { valueAsNumber: true })}
+                  />
+                  {fieldErrors.price ? (
+                    <p className="text-xs text-destructive">
+                      {fieldErrors.price.message}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  <Label>Currency</Label>
+                  <Controller
+                    control={control}
+                    name={"currency" as never}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value as string}
+                        onValueChange={(value) => {
+                          if (value) field.onChange(value);
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CURRENCIES.map((currency) => (
+                            <SelectItem key={currency} value={currency}>
+                              {currency}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Fulfillment</Label>
+                <Controller
+                  control={control}
+                  name={"fulfillmentKind" as never}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value as string}
+                      onValueChange={(value) => {
+                        if (value) field.onChange(value);
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="physical">Physical</SelectItem>
+                        <SelectItem value="digital">Digital</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="product-sku">SKU</Label>
+                  <Input
+                    id="product-sku"
+                    placeholder="Optional"
+                    {...register("sku" as never)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="product-category">Category</Label>
+                  <Input
+                    id="product-category"
+                    placeholder="e.g. Drinkware"
+                    {...register("category" as never)}
+                  />
+                </div>
+              </div>
+            </>
+          ) : null}
+
+          {productType === "mobile_app" ? (
+            <>
+              <div className="space-y-2">
+                <Label>Platforms</Label>
+                <div className="flex flex-wrap gap-4">
+                  {PLATFORMS.map((platform) => (
+                    <label
+                      key={platform.value}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <Checkbox
+                        checked={platforms?.includes(platform.value) ?? false}
+                        onCheckedChange={(checked) =>
+                          togglePlatform(platform.value, checked === true)
+                        }
+                      />
+                      {platform.label}
+                    </label>
+                  ))}
+                </div>
+                {fieldErrors.platforms ? (
+                  <p className="text-xs text-destructive">
+                    {fieldErrors.platforms.message}
+                  </p>
+                ) : null}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="app-store-url">App Store URL</Label>
+                <Input
+                  id="app-store-url"
+                  placeholder="https://apps.apple.com/..."
+                  {...register("appStoreUrl" as never)}
+                />
+                {fieldErrors.appStoreUrl ? (
+                  <p className="text-xs text-destructive">
+                    {fieldErrors.appStoreUrl.message}
+                  </p>
+                ) : null}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="play-store-url">Play Store URL</Label>
+                <Input
+                  id="play-store-url"
+                  placeholder="https://play.google.com/..."
+                  {...register("playStoreUrl" as never)}
+                />
+                {fieldErrors.playStoreUrl ? (
+                  <p className="text-xs text-destructive">
+                    {fieldErrors.playStoreUrl.message}
+                  </p>
+                ) : null}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="bundle-id">Bundle ID</Label>
+                  <Input
+                    id="bundle-id"
+                    placeholder="com.example.app"
+                    {...register("bundleId" as never)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="app-category">Category</Label>
+                  <Input
+                    id="app-category"
+                    placeholder="Productivity"
+                    {...register("appCategory" as never)}
+                  />
+                </div>
+              </div>
+            </>
+          ) : null}
+
+          {productType === "website" ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="website-url">URL</Label>
+                <Input
+                  id="website-url"
+                  placeholder="https://example.com"
+                  {...register("url" as never)}
+                />
+                {fieldErrors.url ? (
+                  <p className="text-xs text-destructive">
+                    {fieldErrors.url.message}
+                  </p>
+                ) : null}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="primary-domain">Primary domain</Label>
+                  <Input
+                    id="primary-domain"
+                    placeholder="example.com"
+                    {...register("primaryDomain" as never)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Site kind</Label>
+                  <Controller
+                    control={control}
+                    name={"siteKind" as never}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value as string}
+                        onValueChange={(value) => {
+                          if (value) field.onChange(value);
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="marketing">Marketing</SelectItem>
+                          <SelectItem value="saas">SaaS</SelectItem>
+                          <SelectItem value="content">Content</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+              </div>
+            </>
+          ) : null}
+
+          {productType === "brick_and_mortar" ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="address-line-1">Address</Label>
+                <Input
+                  id="address-line-1"
+                  placeholder="123 Main St"
+                  {...register("addressLine1" as never)}
+                />
+                {fieldErrors.addressLine1 ? (
+                  <p className="text-xs text-destructive">
+                    {fieldErrors.addressLine1.message}
+                  </p>
+                ) : null}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="address-line-2">Address line 2</Label>
+                <Input
+                  id="address-line-2"
+                  placeholder="Suite 200"
+                  {...register("addressLine2" as never)}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="city">City</Label>
+                  <Input id="city" {...register("city" as never)} />
+                  {fieldErrors.city ? (
+                    <p className="text-xs text-destructive">
+                      {fieldErrors.city.message}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="region">State / region</Label>
+                  <Input id="region" {...register("region" as never)} />
+                  {fieldErrors.region ? (
+                    <p className="text-xs text-destructive">
+                      {fieldErrors.region.message}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="postal-code">Postal code</Label>
+                  <Input id="postal-code" {...register("postalCode" as never)} />
+                  {fieldErrors.postalCode ? (
+                    <p className="text-xs text-destructive">
+                      {fieldErrors.postalCode.message}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="country">Country</Label>
+                  <Input id="country" {...register("country" as never)} />
+                  {fieldErrors.country ? (
+                    <p className="text-xs text-destructive">
+                      {fieldErrors.country.message}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    placeholder="Optional"
+                    {...register("phone" as never)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="hours">Hours</Label>
+                  <Input
+                    id="hours"
+                    placeholder="Mon–Fri 9–5"
+                    {...register("hours" as never)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="store-website">Website</Label>
+                <Input
+                  id="store-website"
+                  placeholder="https://..."
+                  {...register("websiteUrl" as never)}
+                />
+                {fieldErrors.websiteUrl ? (
+                  <p className="text-xs text-destructive">
+                    {fieldErrors.websiteUrl.message}
+                  </p>
+                ) : null}
+              </div>
+            </>
+          ) : null}
+
+          {productType === "event" ? (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="start-at">Starts</Label>
+                  <Input
+                    id="start-at"
+                    type="datetime-local"
+                    {...register("startAt" as never)}
+                  />
+                  {fieldErrors.startAt ? (
+                    <p className="text-xs text-destructive">
+                      {fieldErrors.startAt.message}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="end-at">Ends</Label>
+                  <Input
+                    id="end-at"
+                    type="datetime-local"
+                    {...register("endAt" as never)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="venue">Venue</Label>
+                <Input
+                  id="venue"
+                  placeholder="The Grand Hall"
+                  {...register("venue" as never)}
+                />
+                {fieldErrors.venue ? (
+                  <p className="text-xs text-destructive">
+                    {fieldErrors.venue.message}
+                  </p>
+                ) : null}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="event-address">Address</Label>
+                <Input
+                  id="event-address"
+                  placeholder="Optional"
+                  {...register("address" as never)}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="ticket-url">Ticket URL</Label>
+                  <Input
+                    id="ticket-url"
+                    placeholder="https://..."
+                    {...register("ticketUrl" as never)}
+                  />
+                  {fieldErrors.ticketUrl ? (
+                    <p className="text-xs text-destructive">
+                      {fieldErrors.ticketUrl.message}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="capacity">Capacity</Label>
+                  <Input
+                    id="capacity"
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="Optional"
+                    {...register("capacity" as never, { valueAsNumber: true })}
+                  />
+                  {fieldErrors.capacity ? (
+                    <p className="text-xs text-destructive">
+                      {fieldErrors.capacity.message}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </>
+          ) : null}
+
+          {productType === "election" ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="candidate-name">Candidate</Label>
+                <Input
+                  id="candidate-name"
+                  placeholder="Jordan Lee"
+                  {...register("candidateName" as never)}
+                />
+                {fieldErrors.candidateName ? (
+                  <p className="text-xs text-destructive">
+                    {fieldErrors.candidateName.message}
+                  </p>
+                ) : null}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="office">Office</Label>
+                  <Input
+                    id="office"
+                    placeholder="U.S. Senate"
+                    {...register("office" as never)}
+                  />
+                  {fieldErrors.office ? (
+                    <p className="text-xs text-destructive">
+                      {fieldErrors.office.message}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="party">Party</Label>
+                  <Input
+                    id="party"
+                    placeholder="Optional"
+                    {...register("party" as never)}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="jurisdiction">Jurisdiction</Label>
+                  <Input
+                    id="jurisdiction"
+                    placeholder="California"
+                    {...register("jurisdiction" as never)}
+                  />
+                  {fieldErrors.jurisdiction ? (
+                    <p className="text-xs text-destructive">
+                      {fieldErrors.jurisdiction.message}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="election-date">Election date</Label>
+                  <Input
+                    id="election-date"
+                    type="date"
+                    {...register("electionDate" as never)}
+                  />
+                  {fieldErrors.electionDate ? (
+                    <p className="text-xs text-destructive">
+                      {fieldErrors.electionDate.message}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </>
+          ) : null}
 
           {error ? <p className="text-xs text-destructive">{error}</p> : null}
 
@@ -506,7 +1199,7 @@ export function CreateProductButton({
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Creating…" : "Create product"}
+              {isSubmitting ? "Creating…" : `Create ${typeLabel.toLowerCase()}`}
             </Button>
           </DialogFooter>
         </form>

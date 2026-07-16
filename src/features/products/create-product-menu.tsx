@@ -2,10 +2,17 @@
 
 import { useState } from "react";
 import {
+  Building2Icon,
+  CalendarDaysIcon,
   ChevronDownIcon,
+  GlobeIcon,
   PlusIcon,
+  ShoppingBagIcon,
+  SmartphoneIcon,
   StoreIcon,
+  VoteIcon,
 } from "lucide-react";
+import type { ProductType } from "@/domain";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -15,6 +22,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { CreateProductButton } from "@/features/products/create-product-dialog";
 import { ImportShopifyDialog } from "@/features/products/import-shopify-dialog";
+import { PRODUCT_TYPE_OPTIONS } from "@/lib/products/product-type";
 import { cn } from "@/lib/utils";
 
 const COMING_SOON = [
@@ -23,6 +31,15 @@ const COMING_SOON = [
   "Amazon",
   "Squarespace",
 ] as const;
+
+const TYPE_ICONS: Record<ProductType, typeof ShoppingBagIcon> = {
+  ecommerce: ShoppingBagIcon,
+  mobile_app: SmartphoneIcon,
+  website: GlobeIcon,
+  brick_and_mortar: Building2Icon,
+  event: CalendarDaysIcon,
+  election: VoteIcon,
+};
 
 const menuItemClass =
   "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50";
@@ -40,7 +57,14 @@ export function CreateProductMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
+  const [productType, setProductType] = useState<ProductType>("ecommerce");
   const [shopifyOpen, setShopifyOpen] = useState(false);
+
+  function openType(type: ProductType) {
+    setOpen(false);
+    setProductType(type);
+    setManualOpen(true);
+  }
 
   return (
     <>
@@ -54,22 +78,36 @@ export function CreateProductMenu({
           {label}
           <ChevronDownIcon data-icon="inline-end" className="opacity-70" />
         </PopoverTrigger>
-        <PopoverContent align="end" className="min-w-56 p-2">
+        <PopoverContent align="end" className="min-w-64 p-2">
           <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
             Create
           </p>
           <div className="space-y-0.5">
-            <button
-              type="button"
-              className={menuItemClass}
-              onClick={() => {
-                setOpen(false);
-                setManualOpen(true);
-              }}
-            >
-              <PlusIcon className="size-4" />
-              Create manually
-            </button>
+            {PRODUCT_TYPE_OPTIONS.map((option) => {
+              const Icon = TYPE_ICONS[option.value];
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={menuItemClass}
+                  onClick={() => openType(option.value)}
+                >
+                  <Icon className="size-4 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block">{option.label}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {option.description}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <Separator className="my-2" />
+          <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
+            Import
+          </p>
+          <div className="space-y-0.5">
             <button
               type="button"
               className={menuItemClass}
@@ -102,6 +140,7 @@ export function CreateProductMenu({
       </Popover>
 
       <CreateProductButton
+        productType={productType}
         open={manualOpen}
         onOpenChange={setManualOpen}
         showTrigger={false}

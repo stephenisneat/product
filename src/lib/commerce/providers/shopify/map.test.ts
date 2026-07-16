@@ -125,6 +125,8 @@ describe("canonical product schema", () => {
       handle: "test",
       description: "",
       status: "draft",
+      type: "ecommerce",
+      metadata: { fulfillmentKind: "physical" },
       price: 0,
       currency: "USD",
       images: [],

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   productSchema,
+  createProductInputSchema,
   artifactSchema,
   workspaceSchema,
   workspaceMemberSchema,
@@ -14,6 +15,8 @@ const sampleProduct = {
   description:
     "A double-wall vacuum bottle built for all-day temperature control with a leak-proof lid and matte finish.",
   status: "active" as const,
+  type: "ecommerce" as const,
+  metadata: { fulfillmentKind: "physical" as const },
   price: 48,
   currency: "USD",
   images: [
@@ -44,6 +47,28 @@ describe("domain schemas", () => {
         title: "",
       }),
     ).toThrow();
+  });
+
+  it("parses typed create product input", () => {
+    const ecommerce = createProductInputSchema.parse({
+      title: "Bottle",
+      handle: "bottle",
+      type: "ecommerce",
+      price: 20,
+      metadata: { fulfillmentKind: "digital" },
+    });
+    expect(ecommerce.type).toBe("ecommerce");
+    if (ecommerce.type === "ecommerce") {
+      expect(ecommerce.metadata.fulfillmentKind).toBe("digital");
+    }
+
+    const website = createProductInputSchema.parse({
+      title: "Acme",
+      handle: "acme",
+      type: "website",
+      metadata: { url: "https://acme.com", siteKind: "saas" },
+    });
+    expect(website.type).toBe("website");
   });
 
   it("parses artifacts", () => {

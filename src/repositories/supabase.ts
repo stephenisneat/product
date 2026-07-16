@@ -10,7 +10,17 @@ import type {
   Product,
   ProductIntelligence,
   ProductOption,
+  ProductType,
   ProductVariant,
+} from "@/domain";
+import {
+  brickAndMortarMetadataSchema,
+  ecommerceMetadataSchema,
+  electionMetadataSchema,
+  eventMetadataSchema,
+  mobileAppMetadataSchema,
+  productTypeSchema,
+  websiteMetadataSchema,
 } from "@/domain";
 import { buildPerformanceSeries } from "@/lib/performance/sample-series";
 import {
@@ -31,6 +41,8 @@ type DbProduct = {
   handle: string;
   description: string;
   status: Product["status"];
+  type: string | null;
+  metadata: unknown;
   price: number;
   currency: string;
   images: string[];
@@ -107,8 +119,67 @@ type DbConnection = {
   updated_at: string;
 };
 
+function mapProductType(value: string | null | undefined): ProductType {
+  const parsed = productTypeSchema.safeParse(value ?? "ecommerce");
+  return parsed.success ? parsed.data : "ecommerce";
+}
+
+function mapProductMetadata(
+  type: ProductType,
+  metadata: unknown,
+): Product["metadata"] {
+  switch (type) {
+    case "ecommerce": {
+      const parsed = ecommerceMetadataSchema.safeParse(metadata);
+      return parsed.success
+        ? parsed.data
+        : { fulfillmentKind: "physical" };
+    }
+    case "mobile_app": {
+      const parsed = mobileAppMetadataSchema.safeParse(metadata);
+      return parsed.success ? parsed.data : { platforms: ["ios"] };
+    }
+    case "website": {
+      const parsed = websiteMetadataSchema.safeParse(metadata);
+      return parsed.success
+        ? parsed.data
+        : { url: "https://example.com" };
+    }
+    case "brick_and_mortar": {
+      const parsed = brickAndMortarMetadataSchema.safeParse(metadata);
+      return parsed.success
+        ? parsed.data
+        : {
+            addressLine1: "Unknown",
+            city: "Unknown",
+            region: "Unknown",
+            postalCode: "00000",
+            country: "US",
+          };
+    }
+    case "event": {
+      const parsed = eventMetadataSchema.safeParse(metadata);
+      return parsed.success
+        ? parsed.data
+        : { startAt: new Date(0).toISOString(), venue: "Unknown" };
+    }
+    case "election": {
+      const parsed = electionMetadataSchema.safeParse(metadata);
+      return parsed.success
+        ? parsed.data
+        : {
+            electionDate: "1970-01-01",
+            jurisdiction: "Unknown",
+            office: "Unknown",
+            candidateName: "Unknown",
+          };
+    }
+  }
+}
+
 function mapProduct(row: DbProduct): Product {
-  return {
+  const type = mapProductType(row.type);
+  const shared = {
     id: row.id,
     title: row.title,
     handle: row.handle,
@@ -128,6 +199,63 @@ function mapProduct(row: DbProduct): Product {
     updatedAt: row.updated_at,
     workspaceId: row.workspace_id,
   };
+
+  switch (type) {
+    case "ecommerce":
+      return {
+        ...shared,
+        type,
+        metadata: mapProductMetadata(type, row.metadata ?? {}) as Extract<
+          Product,
+          { type: "ecommerce" }
+        >["metadata"],
+      };
+    case "mobile_app":
+      return {
+        ...shared,
+        type,
+        metadata: mapProductMetadata(type, row.metadata ?? {}) as Extract<
+          Product,
+          { type: "mobile_app" }
+        >["metadata"],
+      };
+    case "website":
+      return {
+        ...shared,
+        type,
+        metadata: mapProductMetadata(type, row.metadata ?? {}) as Extract<
+          Product,
+          { type: "website" }
+        >["metadata"],
+      };
+    case "brick_and_mortar":
+      return {
+        ...shared,
+        type,
+        metadata: mapProductMetadata(type, row.metadata ?? {}) as Extract<
+          Product,
+          { type: "brick_and_mortar" }
+        >["metadata"],
+      };
+    case "event":
+      return {
+        ...shared,
+        type,
+        metadata: mapProductMetadata(type, row.metadata ?? {}) as Extract<
+          Product,
+          { type: "event" }
+        >["metadata"],
+      };
+    case "election":
+      return {
+        ...shared,
+        type,
+        metadata: mapProductMetadata(type, row.metadata ?? {}) as Extract<
+          Product,
+          { type: "election" }
+        >["metadata"],
+      };
+  }
 }
 
 function mapOption(row: DbOption): ProductOption {
@@ -277,6 +405,8 @@ export class SupabaseProductRepository implements ProductRepository {
       handle: product.handle,
       description: product.description,
       status: product.status,
+      type: product.type,
+      metadata: product.metadata,
       price: product.price,
       currency: product.currency,
       images: product.images,
@@ -292,32 +422,34 @@ export class SupabaseProductRepository implements ProductRepository {
     });
     if (error) throw error;
 
-    const variantId = createVariantId();
-    const { error: variantError } = await this.client
-      .from("product_variants")
-      .insert({
-        id: variantId,
-        product_id: product.id,
-        title: "Default Title",
-        sku: product.sku ?? null,
-        price: product.price,
-        currency: product.currency,
-        option_values: {},
-        position: 0,
-        created_at: now,
-        updated_at: now,
-      });
-    if (variantError) throw variantError;
+    if (product.type === "ecommerce") {
+      const variantId = createVariantId();
+      const { error: variantError } = await this.client
+        .from("product_variants")
+        .insert({
+          id: variantId,
+          product_id: product.id,
+          title: "Default Title",
+          sku: product.sku ?? null,
+          price: product.price,
+          currency: product.currency,
+          option_values: {},
+          position: 0,
+          created_at: now,
+          updated_at: now,
+        });
+      if (variantError) throw variantError;
 
-    const { error: inventoryError } = await this.client
-      .from("inventory_levels")
-      .insert({
-        variant_id: variantId,
-        quantity: 0,
-        tracked: false,
-        updated_at: now,
-      });
-    if (inventoryError) throw inventoryError;
+      const { error: inventoryError } = await this.client
+        .from("inventory_levels")
+        .insert({
+          variant_id: variantId,
+          quantity: 0,
+          tracked: false,
+          updated_at: now,
+        });
+      if (inventoryError) throw inventoryError;
+    }
 
     return product;
   }
@@ -349,6 +481,8 @@ export class SupabaseProductRepository implements ProductRepository {
       handle: canonical.handle,
       description: canonical.description,
       status: canonical.status,
+      type: "ecommerce" as const,
+      metadata: { fulfillmentKind: "physical" as const },
       price: summary.price,
       currency: summary.currency,
       images: canonical.images,

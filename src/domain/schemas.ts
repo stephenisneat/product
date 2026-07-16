@@ -130,7 +130,93 @@ export const imageAvgColorSchema = z
   .string()
   .regex(/^#[0-9a-fA-F]{6}$/, "Expected a #rrggbb color");
 
-export const productSchema = z.object({
+export const productTypeSchema = z.enum([
+  "ecommerce",
+  "mobile_app",
+  "website",
+  "brick_and_mortar",
+  "event",
+  "election",
+]);
+export type ProductType = z.infer<typeof productTypeSchema>;
+
+export const ecommerceMetadataSchema = z.object({
+  fulfillmentKind: z.enum(["physical", "digital"]),
+});
+export type EcommerceMetadata = z.infer<typeof ecommerceMetadataSchema>;
+
+export const mobileAppPlatformSchema = z.enum(["ios", "android", "web"]);
+export type MobileAppPlatform = z.infer<typeof mobileAppPlatformSchema>;
+
+export const mobileAppMetadataSchema = z.object({
+  platforms: z.array(mobileAppPlatformSchema).min(1),
+  appStoreUrl: z.string().url().optional(),
+  playStoreUrl: z.string().url().optional(),
+  bundleId: z.string().optional(),
+  category: z.string().optional(),
+});
+export type MobileAppMetadata = z.infer<typeof mobileAppMetadataSchema>;
+
+export const websiteSiteKindSchema = z.enum([
+  "marketing",
+  "saas",
+  "content",
+  "other",
+]);
+export type WebsiteSiteKind = z.infer<typeof websiteSiteKindSchema>;
+
+export const websiteMetadataSchema = z.object({
+  url: z.string().url(),
+  primaryDomain: z.string().optional(),
+  siteKind: websiteSiteKindSchema.optional(),
+});
+export type WebsiteMetadata = z.infer<typeof websiteMetadataSchema>;
+
+export const brickAndMortarMetadataSchema = z.object({
+  addressLine1: z.string().min(1),
+  addressLine2: z.string().optional(),
+  city: z.string().min(1),
+  region: z.string().min(1),
+  postalCode: z.string().min(1),
+  country: z.string().min(1),
+  phone: z.string().optional(),
+  hours: z.string().optional(),
+  websiteUrl: z.string().url().optional(),
+});
+export type BrickAndMortarMetadata = z.infer<typeof brickAndMortarMetadataSchema>;
+
+export const eventMetadataSchema = z.object({
+  startAt: z.string().min(1),
+  endAt: z.string().optional(),
+  venue: z.string().min(1),
+  address: z.string().optional(),
+  ticketUrl: z.string().url().optional(),
+  capacity: z.number().int().positive().optional(),
+});
+export type EventMetadata = z.infer<typeof eventMetadataSchema>;
+
+export const electionMetadataSchema = z.object({
+  electionDate: z.string().min(1),
+  jurisdiction: z.string().min(1),
+  office: z.string().min(1),
+  candidateName: z.string().min(1),
+  party: z.string().optional(),
+});
+export type ElectionMetadata = z.infer<typeof electionMetadataSchema>;
+
+export const productTypeMetadataSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("ecommerce"), metadata: ecommerceMetadataSchema }),
+  z.object({ type: z.literal("mobile_app"), metadata: mobileAppMetadataSchema }),
+  z.object({ type: z.literal("website"), metadata: websiteMetadataSchema }),
+  z.object({
+    type: z.literal("brick_and_mortar"),
+    metadata: brickAndMortarMetadataSchema,
+  }),
+  z.object({ type: z.literal("event"), metadata: eventMetadataSchema }),
+  z.object({ type: z.literal("election"), metadata: electionMetadataSchema }),
+]);
+
+const productSharedSchema = z.object({
   id: z.string(),
   title: z.string().min(1),
   handle: z.string().min(1),
@@ -155,7 +241,10 @@ export const productSchema = z.object({
   collections: z.array(collectionSchema).optional(),
 });
 
+export const productSchema = productSharedSchema.and(productTypeMetadataSchema);
+
 export type Product = z.infer<typeof productSchema>;
+export type ProductMetadata = Product["metadata"];
 
 /** Provider-agnostic payload used by commerce importers. */
 export const canonicalProductSchema = z.object({
@@ -202,7 +291,7 @@ export const canonicalProductSchema = z.object({
 
 export type CanonicalProduct = z.infer<typeof canonicalProductSchema>;
 
-export const createProductInputSchema = z.object({
+const createProductSharedSchema = z.object({
   id: z
     .string()
     .regex(/^prod_[a-z0-9]+$/, "Invalid product id")
@@ -217,13 +306,40 @@ export const createProductInputSchema = z.object({
     ),
   description: z.string().default(""),
   status: productStatusSchema.default("draft"),
-  price: z.number().nonnegative("Price must be 0 or greater"),
-  currency: z.string().min(1).default("USD"),
   images: z.array(z.string().url()).default([]),
   imageAvgColors: z.array(imageAvgColorSchema).default([]),
-  sku: z.string().optional(),
-  category: z.string().optional(),
 });
+
+export const createProductInputSchema = z.discriminatedUnion("type", [
+  createProductSharedSchema.extend({
+    type: z.literal("ecommerce"),
+    price: z.number().nonnegative("Price must be 0 or greater"),
+    currency: z.string().min(1).default("USD"),
+    sku: z.string().optional(),
+    category: z.string().optional(),
+    metadata: ecommerceMetadataSchema,
+  }),
+  createProductSharedSchema.extend({
+    type: z.literal("mobile_app"),
+    metadata: mobileAppMetadataSchema,
+  }),
+  createProductSharedSchema.extend({
+    type: z.literal("website"),
+    metadata: websiteMetadataSchema,
+  }),
+  createProductSharedSchema.extend({
+    type: z.literal("brick_and_mortar"),
+    metadata: brickAndMortarMetadataSchema,
+  }),
+  createProductSharedSchema.extend({
+    type: z.literal("event"),
+    metadata: eventMetadataSchema,
+  }),
+  createProductSharedSchema.extend({
+    type: z.literal("election"),
+    metadata: electionMetadataSchema,
+  }),
+]);
 
 export type CreateProductInput = z.infer<typeof createProductInputSchema>;
 

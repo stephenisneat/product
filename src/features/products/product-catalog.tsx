@@ -22,7 +22,10 @@ import { PageCanvas } from "@/components/layout/page-canvas";
 import { ProductImage } from "@/components/product-image";
 import { CatalogNav } from "@/features/products/catalog-toolbar";
 import { CreateProductMenu } from "@/features/products/create-product-menu";
-import { formatMoney } from "@/lib/format";
+import {
+  productSummaryLine,
+  productTypeLabel,
+} from "@/lib/products/product-type";
 import { cn } from "@/lib/utils";
 
 const optionItemClass =
@@ -60,9 +63,12 @@ function matchesQuery(product: Product, query: string) {
     product.title,
     product.description,
     product.status,
+    product.type,
+    productTypeLabel(product.type),
     product.sku,
     product.category,
     product.handle,
+    productSummaryLine(product),
   ]
     .filter(Boolean)
     .some((value) => value!.toLowerCase().includes(q));
@@ -119,8 +125,8 @@ export function ProductCatalog({ products }: { products: Product[] }) {
             No products yet
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Create a product manually or import from Shopify to start building
-            marketing intelligence.
+            Create an ecommerce product, app, website, store, event, or election —
+            or import from Shopify to start building marketing intelligence.
           </p>
           <div className="mt-6 flex justify-center">
             <CreateProductMenu label="Create product" />
@@ -290,21 +296,31 @@ export function ProductCatalog({ products }: { products: Product[] }) {
                       <h2 className="text-sm leading-snug font-medium">
                         {product.title}
                       </h2>
-                      <Badge
-                        variant="outline"
-                        className="shrink-0 text-[10px] tracking-wide uppercase"
-                      >
-                        {product.status}
-                      </Badge>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] tracking-wide uppercase"
+                        >
+                          {productTypeLabel(product.type)}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] tracking-wide uppercase"
+                        >
+                          {product.status}
+                        </Badge>
+                      </div>
                     </div>
                     <p className="line-clamp-2 text-xs text-muted-foreground">
                       {product.description}
                     </p>
-                    <div className="mt-auto flex items-center justify-between pt-2 text-xs text-muted-foreground">
-                      <span className="font-mono">
-                        {formatMoney(product.price, product.currency)}
+                    <div className="mt-auto flex items-center justify-between gap-2 pt-2 text-xs text-muted-foreground">
+                      <span className="min-w-0 truncate font-mono">
+                        {productSummaryLine(product)}
                       </span>
-                      <span>{product.channels.length} channels</span>
+                      <span className="shrink-0">
+                        {product.channels.length} channels
+                      </span>
                     </div>
                   </div>
                 </Link>

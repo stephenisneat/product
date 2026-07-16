@@ -3,8 +3,18 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ChevronDownIcon, PlusIcon, StoreIcon } from "lucide-react";
-import type { AppUser } from "@/domain";
+import {
+  Building2Icon,
+  CalendarDaysIcon,
+  ChevronDownIcon,
+  GlobeIcon,
+  PlusIcon,
+  ShoppingBagIcon,
+  SmartphoneIcon,
+  StoreIcon,
+  VoteIcon,
+} from "lucide-react";
+import type { AppUser, ProductType } from "@/domain";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -13,11 +23,24 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CreateProductButton } from "@/features/products/create-product-dialog";
 import { ImportShopifyDialog } from "@/features/products/import-shopify-dialog";
+import { PRODUCT_TYPE_OPTIONS } from "@/lib/products/product-type";
 import { cn } from "@/lib/utils";
+
+const TYPE_ICONS: Record<ProductType, typeof ShoppingBagIcon> = {
+  ecommerce: ShoppingBagIcon,
+  mobile_app: SmartphoneIcon,
+  website: GlobeIcon,
+  brick_and_mortar: Building2Icon,
+  event: CalendarDaysIcon,
+  election: VoteIcon,
+};
 
 function initialsFor(user: AppUser) {
   const source = user.name?.trim() || user.email;
@@ -37,12 +60,18 @@ export function UserMenu({
 }) {
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
+  const [productType, setProductType] = useState<ProductType>("ecommerce");
   const [shopifyOpen, setShopifyOpen] = useState(false);
 
   async function onSignOut() {
     await fetch("/api/auth/sign-out", { method: "POST" });
     router.push("/");
     router.refresh();
+  }
+
+  function openType(type: ProductType) {
+    setProductType(type);
+    setCreateOpen(true);
   }
 
   const label = user.name?.trim() || user.email;
@@ -87,10 +116,26 @@ export function UserMenu({
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem onClick={() => setCreateOpen(true)}>
-              <PlusIcon />
-              Create product
-            </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <PlusIcon />
+                Create product
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="min-w-52">
+                {PRODUCT_TYPE_OPTIONS.map((option) => {
+                  const Icon = TYPE_ICONS[option.value];
+                  return (
+                    <DropdownMenuItem
+                      key={option.value}
+                      onClick={() => openType(option.value)}
+                    >
+                      <Icon />
+                      {option.label}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
             <DropdownMenuItem onClick={() => setShopifyOpen(true)}>
               <StoreIcon />
               Import from Shopify
@@ -108,6 +153,7 @@ export function UserMenu({
         </DropdownMenuContent>
       </DropdownMenu>
       <CreateProductButton
+        productType={productType}
         open={createOpen}
         onOpenChange={setCreateOpen}
         showTrigger={false}
