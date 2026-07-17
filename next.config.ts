@@ -20,6 +20,11 @@ function supabaseImagePattern() {
 const supabasePattern = supabaseImagePattern();
 
 const nextConfig: NextConfig = {
+  // Avoid Turbopack scope-hoisting TDZ crashes with Zod 4 during
+  // `next build` page-data collection (vercel/next.js#82723).
+  experimental: {
+    turbopackScopeHoisting: false,
+  },
   images: {
     remotePatterns: [
       {
