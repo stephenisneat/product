@@ -226,7 +226,7 @@ export function CreateProductMenu({
             {step.kind === "type"
               ? "What are you selling?"
               : step.kind === "ecommerce-source"
-                ? "How do you want to add it?"
+                ? "Where do you sell your products?"
                 : step.kind === "shopify"
                   ? "Import from Shopify"
                   : step.productType === "ecommerce"
@@ -289,7 +289,7 @@ export function CreateProductMenu({
 
           {step.kind === "ecommerce-source" ? (
             <div className="flex flex-col gap-8">
-              <h2 className={stepTitleClass}>How do you want to add it?</h2>
+              <h2 className={stepTitleClass}>Where do you sell your products?</h2>
               <div className={optionGridClass}>
                 <button
                   type="button"
