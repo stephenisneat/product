@@ -53,6 +53,7 @@ export async function POST(req: Request) {
   }
 
   const { amountCents } = parsed.data;
+
   const repo = getWalletWriteRepository();
   const { customerId } = await ensureStripeCustomer(
     active.workspace,

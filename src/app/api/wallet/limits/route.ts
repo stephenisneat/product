@@ -6,6 +6,11 @@ import {
   getActiveWorkspace,
 } from "@/lib/auth/workspace";
 import {
+  PlanEntitlementError,
+  assertCanSpendAndLaunch,
+} from "@/lib/billing/gates";
+import { isWalletAiGateEnabled } from "@/lib/wallet/gate";
+import {
   getWalletBlockedReason,
   getWalletWriteRepository,
   nextMonthResetIso,
@@ -40,8 +45,24 @@ export async function PATCH(req: Request) {
     );
   }
 
+  const plan = active.workspace.plan ?? "free";
+  const seats = active.workspace.billedSeats ?? 1;
+  if (parsed.data.adSpendLimitCents !== undefined) {
+    try {
+      assertCanSpendAndLaunch(plan);
+    } catch (err) {
+      if (err instanceof PlanEntitlementError) {
+        return NextResponse.json(
+          { error: err.message, code: err.code },
+          { status: err.status },
+        );
+      }
+      throw err;
+    }
+  }
+
   const repo = getWalletWriteRepository();
-  const current = await repo.ensureWallet(active.workspace.id);
+  const current = await repo.ensureWallet(active.workspace.id, { plan, seats });
   const wallet = await repo.updateLimits(active.workspace.id, {
     adSpendLimitCents:
       parsed.data.adSpendLimitCents !== undefined
@@ -53,7 +74,9 @@ export async function PATCH(req: Request) {
         : current.usageLimitCents,
   });
 
-  const blockedReason = getWalletBlockedReason(wallet);
+  const blockedReason = isWalletAiGateEnabled()
+    ? getWalletBlockedReason(wallet, plan, seats)
+    : null;
   return NextResponse.json({
     wallet: {
       balanceCents: wallet.balanceCents,
@@ -62,6 +85,9 @@ export async function PATCH(req: Request) {
       usageLimitCents: wallet.usageLimitCents,
       usageMtdCents: wallet.usageMtdCents,
       adSpendMtdCents: wallet.adSpendMtdCents,
+      actionsMtd: wallet.actionsMtd,
+      includedRolloverCents: wallet.includedRolloverCents,
+      includedActions: null,
       resetsOn: nextMonthResetIso(wallet.mtdPeriodStart),
       autoReloadEnabled: wallet.autoReloadEnabled,
       autoReloadThresholdCents: wallet.autoReloadThresholdCents,

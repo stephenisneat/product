@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe/client";
 import { syncDefaultPaymentMethod } from "@/lib/stripe/auto-reload";
+import {
+  clearWorkspaceSubscription,
+  syncWorkspaceSubscription,
+} from "@/lib/stripe/subscriptions";
 import { getWalletWriteRepository } from "@/repositories";
 
 export const runtime = "nodejs";
@@ -42,6 +46,17 @@ export async function POST(req: Request) {
       case "customer.updated":
         await handleCustomerUpdated(event.data.object as Stripe.Customer);
         break;
+      case "customer.subscription.created":
+      case "customer.subscription.updated":
+        await syncWorkspaceSubscription(
+          event.data.object as Stripe.Subscription,
+        );
+        break;
+      case "customer.subscription.deleted":
+        await handleSubscriptionDeleted(
+          event.data.object as Stripe.Subscription,
+        );
+        break;
       default:
         break;
     }
@@ -54,6 +69,30 @@ export async function POST(req: Request) {
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  if (session.mode === "subscription") {
+    const subscriptionId =
+      typeof session.subscription === "string"
+        ? session.subscription
+        : session.subscription?.id;
+    if (subscriptionId) {
+      const sub = await getStripe().subscriptions.retrieve(subscriptionId);
+      // Ensure workspace_id is on the subscription even if only on the session.
+      if (!sub.metadata?.workspace_id && session.metadata?.workspace_id) {
+        const updated = await getStripe().subscriptions.update(subscriptionId, {
+          metadata: {
+            ...sub.metadata,
+            workspace_id: session.metadata.workspace_id,
+            plan: session.metadata.plan ?? sub.metadata?.plan ?? "",
+          },
+        });
+        await syncWorkspaceSubscription(updated);
+      } else {
+        await syncWorkspaceSubscription(sub);
+      }
+    }
+    return;
+  }
+
   if (session.mode !== "payment") return;
   const workspaceId = session.metadata?.workspace_id;
   const creditCents = Number(session.metadata?.credit_amount_cents ?? 0);
@@ -104,4 +143,12 @@ async function handleCustomerUpdated(customer: Stripe.Customer) {
   const workspaceId = customer.metadata?.workspace_id;
   if (!workspaceId) return;
   await syncDefaultPaymentMethod(workspaceId, customer.id);
+}
+
+async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
+  const workspaceId = sub.metadata?.workspace_id;
+  await clearWorkspaceSubscription({
+    workspaceId,
+    subscriptionId: sub.id,
+  });
 }

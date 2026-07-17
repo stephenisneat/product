@@ -6,6 +6,7 @@ import type {
   PerformancePoint,
   Product,
   ProductIntelligence,
+  WorkspacePlan,
 } from "@/domain";
 import { ArtifactCard } from "@/features/artifacts/artifact-card";
 import { PerformanceChart } from "@/features/reporting/performance-chart";
@@ -14,6 +15,8 @@ import { ProductImage } from "@/components/product-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UpgradeButton } from "@/features/billing/upgrade-button";
+import { getEntitlements } from "@/lib/billing/entitlements";
 import { formatMoney } from "@/lib/format";
 import {
   productSummaryLine,
@@ -60,15 +63,19 @@ export function ProductWorkspace({
   artifacts,
   campaigns,
   performance,
+  plan = "free",
 }: {
   product: Product;
   intelligence: ProductIntelligence | null;
   artifacts: Artifact[];
   campaigns: Campaign[];
   performance: PerformancePoint[];
+  plan?: WorkspacePlan;
 }) {
   const proposed = artifacts.filter((a) => a.status === "proposed");
   const isEcommerce = product.type === "ecommerce";
+  const ents = getEntitlements(plan);
+  const campaignsLocked = !ents.canSpendAndLaunch;
 
   return (
     <PageCanvas
@@ -240,9 +247,24 @@ export function ProductWorkspace({
           </TabsContent>
 
           <TabsContent value="campaigns" className="mt-4">
-            {campaigns.length === 0 ? (
+            {campaignsLocked ? (
+              <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center">
+                <p className="text-sm font-medium">Campaigns are locked</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Free workspaces can brainstorm campaign concepts with the
+                  agent, but saving and launching campaigns requires Hobby or
+                  Pro.
+                </p>
+                <UpgradeButton size="sm" className="mt-4">
+                  Upgrade
+                </UpgradeButton>
+              </div>
+            ) : campaigns.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No campaigns yet. Ask the agent for a campaign concept.
+                {ents.maxCampaignsPerProduct != null
+                  ? ` (${ents.maxCampaignsPerProduct} max per product on ${ents.name})`
+                  : null}
               </p>
             ) : (
               <ul className="divide-y divide-border rounded-lg border border-border">

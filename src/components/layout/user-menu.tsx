@@ -49,7 +49,7 @@ export function UserMenu({
         render={
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="sm"
             className={cn(!showLabel && "rounded-full px-1.5")}
           />

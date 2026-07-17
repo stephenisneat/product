@@ -1,7 +1,10 @@
 "use client";
 
+import Link from "next/link";
+import { SettingsIcon } from "lucide-react";
 import type { AppUser, WorkspaceRole } from "@/domain";
 import { UserMenu } from "@/components/layout/user-menu";
+import { Button } from "@/components/ui/button";
 import { ChannelsMenu } from "@/features/channels/channels-menu";
 import { ProductPluginMenu } from "@/features/plugin/product-plugin-menu";
 import { WalletMenu } from "@/features/wallet/wallet-menu";
@@ -35,13 +38,31 @@ export function AppHeader({
             Product Agent
           </span>
         )}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-0.5">
           <ChannelsMenu />
           <ProductPluginMenu />
           <WalletMenu />
         </div>
       </div>
-      <UserMenu user={user} showLabel />
+      <div className="flex items-center gap-2">
+        <Button
+          render={
+            <Link
+              href={
+                activeWorkspaceId
+                  ? "/settings/workspace"
+                  : "/settings/account"
+              }
+            />
+          }
+          variant="outline"
+          size="icon-sm"
+          aria-label="Settings"
+        >
+          <SettingsIcon />
+        </Button>
+        <UserMenu user={user} showLabel />
+      </div>
     </header>
   );
 }

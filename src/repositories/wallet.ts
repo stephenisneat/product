@@ -2,8 +2,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   WalletTransaction,
   WalletTransactionType,
+  WorkspacePlan,
   WorkspaceWallet,
 } from "@/domain";
+import {
+  getEntitlements,
+  includedUsageCentsForSeats,
+} from "@/lib/billing/entitlements";
 
 type DbWallet = {
   workspace_id: string;
@@ -14,6 +19,8 @@ type DbWallet = {
   usage_limit_cents: number | null;
   usage_mtd_cents: number;
   ad_spend_mtd_cents: number;
+  actions_mtd?: number | null;
+  included_rollover_cents?: number | null;
   mtd_period_start: string;
   auto_reload_enabled: boolean;
   auto_reload_threshold_cents: number | null;
@@ -48,6 +55,8 @@ export function mapWallet(row: DbWallet): WorkspaceWallet {
       row.usage_limit_cents == null ? null : Number(row.usage_limit_cents),
     usageMtdCents: Number(row.usage_mtd_cents),
     adSpendMtdCents: Number(row.ad_spend_mtd_cents),
+    actionsMtd: Number(row.actions_mtd ?? 0),
+    includedRolloverCents: Number(row.included_rollover_cents ?? 0),
     mtdPeriodStart: row.mtd_period_start,
     autoReloadEnabled: row.auto_reload_enabled,
     autoReloadThresholdCents:
@@ -93,10 +102,13 @@ export class SupabaseWalletRepository {
     return mapWallet(data as DbWallet);
   }
 
-  async ensureWallet(workspaceId: string): Promise<WorkspaceWallet> {
+  async ensureWallet(
+    workspaceId: string,
+    opts?: { plan?: WorkspacePlan; seats?: number },
+  ): Promise<WorkspaceWallet> {
     const existing = await this.getWallet(workspaceId);
     if (existing) {
-      return this.refreshMtdIfNeeded(existing);
+      return this.refreshMtdIfNeeded(existing, opts);
     }
 
     const { data, error } = await this.client
@@ -105,27 +117,43 @@ export class SupabaseWalletRepository {
       .select("*")
       .single();
     if (error) {
-      // Race: another request created it
       if (error.code === "23505") {
         const again = await this.getWallet(workspaceId);
-        if (again) return this.refreshMtdIfNeeded(again);
+        if (again) return this.refreshMtdIfNeeded(again, opts);
       }
       throw error;
     }
     return mapWallet(data as DbWallet);
   }
 
+  /**
+   * On month boundary: roll unused included usage into next month (capped at
+   * 1× the current monthly allotment), then reset MTD counters.
+   */
   private async refreshMtdIfNeeded(
     wallet: WorkspaceWallet,
+    opts?: { plan?: WorkspacePlan; seats?: number },
   ): Promise<WorkspaceWallet> {
     const currentPeriod = monthStartUtc();
     if (wallet.mtdPeriodStart >= currentPeriod) return wallet;
+
+    const plan = opts?.plan ?? "free";
+    const seats = opts?.seats ?? 1;
+    const ents = getEntitlements(plan);
+    const allotment = includedUsageCentsForSeats(plan, seats);
+    const effectiveAllotment = allotment + wallet.includedRolloverCents;
+    const unused = Math.max(0, effectiveAllotment - wallet.usageMtdCents);
+    const nextRollover = ents.allowIncludedRollover
+      ? Math.min(unused, allotment)
+      : 0;
 
     const { data, error } = await this.client
       .from("workspace_wallets")
       .update({
         usage_mtd_cents: 0,
         ad_spend_mtd_cents: 0,
+        actions_mtd: 0,
+        included_rollover_cents: nextRollover,
         mtd_period_start: currentPeriod,
         updated_at: new Date().toISOString(),
       })
@@ -261,6 +289,31 @@ export class SupabaseWalletRepository {
     return mapTransaction(data as DbTransaction);
   }
 
+  async chargeAiUsage(input: {
+    workspaceId: string;
+    amountCents: number;
+    includedAllotmentCents: number;
+    allowOverage: boolean;
+    description?: string;
+    metadata?: Record<string, unknown>;
+    createdBy?: string | null;
+    actionCount?: number;
+  }): Promise<WalletTransaction> {
+    const { data, error } = await this.client.rpc("charge_ai_usage", {
+      p_workspace_id: input.workspaceId,
+      p_amount_cents: input.amountCents,
+      p_included_allotment_cents: input.includedAllotmentCents,
+      p_allow_overage: input.allowOverage,
+      p_description: input.description ?? "",
+      p_metadata: input.metadata ?? {},
+      p_created_by: input.createdBy ?? null,
+      p_stripe_object_id: null,
+      p_action_count: input.actionCount ?? 1,
+    });
+    if (error) throw error;
+    return mapTransaction(data as DbTransaction);
+  }
+
   async listTransactions(
     workspaceId: string,
     opts: { limit?: number; offset?: number } = {},
@@ -287,8 +340,6 @@ function monthStartUtc(): string {
 
 export function nextMonthResetIso(mtdPeriodStart: string): string {
   const [y, m] = mtdPeriodStart.split("-").map(Number);
-  // mtdPeriodStart is YYYY-MM-01 (m is 1–12). Date.UTC month is 0-indexed,
-  // so passing `m` yields the first day of the following month.
   const next = new Date(Date.UTC(y, m, 1));
   return next.toLocaleDateString("en-US", {
     month: "short",
@@ -298,13 +349,68 @@ export function nextMonthResetIso(mtdPeriodStart: string): string {
   });
 }
 
-export function getWalletBlockedReason(wallet: WorkspaceWallet) {
-  if (wallet.balanceCents <= 0) return "zero_balance" as const;
+/** Effective included pool = base allotment (× seats) + rollover. */
+export function effectiveIncludedAllotmentCents(
+  wallet: WorkspaceWallet,
+  plan: WorkspacePlan,
+  seats = 1,
+): number {
+  return (
+    includedUsageCentsForSeats(plan, seats) + wallet.includedRolloverCents
+  );
+}
+
+/**
+ * AI gate: included monthly allotment (+ rollover) first, then purchased
+ * balance when top-off is allowed. Free also enforces a monthly action cap
+ * before requiring top-off.
+ */
+export function getWalletBlockedReason(
+  wallet: WorkspaceWallet,
+  plan: WorkspacePlan = "free",
+  seats = 1,
+) {
+  const ents = getEntitlements(plan);
+  const allotment = effectiveIncludedAllotmentCents(wallet, plan, seats);
+  const remainingIncluded = Math.max(0, allotment - wallet.usageMtdCents);
+
   if (
     wallet.usageLimitCents != null &&
     wallet.usageMtdCents >= wallet.usageLimitCents
   ) {
     return "usage_limit" as const;
   }
+
+  // Free action cap: once included actions are used, require top-off balance.
+  if (
+    ents.includedActions != null &&
+    wallet.actionsMtd >= ents.includedActions
+  ) {
+    if (!ents.allowUsageTopOff) return "usage_limit" as const;
+    if (wallet.balanceCents <= 0) return "zero_balance" as const;
+    return null;
+  }
+
+  if (remainingIncluded > 0) {
+    return null;
+  }
+
+  if (!ents.allowUsageTopOff) {
+    return "usage_limit" as const;
+  }
+
+  if (wallet.balanceCents <= 0) {
+    return "zero_balance" as const;
+  }
+
   return null;
+}
+
+export function remainingIncludedUsageCents(
+  wallet: WorkspaceWallet,
+  plan: WorkspacePlan,
+  seats = 1,
+): number {
+  const allotment = effectiveIncludedAllotmentCents(wallet, plan, seats);
+  return Math.max(0, allotment - wallet.usageMtdCents);
 }

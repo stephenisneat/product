@@ -5,6 +5,7 @@ import {
   canManageMembers,
   getActiveWorkspace,
 } from "@/lib/auth/workspace";
+import { isWalletAiGateEnabled } from "@/lib/wallet/gate";
 import {
   getWalletBlockedReason,
   getWalletWriteRepository,
@@ -58,8 +59,10 @@ export async function PATCH(req: Request) {
     );
   }
 
+  const plan = active.workspace.plan ?? "free";
+  const seats = active.workspace.billedSeats ?? 1;
   const repo = getWalletWriteRepository();
-  const current = await repo.ensureWallet(active.workspace.id);
+  const current = await repo.ensureWallet(active.workspace.id, { plan, seats });
 
   if (parsed.data.enabled && !current.stripeDefaultPaymentMethodId) {
     return NextResponse.json(
@@ -81,7 +84,9 @@ export async function PATCH(req: Request) {
       : (parsed.data.targetCents ?? current.autoReloadTargetCents),
   });
 
-  const blockedReason = getWalletBlockedReason(wallet);
+  const blockedReason = isWalletAiGateEnabled()
+    ? getWalletBlockedReason(wallet, plan, seats)
+    : null;
   return NextResponse.json({
     wallet: {
       balanceCents: wallet.balanceCents,
@@ -90,6 +95,9 @@ export async function PATCH(req: Request) {
       usageLimitCents: wallet.usageLimitCents,
       usageMtdCents: wallet.usageMtdCents,
       adSpendMtdCents: wallet.adSpendMtdCents,
+      actionsMtd: wallet.actionsMtd,
+      includedRolloverCents: wallet.includedRolloverCents,
+      includedActions: null,
       resetsOn: nextMonthResetIso(wallet.mtdPeriodStart),
       autoReloadEnabled: wallet.autoReloadEnabled,
       autoReloadThresholdCents: wallet.autoReloadThresholdCents,

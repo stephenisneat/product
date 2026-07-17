@@ -1,6 +1,6 @@
 "use client";
 
-import { Link2Icon } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +9,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 const CHANNELS = [
   { id: "google", name: "Google Ads", connected: true },
@@ -23,16 +24,18 @@ export function ChannelsMenu() {
   return (
     <Popover>
       <PopoverTrigger
-        render={<Button type="button" variant="outline" size="sm" />}
+        render={<Button type="button" variant="ghost" size="sm" />}
       >
-        <Link2Icon data-icon="inline-start" />
-        Channels
-        <Badge
-          variant="outline"
-          className="ml-0.5 h-4 min-w-4 justify-center px-1 text-[10px] font-normal"
+        <span
+          className={cn(
+            "mr-0.5 font-mono tabular-nums",
+            connectedCount > 0 ? "text-emerald-500" : "text-red-500",
+          )}
         >
           {connectedCount}
-        </Badge>
+        </span>
+        Channels
+        <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-aria-expanded/button:rotate-180" />
       </PopoverTrigger>
       <PopoverContent align="start" className="min-w-56 p-2">
         <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">

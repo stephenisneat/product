@@ -8,13 +8,20 @@ import {
   BriefcaseIcon,
   ChartNoAxesCombinedIcon,
   LightbulbIcon,
+  PackageIcon,
   PaletteIcon,
   PlusIcon,
   type LucideIcon,
 } from "lucide-react";
+import { NavLink } from "@/components/layout/nav-link";
 import { Button } from "@/components/ui/button";
 
 const catalogPages = [
+  {
+    href: "/",
+    label: "Products",
+    icon: PackageIcon,
+  },
   {
     href: "/insights",
     label: "Insights",
@@ -49,28 +56,34 @@ function pageForPath(pathname: string): {
   label: string;
   icon: LucideIcon;
 } | null {
-  const match = [...catalogPages, ...toolbarOnlyPages].find(
-    ({ href }) => pathname === href || pathname.startsWith(`${href}/`),
-  );
+  const match = [...catalogPages, ...toolbarOnlyPages].find(({ href }) => {
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(`${href}/`);
+  });
   return match ? { label: match.label, icon: match.icon } : null;
 }
 
+function isCatalogNavActive(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function CatalogNav({ children }: { children?: ReactNode }) {
+  const pathname = usePathname();
+
   return (
-    <div className="ml-auto flex flex-wrap items-center gap-2">
-      {catalogPages.map(({ href, label, icon: Icon }) => (
-        <Button
+    <nav className="flex flex-wrap items-center gap-2" aria-label="Catalog">
+      {catalogPages.map(({ href, label, icon }) => (
+        <NavLink
           key={href}
-          render={<Link href={href} />}
-          variant="outline"
-          size="sm"
-        >
-          <Icon data-icon="inline-start" />
-          {label}
-        </Button>
+          href={href}
+          label={label}
+          icon={icon}
+          isActive={isCatalogNavActive(pathname, href)}
+        />
       ))}
       {children}
-    </div>
+    </nav>
   );
 }
 

@@ -1,33 +1,11 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MarketingChrome } from "@/features/marketing/marketing-chrome";
 
 export function MarketingHome() {
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-background">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,oklch(0.28_0_0),transparent_55%),linear-gradient(to_bottom,oklch(0.16_0_0),oklch(0.12_0_0))]"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:linear-gradient(oklch(1_0_0_/0.06)_1px,transparent_1px),linear-gradient(90deg,oklch(1_0_0_/0.06)_1px,transparent_1px)] [background-size:48px_48px]"
-      />
-
-      <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
-        <span className="font-heading text-sm font-semibold tracking-tight">
-          Product Agent
-        </span>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" render={<Link href="/login" />}>
-            Sign in
-          </Button>
-          <Button size="sm" render={<Link href="/signup" />}>
-            Sign up
-          </Button>
-        </div>
-      </header>
-
+    <MarketingChrome>
       <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 pb-24 pt-10">
         <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
           product.ag
@@ -48,11 +26,11 @@ export function MarketingHome() {
             Get started
             <ArrowRight className="size-4" />
           </Button>
-          <Button size="lg" variant="outline" render={<Link href="/login" />}>
-            Sign in
+          <Button size="lg" variant="outline" render={<Link href="/pricing" />}>
+            View pricing
           </Button>
         </div>
       </main>
-    </div>
+    </MarketingChrome>
   );
 }

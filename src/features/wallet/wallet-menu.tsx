@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
+  ChevronDownIcon,
   ChevronRightIcon,
   CircleAlertIcon,
   CreditCardIcon,
@@ -22,7 +23,8 @@ import {
   AutoReloadDialog,
   EditLimitDialog,
 } from "@/features/wallet/wallet-dialogs";
-import { formatCents } from "@/features/wallet/money";
+import { UpgradeButton } from "@/features/billing/upgrade-button";
+import { formatCents, formatCentsFloorDollars } from "@/features/wallet/money";
 import { cn } from "@/lib/utils";
 
 /** Remaining capacity below this is treated as "getting low". */
@@ -151,9 +153,10 @@ function WalletPopoverShell({
   return (
     <Popover>
       <PopoverTrigger
-        render={<Button type="button" variant="outline" size="sm" />}
+        render={<Button type="button" variant="ghost" size="sm" />}
       >
         {trigger}
+        <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-aria-expanded/button:rotate-180" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[320px] p-0">
         {children}
@@ -174,10 +177,12 @@ function AdSpendLimitMenu({
   wallet,
   loading,
   onChangeLimit,
+  locked,
 }: {
   wallet: WalletSummary | null;
   loading: boolean;
   onChangeLimit: () => void;
+  locked?: boolean;
 }) {
   return (
     <WalletPopoverShell
@@ -197,6 +202,18 @@ function AdSpendLimitMenu({
     >
       {!wallet ? (
         <WalletUnavailable loading={loading} />
+      ) : locked ? (
+        <section className="space-y-3 p-3">
+          <div>
+            <p className="text-sm font-medium">Ad spend locked</p>
+            <p className="text-xs text-muted-foreground">
+              Adding ad spend requires Hobby or Pro.
+            </p>
+          </div>
+          <UpgradeButton type="button" size="xs" variant="outline">
+            Upgrade
+          </UpgradeButton>
+        </section>
       ) : (
         <section className="space-y-3 p-3">
           <div>
@@ -353,7 +370,9 @@ function CreditBalanceMenu({
                 : balanceToneClass(remainingPct),
             )}
           >
-            {loading && !wallet ? "…" : formatCents(wallet?.balanceCents ?? 0)}
+            {loading && !wallet
+              ? "…"
+              : formatCentsFloorDollars(wallet?.balanceCents ?? 0)}
           </span>
           Balance
         </>
@@ -438,10 +457,11 @@ function CreditBalanceMenu({
 
 /** Three toolbar popovers: ad spend, usage, and credit balance. */
 export function WalletMenu() {
-  const { wallet, loading, setWallet, setOpenBuyCredits } = useWallet();
+  const { wallet, plan, loading, setWallet, setOpenBuyCredits } = useWallet();
   const [spendOpen, setSpendOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
   const [autoReloadOpen, setAutoReloadOpen] = useState(false);
+  const adSpendLocked = plan === "free";
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -472,6 +492,7 @@ export function WalletMenu() {
       <AdSpendLimitMenu
         wallet={wallet}
         loading={loading}
+        locked={adSpendLocked}
         onChangeLimit={() => setSpendOpen(true)}
       />
       <UsageLimitMenu
@@ -488,13 +509,15 @@ export function WalletMenu() {
 
       {wallet ? (
         <>
-          <EditLimitDialog
-            open={spendOpen}
-            onOpenChange={setSpendOpen}
-            kind="ad_spend"
-            wallet={wallet}
-            onSaved={setWallet}
-          />
+          {!adSpendLocked ? (
+            <EditLimitDialog
+              open={spendOpen}
+              onOpenChange={setSpendOpen}
+              kind="ad_spend"
+              wallet={wallet}
+              onSaved={setWallet}
+            />
+          ) : null}
           <EditLimitDialog
             open={usageOpen}
             onOpenChange={setUsageOpen}

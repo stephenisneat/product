@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
+  BillingInterval,
   Workspace,
   WorkspaceInvite,
   WorkspaceInviteRole,
@@ -19,9 +20,13 @@ type DbWorkspace = {
   name: string;
   avatar_url: string | null;
   plan: WorkspacePlan;
+  billing_interval?: BillingInterval | null;
+  billed_seats?: number | null;
   primary_domain: string | null;
   join_domain: string | null;
   domain_join_enabled: boolean;
+  stripe_subscription_id: string | null;
+  stripe_subscription_status: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -56,6 +61,8 @@ function mapWorkspace(row: DbWorkspace): Workspace {
     name: row.name,
     avatarUrl: row.avatar_url ?? null,
     plan: row.plan ?? "free",
+    billingInterval: row.billing_interval ?? null,
+    billedSeats: Math.max(1, Number(row.billed_seats ?? 1)),
     primaryDomain: row.primary_domain ?? null,
     joinDomain: row.join_domain ?? null,
     domainJoinEnabled: Boolean(row.domain_join_enabled),
@@ -165,12 +172,24 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
     if (input.name !== undefined) patch.name = input.name;
     if (input.avatarUrl !== undefined) patch.avatar_url = input.avatarUrl;
     if (input.plan !== undefined) patch.plan = input.plan;
+    if (input.billingInterval !== undefined) {
+      patch.billing_interval = input.billingInterval;
+    }
+    if (input.billedSeats !== undefined) {
+      patch.billed_seats = input.billedSeats;
+    }
     if (input.primaryDomain !== undefined) {
       patch.primary_domain = input.primaryDomain;
     }
     if (input.joinDomain !== undefined) patch.join_domain = input.joinDomain;
     if (input.domainJoinEnabled !== undefined) {
       patch.domain_join_enabled = input.domainJoinEnabled;
+    }
+    if (input.stripeSubscriptionId !== undefined) {
+      patch.stripe_subscription_id = input.stripeSubscriptionId;
+    }
+    if (input.stripeSubscriptionStatus !== undefined) {
+      patch.stripe_subscription_status = input.stripeSubscriptionStatus;
     }
 
     const { data, error } = await this.client

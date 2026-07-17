@@ -4,7 +4,10 @@ import {
   billedCostCents,
   providerCostUsd,
 } from "@/lib/stripe/pricing";
-import { getWalletBlockedReason, nextMonthResetIso } from "@/repositories/wallet";
+import {
+  getWalletBlockedReason,
+  nextMonthResetIso,
+} from "@/repositories/wallet";
 import type { WorkspaceWallet } from "@/domain";
 
 describe("AI pricing", () => {
@@ -13,7 +16,6 @@ describe("AI pricing", () => {
   });
 
   it("computes provider cost for gpt-4.1-mini", () => {
-    // 1M input @ $0.40 + 1M output @ $1.60 = $2.00
     const usd = providerCostUsd({
       model: "gpt-4.1-mini",
       inputTokens: 1_000_000,
@@ -32,9 +34,6 @@ describe("AI pricing", () => {
   });
 
   it("bills at 1.5x and rounds up to cents", () => {
-    // 1000 input tokens: 1000/1e6 * 0.4 = 0.0004 USD
-    // 500 output: 500/1e6 * 1.6 = 0.0008 USD
-    // total 0.0012 * 1.5 = 0.0018 USD → ceil to 1 cent minimum
     const cents = billedCostCents({
       model: "gpt-4.1-mini",
       inputTokens: 1000,
@@ -54,14 +53,22 @@ describe("AI pricing", () => {
   });
 
   it("scales for larger usage", () => {
-    // 500k in + 500k out:
-    // 0.5*0.4 + 0.5*1.6 = 0.2 + 0.8 = 1.0 USD * 1.5 = 1.5 USD = 150 cents
     const cents = billedCostCents({
       model: "gpt-4.1-mini",
       inputTokens: 500_000,
       outputTokens: 500_000,
     });
     expect(cents).toBe(150);
+  });
+
+  it("respects Pro 1.0x pass-through markup", () => {
+    const cents = billedCostCents({
+      model: "gpt-4.1-mini",
+      inputTokens: 500_000,
+      outputTokens: 500_000,
+      markup: 1.0,
+    });
+    expect(cents).toBe(100);
   });
 });
 
@@ -75,6 +82,8 @@ describe("wallet helpers", () => {
     usageLimitCents: null,
     usageMtdCents: 0,
     adSpendMtdCents: 0,
+    actionsMtd: 0,
+    includedRolloverCents: 0,
     mtdPeriodStart: "2026-07-01",
     autoReloadEnabled: false,
     autoReloadThresholdCents: null,
@@ -84,30 +93,73 @@ describe("wallet helpers", () => {
     updatedAt: "2026-07-01T00:00:00.000Z",
   };
 
-  it("blocks on zero balance", () => {
-    expect(getWalletBlockedReason({ ...base, balanceCents: 0 })).toBe(
-      "zero_balance",
-    );
-  });
-
-  it("blocks when usage MTD hits limit", () => {
+  it("allows Free with zero balance while included actions remain", () => {
     expect(
-      getWalletBlockedReason({
-        ...base,
-        usageLimitCents: 500,
-        usageMtdCents: 500,
-      }),
-    ).toBe("usage_limit");
-  });
-
-  it("allows when under limits with balance", () => {
-    expect(
-      getWalletBlockedReason({
-        ...base,
-        usageLimitCents: 500,
-        usageMtdCents: 100,
-      }),
+      getWalletBlockedReason({ ...base, balanceCents: 0 }, "free"),
     ).toBeNull();
+  });
+
+  it("blocks Free when actions exhausted and no top-off balance", () => {
+    expect(
+      getWalletBlockedReason(
+        { ...base, balanceCents: 0, actionsMtd: 100, usageMtdCents: 50 },
+        "free",
+      ),
+    ).toBe("zero_balance");
+  });
+
+  it("allows Free top-off after action cap when balance remains", () => {
+    expect(
+      getWalletBlockedReason(
+        { ...base, balanceCents: 200, actionsMtd: 100, usageMtdCents: 200 },
+        "free",
+      ),
+    ).toBeNull();
+  });
+
+  it("counts rollover toward included allotment", () => {
+    expect(
+      getWalletBlockedReason(
+        {
+          ...base,
+          balanceCents: 0,
+          usageMtdCents: 200,
+          includedRolloverCents: 100,
+        },
+        "free",
+      ),
+    ).toBeNull();
+  });
+
+  it("blocks Hobby on zero balance after allotment", () => {
+    expect(
+      getWalletBlockedReason(
+        { ...base, balanceCents: 0, usageMtdCents: 900 },
+        "hobby",
+      ),
+    ).toBe("zero_balance");
+  });
+
+  it("allows Hobby with balance after allotment", () => {
+    expect(
+      getWalletBlockedReason(
+        { ...base, balanceCents: 100, usageMtdCents: 900 },
+        "hobby",
+      ),
+    ).toBeNull();
+  });
+
+  it("blocks when custom usage MTD hits limit", () => {
+    expect(
+      getWalletBlockedReason(
+        {
+          ...base,
+          usageLimitCents: 500,
+          usageMtdCents: 500,
+        },
+        "pro",
+      ),
+    ).toBe("usage_limit");
   });
 
   it("formats next month reset date", () => {
