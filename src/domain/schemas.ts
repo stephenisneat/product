@@ -524,3 +524,46 @@ export const walletSummarySchema = z.object({
   canManage: z.boolean(),
 });
 export type WalletSummary = z.infer<typeof walletSummarySchema>;
+
+export const jobRunTypeSchema = z.enum(["create_campaign"]);
+export type JobRunType = z.infer<typeof jobRunTypeSchema>;
+
+export const jobRunStatusSchema = z.enum([
+  "pending",
+  "running",
+  "succeeded",
+  "failed",
+  "canceled",
+]);
+export type JobRunStatus = z.infer<typeof jobRunStatusSchema>;
+
+export const jobRunTriggerSchema = z.enum(["agent", "api", "cron", "event"]);
+export type JobRunTrigger = z.infer<typeof jobRunTriggerSchema>;
+
+export const createCampaignJobInputSchema = z.object({
+  productId: z.string().uuid(),
+  name: z.string().trim().min(1).max(120),
+  objective: z.string().trim().max(500).optional(),
+  channels: z.array(z.string().trim().min(1)).max(20).optional(),
+});
+export type CreateCampaignJobInput = z.infer<
+  typeof createCampaignJobInputSchema
+>;
+
+export const jobRunSchema = z.object({
+  id: z.string().uuid(),
+  workspaceId: z.string().uuid(),
+  productId: z.string().uuid().nullable(),
+  type: jobRunTypeSchema,
+  status: jobRunStatusSchema,
+  trigger: jobRunTriggerSchema,
+  triggerRunId: z.string().nullable(),
+  createdBy: z.string().nullable(),
+  input: z.record(z.string(), z.unknown()),
+  result: z.record(z.string(), z.unknown()).nullable(),
+  error: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  startedAt: z.string().datetime().nullable(),
+  finishedAt: z.string().datetime().nullable(),
+});
+export type JobRun = z.infer<typeof jobRunSchema>;

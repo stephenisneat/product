@@ -20,6 +20,8 @@ import {
   PlanEntitlementError,
   assertCanCreateCreative,
 } from "@/lib/billing/gates";
+import { enqueueCreateCampaignJob } from "@/lib/jobs/enqueue";
+import { hasServiceRole } from "@/lib/supabase/service";
 import {
   assertWalletAllowsAi,
   chargeAiUsage,
@@ -36,6 +38,8 @@ function buildProductSystemPrompt(
   return `You are Product Agent, an AI marketing collaborator for commerce products.
 You help develop positioning, ad copy, campaign concepts, and listing updates.
 Always prefer calling propose_artifact when you have a concrete proposal ready for review.
+When the user wants to create a campaign (not just a concept proposal), call run_job with type create_campaign.
+Keep propose_artifact for reviewable copy, positioning, and campaign concepts; use run_job to actually create a draft campaign.
 When proposing ad_copy creatives for a campaign, include that campaign's id as campaignId.
 Never invent inventory or prices that contradict the product context.
 The user may navigate between pages during a conversation. Treat the product below as the current page context for this turn.
@@ -71,6 +75,8 @@ function buildWorkspaceSystemPrompt(products: Product[]): string {
 The user is chatting at the workspace (catalog) level, not a single product page.
 Help prioritize work, compare products, and propose marketing artifacts for specific products.
 When proposing an artifact, always call propose_artifact with the target productId from the catalog.
+When the user wants to create a campaign for a product, call run_job with type create_campaign and that productId.
+Keep propose_artifact for reviewable copy and concepts; use run_job to create a draft campaign.
 Never invent inventory or prices that contradict the catalog.
 The user may navigate between pages during a conversation. Treat this workspace context as the current page for this turn.
 
@@ -350,6 +356,48 @@ export async function POST(req: Request) {
             }
           },
         }),
+        run_job: tool({
+          description:
+            "Start a background job. Use type create_campaign to create a draft campaign for the current product. Returns immediately with a jobId; progress appears on /jobs.",
+          inputSchema: z.object({
+            type: z.literal("create_campaign"),
+            name: z.string().trim().min(1).max(120),
+            objective: z.string().trim().max(500).optional(),
+            channels: z.array(z.string().trim().min(1)).max(20).optional(),
+          }),
+          execute: async (input) => {
+            if (!hasServiceRole()) {
+              return {
+                ok: false,
+                error: "Jobs service is not configured.",
+              };
+            }
+            try {
+              const job = await enqueueCreateCampaignJob({
+                workspaceId: active.workspace.id,
+                createdBy: user.id,
+                trigger: "agent",
+                input: {
+                  productId,
+                  name: input.name,
+                  objective: input.objective,
+                  channels: input.channels,
+                },
+              });
+              return {
+                ok: true,
+                jobId: job.id,
+                message: `Campaign job started. Track it on /jobs (id ${job.id}).`,
+              };
+            } catch (err) {
+              return {
+                ok: false,
+                error:
+                  err instanceof Error ? err.message : "Failed to start job.",
+              };
+            }
+          },
+        }),
       },
     });
 
@@ -427,6 +475,55 @@ export async function POST(req: Request) {
               return { ok: false, error: err.message, code: err.code };
             }
             throw err;
+          }
+        },
+      }),
+      run_job: tool({
+        description:
+          "Start a background job for a product in the workspace. Use type create_campaign with productId from the catalog. Returns immediately with a jobId; progress appears on /jobs.",
+        inputSchema: z.object({
+          type: z.literal("create_campaign"),
+          productId: z.string(),
+          name: z.string().trim().min(1).max(120),
+          objective: z.string().trim().max(500).optional(),
+          channels: z.array(z.string().trim().min(1)).max(20).optional(),
+        }),
+        execute: async (input) => {
+          if (!ownedIds.has(input.productId)) {
+            return {
+              ok: false,
+              message: "productId is not in this workspace catalog.",
+            };
+          }
+          if (!hasServiceRole()) {
+            return {
+              ok: false,
+              error: "Jobs service is not configured.",
+            };
+          }
+          try {
+            const job = await enqueueCreateCampaignJob({
+              workspaceId: activeWorkspace.workspace.id,
+              createdBy: user.id,
+              trigger: "agent",
+              input: {
+                productId: input.productId,
+                name: input.name,
+                objective: input.objective,
+                channels: input.channels,
+              },
+            });
+            return {
+              ok: true,
+              jobId: job.id,
+              message: `Campaign job started. Track it on /jobs (id ${job.id}).`,
+            };
+          } catch (err) {
+            return {
+              ok: false,
+              error:
+                err instanceof Error ? err.message : "Failed to start job.",
+            };
           }
         },
       }),

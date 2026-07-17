@@ -67,12 +67,15 @@ Product images upload to the `product-assets` storage bucket created by migratio
 | `TOKEN_ENCRYPTION_KEY` | Optional dedicated key for encrypting commerce access tokens |
 | `RESEND_API_KEY` | Resend API key for workspace invite emails |
 | `RESEND_FROM` | Optional From address for invite emails |
+| `TRIGGER_SECRET_KEY` | Trigger.dev secret key for enqueueing background jobs |
+| `TRIGGER_PROJECT_ID` | Optional Trigger.dev project ref (defaults in `trigger.config.ts`) |
 
 ## Scripts
 
 | Command | Description |
 | --- | --- |
 | `pnpm dev` | Development server |
+| `pnpm dev:trigger` | Trigger.dev worker (run alongside `pnpm dev` for background jobs) |
 | `pnpm build` | Production build |
 | `pnpm start` | Start production server |
 | `pnpm lint` | ESLint |

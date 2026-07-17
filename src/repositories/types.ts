@@ -5,6 +5,10 @@ import type {
   CanonicalProduct,
   CommerceConnection,
   CommerceProvider,
+  JobRun,
+  JobRunStatus,
+  JobRunTrigger,
+  JobRunType,
   PerformancePoint,
   Product,
   ProductIntelligence,
@@ -118,5 +122,34 @@ export interface WorkspaceRepository {
   acceptInvite(token: string, userId: string): Promise<WorkspaceMember>;
   setActiveWorkspace(userId: string, workspaceId: string): Promise<void>;
   getActiveWorkspaceId(userId: string): Promise<string | null>;
+}
+
+export type JobRunCreateInput = {
+  id?: string;
+  workspaceId: string;
+  productId?: string | null;
+  type: JobRunType;
+  trigger: JobRunTrigger;
+  createdBy?: string | null;
+  input?: Record<string, unknown>;
+};
+
+export type JobRunUpdateInput = {
+  status?: JobRunStatus;
+  triggerRunId?: string | null;
+  result?: Record<string, unknown> | null;
+  error?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+};
+
+export interface JobRepository {
+  create(input: JobRunCreateInput): Promise<JobRun>;
+  getById(id: string): Promise<JobRun | null>;
+  listByWorkspace(
+    workspaceId: string,
+    opts?: { limit?: number; offset?: number },
+  ): Promise<JobRun[]>;
+  update(id: string, patch: JobRunUpdateInput): Promise<JobRun>;
 }
 
