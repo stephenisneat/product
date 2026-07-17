@@ -1,6 +1,4 @@
 import { redirect } from "next/navigation";
-import { PageCanvas } from "@/components/layout/page-canvas";
-import { SettingsNav } from "@/features/settings/settings-nav";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { WorkspaceSettingsPanel } from "@/features/workspaces/workspace-settings-panel";
@@ -24,27 +22,25 @@ export default async function WorkspaceSettingsPage() {
   ]);
 
   return (
-    <PageCanvas header={<SettingsNav />}>
-      <div className="mx-auto w-full max-w-2xl px-4 py-6">
-        <div className="mb-8">
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">
-            Workspace settings
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage {active.workspace.name} avatar, plan, domain join, members,
-            and invites.
-          </p>
-        </div>
-
-        <WorkspaceSettingsPanel
-          workspace={active.workspace}
-          role={active.role}
-          members={members}
-          invites={invites}
-          currentUserId={user.id}
-          currentUserEmail={user.email}
-        />
+    <div className="mx-auto w-full max-w-2xl px-6 py-8">
+      <div className="mb-8">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">
+          Workspace settings
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Manage {active.workspace.name} avatar, plan, domain join, members,
+          and invites.
+        </p>
       </div>
-    </PageCanvas>
+
+      <WorkspaceSettingsPanel
+        workspace={active.workspace}
+        role={active.role}
+        members={members}
+        invites={invites}
+        currentUserId={user.id}
+        currentUserEmail={user.email}
+      />
+    </div>
   );
 }

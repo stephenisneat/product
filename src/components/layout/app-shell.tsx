@@ -37,8 +37,6 @@ function AppShellFrame({
 }) {
   const pathname = usePathname();
   const hideChatSidebar =
-    pathname === "/settings" ||
-    pathname.startsWith("/settings/") ||
     pathname === "/wallet/transactions" ||
     pathname.startsWith("/wallet/transactions/");
 

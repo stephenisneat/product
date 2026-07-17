@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Building2Icon, UserIcon } from "lucide-react";
-import { NavLink } from "@/components/layout/nav-link";
+import { Button } from "@/components/ui/button";
 
 const settingsPages = [
   {
@@ -25,16 +26,23 @@ export function SettingsNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-wrap items-center gap-2" aria-label="Settings">
-      {settingsPages.map(({ href, label, icon }) => (
-        <NavLink
-          key={href}
-          href={href}
-          label={label}
-          icon={icon}
-          isActive={isSettingsNavActive(pathname, href)}
-        />
-      ))}
+    <nav className="flex flex-col gap-1" aria-label="Settings">
+      {settingsPages.map(({ href, label, icon: Icon }) => {
+        const isActive = isSettingsNavActive(pathname, href);
+        return (
+          <Button
+            key={href}
+            render={<Link href={href} />}
+            variant={isActive ? "secondary" : "ghost"}
+            size="sm"
+            className="w-full justify-start"
+            aria-current={isActive ? "page" : undefined}
+          >
+            <Icon data-icon="inline-start" />
+            {label}
+          </Button>
+        );
+      })}
     </nav>
   );
 }
