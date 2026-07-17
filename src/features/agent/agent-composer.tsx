@@ -536,7 +536,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
         aria-hidden={!historyOpen}
         inert={historyOpen ? undefined : true}
         className={cn(
-          "absolute inset-0 flex flex-col overflow-hidden",
+          "absolute inset-y-0 left-0 right-12 flex flex-col overflow-hidden",
           !historyOpen && "pointer-events-none",
         )}
       >
@@ -564,16 +564,6 @@ export function AgentComposer({ user }: { user: AppUser }) {
                 onClick={() => setHistorySearchOpen(true)}
               >
                 <Search className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                title="Close chat history"
-                aria-label="Close chat history"
-                onClick={() => setHistoryOpen(false)}
-              >
-                <X className="size-4" />
               </Button>
             </>
           )}
@@ -604,7 +594,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
         className={cn(
           "relative z-10 flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-canvas transition-transform duration-[250ms] ease-[cubic-bezier(0.34,1.2,0.64,1)]",
           historyOpen &&
-            "translate-x-full shadow-[-8px_0_24px_rgba(0,0,0,0.18)]",
+            "translate-x-[calc(100%-3rem)] shadow-[-8px_0_24px_rgba(0,0,0,0.18)]",
         )}
         onClick={() => {
           if (historyOpen) setHistoryOpen(false);
@@ -619,11 +609,17 @@ export function AgentComposer({ user }: { user: AppUser }) {
               e.stopPropagation();
               setHistoryOpen((open) => !open);
             }}
-            title="Conversation history"
-            aria-label="Conversation history"
+            title={historyOpen ? "Close chat history" : "Conversation history"}
+            aria-label={
+              historyOpen ? "Close chat history" : "Conversation history"
+            }
             aria-expanded={historyOpen}
           >
-            <History className="size-5" />
+            {historyOpen ? (
+              <X className="size-5" />
+            ) : (
+              <History className="size-5" />
+            )}
           </Button>
 
           <div className="pointer-events-none absolute left-1/2 flex max-w-[min(100%,14rem)] -translate-x-1/2 flex-col items-center text-center">
@@ -651,76 +647,85 @@ export function AgentComposer({ user }: { user: AppUser }) {
           </Button>
         </div>
 
-        <ScrollArea className="flex-1 px-3 py-3">
-          <div className="space-y-3">
-            {messages.length === 0 ? (
-              <div className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
-                {isWorkspace
-                  ? "Ask about your catalog, prioritize products, or request proposals across the workspace."
-                  : `Ask about ${productTitle ?? "this product"} — positioning, ad copy, or a campaign concept.`}
-              </div>
-            ) : null}
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={
-                  message.role === "user"
-                    ? "ml-6 rounded-md bg-primary px-2.5 py-2 text-xs text-primary-foreground"
-                    : "mr-2 rounded-md border border-border bg-background px-2.5 py-2 text-xs leading-relaxed"
-                }
-              >
-                <p className="mb-1 font-mono text-[10px] uppercase tracking-wide opacity-60">
-                  {message.role}
-                </p>
-                <div className="whitespace-pre-wrap">{messageText(message)}</div>
-              </div>
-            ))}
-            {error ? (
-              <p className="text-xs text-destructive">{error.message}</p>
-            ) : null}
-          </div>
-        </ScrollArea>
-
-        <form
-          onSubmit={onSubmit}
-          onClick={(e) => e.stopPropagation()}
-          className="border-t border-border p-3"
+        <div
+          className={cn(
+            "flex min-h-0 flex-1 flex-col transition-opacity duration-[250ms] ease-out",
+            historyOpen && "pointer-events-none opacity-0",
+          )}
         >
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={
-              walletBlocked
-                ? "AI is paused — add credits or raise your usage limit"
-                : isWorkspace
-                  ? "What should we improve across the catalog?"
-                  : `Propose Meta ad copy for ${productTitle ?? "this product"}…`
-            }
-            rows={3}
-            className="resize-none text-sm"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void onSubmit(e);
+          <ScrollArea className="flex-1 px-3 py-3">
+            <div className="space-y-3">
+              {messages.length === 0 ? (
+                <div className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+                  {isWorkspace
+                    ? "Ask about your catalog, prioritize products, or request proposals across the workspace."
+                    : `Ask about ${productTitle ?? "this product"} — positioning, ad copy, or a campaign concept.`}
+                </div>
+              ) : null}
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={
+                    message.role === "user"
+                      ? "ml-6 rounded-md bg-primary px-2.5 py-2 text-xs text-primary-foreground"
+                      : "mr-2 rounded-md border border-border bg-background px-2.5 py-2 text-xs leading-relaxed"
+                  }
+                >
+                  <p className="mb-1 font-mono text-[10px] uppercase tracking-wide opacity-60">
+                    {message.role}
+                  </p>
+                  <div className="whitespace-pre-wrap">
+                    {messageText(message)}
+                  </div>
+                </div>
+              ))}
+              {error ? (
+                <p className="text-xs text-destructive">{error.message}</p>
+              ) : null}
+            </div>
+          </ScrollArea>
+
+          <form
+            onSubmit={onSubmit}
+            onClick={(e) => e.stopPropagation()}
+            className="border-t border-border p-3"
+          >
+            <Textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={
+                walletBlocked
+                  ? "AI is paused — add credits or raise your usage limit"
+                  : isWorkspace
+                    ? "What should we improve across the catalog?"
+                    : `Propose Meta ad copy for ${productTitle ?? "this product"}…`
               }
-            }}
-          />
-          <div className="mt-2 flex justify-end">
-            <Button
-              type="submit"
-              size="sm"
-              disabled={busy || !input.trim()}
-              className="gap-1.5"
-            >
-              {busy ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Send className="size-3.5" />
-              )}
-              Send
-            </Button>
-          </div>
-        </form>
+              rows={3}
+              className="resize-none text-sm"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void onSubmit(e);
+                }
+              }}
+            />
+            <div className="mt-2 flex justify-end">
+              <Button
+                type="submit"
+                size="sm"
+                disabled={busy || !input.trim()}
+                className="gap-1.5"
+              >
+                {busy ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Send className="size-3.5" />
+                )}
+                Send
+              </Button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
