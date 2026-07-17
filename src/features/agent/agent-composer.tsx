@@ -218,6 +218,9 @@ export function AgentComposer({ user }: { user: AppUser }) {
   const [seedMessages, setSeedMessages] = useState<UIMessage[]>([]);
   const historySearchRef = useRef<HTMLInputElement>(null);
 
+  const activeTitle =
+    conversations.find((c) => c.id === activeId)?.title?.trim() || "New chat";
+
   const productIdRef = useRef(productId);
   productIdRef.current = productId;
 
@@ -623,9 +626,14 @@ export function AgentComposer({ user }: { user: AppUser }) {
             <History className="size-5" />
           </Button>
 
-          <h1 className="pointer-events-none absolute left-1/2 -translate-x-1/2 font-heading text-sm font-semibold tracking-tight">
-            Product Agent
-          </h1>
+          <div className="pointer-events-none absolute left-1/2 flex max-w-[min(100%,14rem)] -translate-x-1/2 flex-col items-center text-center">
+            <h1 className="font-heading text-sm font-semibold tracking-tight">
+              Product Agent
+            </h1>
+            <p className="truncate text-[11px] leading-tight text-muted-foreground">
+              {activeTitle}
+            </p>
+          </div>
 
           <Button
             type="button"

@@ -38,7 +38,7 @@ export function createEmptyConversation(): AgentConversation {
   const now = new Date().toISOString();
   return {
     id: newId(),
-    title: "New conversation",
+    title: "New chat",
     messages: [],
     createdAt: now,
     updatedAt: now,
@@ -54,7 +54,7 @@ export function titleFromMessages(messages: UIMessage[]): string {
     if (!text) continue;
     return text.length > 48 ? `${text.slice(0, 48)}…` : text;
   }
-  return "New conversation";
+  return "New chat";
 }
 
 export function messageText(message: {
