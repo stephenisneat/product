@@ -71,6 +71,21 @@ export function messageText(message: {
   return "";
 }
 
+export function messagesEqual(
+  a: UIMessage[] | undefined,
+  b: UIMessage[] | undefined,
+): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const left = a[i]!;
+    const right = b[i]!;
+    if (left.id !== right.id || left.role !== right.role) return false;
+    if (messageText(left) !== messageText(right)) return false;
+  }
+  return true;
+}
+
 export function loadConversationStore(userId: string): ConversationStore {
   if (typeof window === "undefined") {
     const empty = createEmptyConversation();

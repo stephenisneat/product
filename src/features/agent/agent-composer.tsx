@@ -8,11 +8,16 @@ import {
   Loader2,
   Pin,
   Search,
-  Send,
   SquarePen,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { AppUser } from "@/domain";
@@ -36,24 +41,28 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { AgentComposerInput } from "@/features/agent/agent-composer-input";
 import { useAgentContext } from "@/features/agent/agent-context";
 import {
   createEmptyConversation,
   getActiveConversation,
   loadConversationStore,
   messageText,
+  messagesEqual,
   saveConversationStore,
   titleFromMessages,
   upsertConversation,
   type AgentConversation,
 } from "@/features/agent/agent-conversations";
+import { AgentMessageMarkdown } from "@/features/agent/agent-message-markdown";
 import { useWalletOptional } from "@/features/wallet/wallet-context";
 import { cn } from "@/lib/utils";
 
 const menuItemClass =
   "flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50";
+
+const MESSAGE_PAGE_SIZE = 40;
 
 function HistoryConversationRow({
   conversation,
@@ -213,6 +222,49 @@ function HistoryConversationRow({
   );
 }
 
+function LoadOlderSentinel({
+  hasOlder,
+  loading,
+  onLoadOlder,
+}: {
+  hasOlder: boolean;
+  loading: boolean;
+  onLoadOlder: () => void;
+}) {
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !hasOlder) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          onLoadOlder();
+        }
+      },
+      { root: node.closest("[data-slot=message-scroller-viewport]"), rootMargin: "120px 0px" },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasOlder, onLoadOlder]);
+
+  if (!hasOlder && !loading) return null;
+
+  return (
+    <div
+      ref={sentinelRef}
+      className="flex h-4 items-center justify-center"
+      aria-hidden
+    >
+      {loading ? (
+        <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+      ) : null}
+    </div>
+  );
+}
+
 export function AgentComposer({ user }: { user: AppUser }) {
   const router = useRouter();
   const { route } = useAgentContext();
@@ -222,7 +274,6 @@ export function AgentComposer({ user }: { user: AppUser }) {
     route.mode === "product" ? route.productTitle : undefined;
   const isWorkspace = !productId;
 
-  const [input, setInput] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historySearchOpen, setHistorySearchOpen] = useState(false);
@@ -230,17 +281,19 @@ export function AgentComposer({ user }: { user: AppUser }) {
   const [conversations, setConversations] = useState<AgentConversation[]>([]);
   const [activeId, setActiveId] = useState(() => createEmptyConversation().id);
   const [seedMessages, setSeedMessages] = useState<UIMessage[]>([]);
+  const [visibleCount, setVisibleCount] = useState(MESSAGE_PAGE_SIZE);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const historySearchRef = useRef<HTMLInputElement>(null);
 
   const activeTitle =
     conversations.find((c) => c.id === activeId)?.title?.trim() || "New chat";
 
-  const productIdRef = useRef(productId);
-  productIdRef.current = productId;
-
   const messagesRef = useRef<UIMessage[]>([]);
   const activeIdRef = useRef(activeId);
-  activeIdRef.current = activeId;
+
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
 
   useEffect(() => {
     const store = loadConversationStore(user.id);
@@ -248,15 +301,12 @@ export function AgentComposer({ user }: { user: AppUser }) {
     setConversations(store.conversations);
     setActiveId(active.id);
     setSeedMessages(active.messages);
+    setVisibleCount(MESSAGE_PAGE_SIZE);
     setHydrated(true);
   }, [user.id]);
 
   useEffect(() => {
-    if (!historyOpen) {
-      setHistorySearchOpen(false);
-      setHistoryQuery("");
-      return;
-    }
+    if (!historyOpen) return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
       if (historySearchOpen) {
@@ -265,6 +315,8 @@ export function AgentComposer({ user }: { user: AppUser }) {
         return;
       }
       setHistoryOpen(false);
+      setHistorySearchOpen(false);
+      setHistoryQuery("");
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -283,13 +335,11 @@ export function AgentComposer({ user }: { user: AppUser }) {
           body: {
             id,
             messages,
-            ...(productIdRef.current
-              ? { productId: productIdRef.current }
-              : {}),
+            ...(productId ? { productId } : {}),
           },
         }),
       }),
-    [],
+    [productId],
   );
 
   const { messages, sendMessage, status, error } = useChat({
@@ -324,7 +374,23 @@ export function AgentComposer({ user }: { user: AppUser }) {
     busy &&
     (messages.length === 0 || messages[messages.length - 1]?.role === "user");
 
-  messagesRef.current = messages;
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  const hasOlderMessages = messages.length > visibleCount;
+  const visibleMessages = hasOlderMessages
+    ? messages.slice(messages.length - visibleCount)
+    : messages;
+
+  const loadOlderMessages = useCallback(() => {
+    if (!hasOlderMessages || loadingOlder) return;
+    setLoadingOlder(true);
+    setVisibleCount((count) =>
+      Math.min(count + MESSAGE_PAGE_SIZE, messages.length),
+    );
+    requestAnimationFrame(() => setLoadingOlder(false));
+  }, [hasOlderMessages, loadingOlder, messages.length]);
 
   useEffect(() => {
     if (!hydrated || busy) return;
@@ -334,6 +400,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
 
     setConversations((prev) => {
       const existing = prev.find((c) => c.id === activeId);
+      const unchanged = messagesEqual(existing?.messages, messages);
       const nextConversation: AgentConversation = {
         id: activeId,
         title: existing?.titleCustom
@@ -341,7 +408,11 @@ export function AgentComposer({ user }: { user: AppUser }) {
           : derivedTitle,
         messages,
         createdAt: existing?.createdAt ?? now,
-        updatedAt: messages.length > 0 ? now : (existing?.updatedAt ?? now),
+        updatedAt: unchanged
+          ? (existing?.updatedAt ?? now)
+          : messages.length > 0
+            ? now
+            : (existing?.updatedAt ?? now),
         pinned: existing?.pinned === true,
         titleCustom: existing?.titleCustom === true,
       };
@@ -368,6 +439,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
 
     setConversations((prev) => {
       const existing = prev.find((c) => c.id === id);
+      const unchanged = messagesEqual(existing?.messages, currentMessages);
       const nextConversation: AgentConversation = {
         id,
         title: existing?.titleCustom
@@ -375,7 +447,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
           : derivedTitle,
         messages: currentMessages,
         createdAt: existing?.createdAt ?? now,
-        updatedAt: now,
+        updatedAt: unchanged ? (existing?.updatedAt ?? now) : now,
         pinned: existing?.pinned === true,
         titleCustom: existing?.titleCustom === true,
       };
@@ -404,20 +476,21 @@ export function AgentComposer({ user }: { user: AppUser }) {
     });
     setSeedMessages([]);
     setActiveId(empty.id);
-    setInput("");
-    setHistoryOpen(false);
+    setVisibleCount(MESSAGE_PAGE_SIZE);
+    setHistoryOpenSafe(false);
   }
 
   function selectConversation(conversation: AgentConversation) {
     if (busy) return;
     if (conversation.id === activeId) {
-      setHistoryOpen(false);
+      setHistoryOpenSafe(false);
       return;
     }
 
     persistCurrent();
     setSeedMessages(conversation.messages);
     setActiveId(conversation.id);
+    setVisibleCount(MESSAGE_PAGE_SIZE);
     setConversations((prev) => {
       const nextStore = {
         activeId: conversation.id,
@@ -426,8 +499,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
       saveConversationStore(user.id, nextStore);
       return prev;
     });
-    setInput("");
-    setHistoryOpen(false);
+    setHistoryOpenSafe(false);
   }
 
   function updateConversations(
@@ -490,14 +562,18 @@ export function AgentComposer({ user }: { user: AppUser }) {
 
     setSeedMessages(fallback.messages);
     setActiveId(fallback.id);
-    setInput("");
+    setVisibleCount(MESSAGE_PAGE_SIZE);
     updateConversations(() => nextConversations, fallback.id);
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || busy) return;
+  async function handleSend({
+    text,
+    files,
+  }: {
+    text: string;
+    files: File[];
+  }) {
+    if ((!text && files.length === 0) || busy) return;
     if (walletBlocked) {
       walletCtx?.revealBlockedBanner();
       toast.error(
@@ -505,8 +581,28 @@ export function AgentComposer({ user }: { user: AppUser }) {
       );
       return;
     }
-    setInput("");
+
+    if (files.length > 0) {
+      const dataTransfer = new DataTransfer();
+      for (const file of files) dataTransfer.items.add(file);
+      await sendMessage({ text: text || " ", files: dataTransfer.files });
+      return;
+    }
+
     await sendMessage({ text });
+  }
+
+  function closeHistorySearch() {
+    setHistorySearchOpen(false);
+    setHistoryQuery("");
+  }
+
+  function setHistoryOpenSafe(open: boolean) {
+    setHistoryOpen(open);
+    if (!open) {
+      setHistorySearchOpen(false);
+      setHistoryQuery("");
+    }
   }
 
   const historyItems = conversations.filter(
@@ -547,6 +643,12 @@ export function AgentComposer({ user }: { user: AppUser }) {
     );
   }
 
+  const lastMessage = messages[messages.length - 1];
+  const streamingAssistantId =
+    status === "streaming" && lastMessage?.role === "assistant"
+      ? lastMessage.id
+      : null;
+
   return (
     <div className="relative h-full min-h-0">
       <div
@@ -559,14 +661,30 @@ export function AgentComposer({ user }: { user: AppUser }) {
       >
         <div className="flex h-14 shrink-0 items-center gap-1 px-2">
           {historySearchOpen ? (
-            <input
-              ref={historySearchRef}
-              value={historyQuery}
-              onChange={(e) => setHistoryQuery(e.target.value)}
-              placeholder="Search chat history…"
-              aria-label="Search chat history"
-              className="h-full w-full bg-transparent px-2 font-heading text-[15px] font-semibold tracking-tight outline-none placeholder:font-normal placeholder:text-muted-foreground"
-            />
+            <>
+              <Search
+                className="ml-1 size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <input
+                ref={historySearchRef}
+                value={historyQuery}
+                onChange={(e) => setHistoryQuery(e.target.value)}
+                placeholder="Search chat history…"
+                aria-label="Search chat history"
+                className="h-full min-w-0 flex-1 bg-transparent px-2 font-heading text-[15px] font-semibold tracking-tight outline-none placeholder:font-normal placeholder:text-muted-foreground"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                title="Clear search"
+                aria-label="Clear search"
+                onClick={closeHistorySearch}
+              >
+                <X className="size-4" />
+              </Button>
+            </>
           ) : (
             <>
               <h2 className="min-w-0 flex-1 truncate px-2 font-heading text-[15px] font-semibold tracking-tight">
@@ -614,7 +732,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
             "translate-x-[calc(100%-3rem)] shadow-[-8px_0_24px_rgba(0,0,0,0.18)]",
         )}
         onClick={() => {
-          if (historyOpen) setHistoryOpen(false);
+          if (historyOpen) setHistoryOpenSafe(false);
         }}
       >
         <div className="relative flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
@@ -624,7 +742,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
             size="icon"
             onClick={(e) => {
               e.stopPropagation();
-              setHistoryOpen((open) => !open);
+              setHistoryOpenSafe(!historyOpen);
             }}
             title={historyOpen ? "Close chat history" : "Conversation history"}
             aria-label={
@@ -672,7 +790,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
         >
           {messages.length === 0 && !waitingForAssistant && !error ? (
             <div className="flex flex-1 items-start px-3 py-3">
-              <Marker className="rounded-md border border-dashed border-border px-3 py-3 text-xs">
+              <Marker className="rounded-md border border-dashed border-border px-3 py-3 text-[13px]">
                 <MarkerContent>
                   {isWorkspace
                     ? "Ask about your catalog, prioritize products, or request proposals across the workspace."
@@ -683,14 +801,21 @@ export function AgentComposer({ user }: { user: AppUser }) {
           ) : (
             <MessageScrollerProvider autoScroll>
               <MessageScroller className="flex-1">
-                <MessageScrollerViewport>
+                <MessageScrollerViewport preserveScrollOnPrepend>
                   <MessageScrollerContent
                     aria-busy={busy}
                     className="gap-3 px-3 py-3"
                   >
-                    {messages.map((message) => {
+                    <LoadOlderSentinel
+                      hasOlder={hasOlderMessages}
+                      loading={loadingOlder}
+                      onLoadOlder={loadOlderMessages}
+                    />
+                    {visibleMessages.map((message) => {
                       const isUser = message.role === "user";
                       const text = messageText(message);
+                      const isStreamingMessage =
+                        streamingAssistantId === message.id;
                       return (
                         <MessageScrollerItem
                           key={message.id}
@@ -704,8 +829,26 @@ export function AgentComposer({ user }: { user: AppUser }) {
                                 align={isUser ? "end" : "start"}
                                 className="max-w-[92%]"
                               >
-                                <BubbleContent className="whitespace-pre-wrap text-xs">
-                                  {text || (busy && !isUser ? "…" : "")}
+                                <BubbleContent
+                                  className={cn(
+                                    "text-[13px] leading-relaxed",
+                                    isUser
+                                      ? "whitespace-pre-wrap px-3"
+                                      : "px-2",
+                                  )}
+                                >
+                                  {isUser ? (
+                                    text || ""
+                                  ) : text || isStreamingMessage ? (
+                                    <AgentMessageMarkdown
+                                      text={text || "…"}
+                                      isAnimating={isStreamingMessage}
+                                    />
+                                  ) : busy ? (
+                                    "…"
+                                  ) : (
+                                    ""
+                                  )}
                                 </BubbleContent>
                               </Bubble>
                             </MessageContent>
@@ -716,7 +859,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
                     {waitingForAssistant ? (
                       <MessageScrollerItem>
                         <Marker role="status">
-                          <MarkerContent className="animate-pulse text-xs">
+                          <MarkerContent className="animate-pulse text-[13px]">
                             Thinking…
                           </MarkerContent>
                         </Marker>
@@ -725,7 +868,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
                     {error ? (
                       <MessageScrollerItem>
                         <Marker role="alert">
-                          <MarkerContent className="text-xs text-destructive">
+                          <MarkerContent className="text-[13px] text-destructive">
                             {error.message}
                           </MarkerContent>
                         </Marker>
@@ -738,14 +881,11 @@ export function AgentComposer({ user }: { user: AppUser }) {
             </MessageScrollerProvider>
           )}
 
-          <form
-            onSubmit={onSubmit}
-            onClick={(e) => e.stopPropagation()}
-            className="border-t border-border p-3"
-          >
-            <Textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
+          <div onClick={(e) => e.stopPropagation()}>
+            <AgentComposerInput
+              busy={busy}
+              productId={productId}
+              onSubmit={handleSend}
               placeholder={
                 walletBlocked
                   ? "AI is paused — add credits or raise your usage limit"
@@ -753,31 +893,8 @@ export function AgentComposer({ user }: { user: AppUser }) {
                     ? "What should we improve across the catalog?"
                     : `Propose Meta ad copy for ${productTitle ?? "this product"}…`
               }
-              rows={3}
-              className="resize-none text-sm"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void onSubmit(e);
-                }
-              }}
             />
-            <div className="mt-2 flex justify-end">
-              <Button
-                type="submit"
-                size="sm"
-                disabled={busy || !input.trim()}
-                className="gap-1.5"
-              >
-                {busy ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Send className="size-3.5" />
-                )}
-                Send
-              </Button>
-            </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>
