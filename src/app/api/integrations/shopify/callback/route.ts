@@ -24,7 +24,7 @@ export async function GET(request: Request) {
 
   const active = await getActiveWorkspace();
   if (!active) {
-    return NextResponse.redirect(`${appUrl}/?shopify=error&reason=no_workspace`);
+    return NextResponse.redirect(`${appUrl}/products/new?shopify=error&reason=no_workspace`);
   }
 
   const query: Record<string, string> = {};
@@ -37,36 +37,36 @@ export async function GET(request: Request) {
   const state = query.state;
 
   if (!code || !shopRaw || !state) {
-    return NextResponse.redirect(`${appUrl}/?shopify=error&reason=missing_params`);
+    return NextResponse.redirect(`${appUrl}/products/new?shopify=error&reason=missing_params`);
   }
 
   let shop: string;
   try {
     shop = normalizeShopDomain(shopRaw);
   } catch {
-    return NextResponse.redirect(`${appUrl}/?shopify=error&reason=invalid_shop`);
+    return NextResponse.redirect(`${appUrl}/products/new?shopify=error&reason=invalid_shop`);
   }
 
   const cookieStore = await cookies();
   const stateCookie = cookieStore.get(STATE_COOKIE)?.value;
   if (!stateCookie) {
-    return NextResponse.redirect(`${appUrl}/?shopify=error&reason=missing_state`);
+    return NextResponse.redirect(`${appUrl}/products/new?shopify=error&reason=missing_state`);
   }
 
   const [expectedState, expectedShop] = stateCookie.split(".");
   if (expectedState !== state || expectedShop !== shop) {
-    return NextResponse.redirect(`${appUrl}/?shopify=error&reason=state_mismatch`);
+    return NextResponse.redirect(`${appUrl}/products/new?shopify=error&reason=state_mismatch`);
   }
 
   let apiSecret: string;
   try {
     apiSecret = getShopifyConfig().apiSecret;
   } catch {
-    return NextResponse.redirect(`${appUrl}/?shopify=error&reason=not_configured`);
+    return NextResponse.redirect(`${appUrl}/products/new?shopify=error&reason=not_configured`);
   }
 
   if (!verifyShopifyHmac(query, apiSecret)) {
-    return NextResponse.redirect(`${appUrl}/?shopify=error&reason=hmac`);
+    return NextResponse.redirect(`${appUrl}/products/new?shopify=error&reason=hmac`);
   }
 
   try {
@@ -85,11 +85,11 @@ export async function GET(request: Request) {
       updatedAt: now,
     });
   } catch {
-    return NextResponse.redirect(`${appUrl}/?shopify=error&reason=token_exchange`);
+    return NextResponse.redirect(`${appUrl}/products/new?shopify=error&reason=token_exchange`);
   }
 
   const response = NextResponse.redirect(
-    `${appUrl}/?shopify=connected&shop=${encodeURIComponent(shop)}`,
+    `${appUrl}/products/new?shopify=connected&shop=${encodeURIComponent(shop)}`,
   );
   response.cookies.set(STATE_COOKIE, "", {
     httpOnly: true,

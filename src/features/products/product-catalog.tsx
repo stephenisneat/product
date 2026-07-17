@@ -6,6 +6,7 @@ import {
   ArrowUpDownIcon,
   CheckIcon,
   ListFilterIcon,
+  PlusIcon,
   SearchIcon,
 } from "lucide-react";
 import type { Product, ProductStatus } from "@/domain";
@@ -21,7 +22,6 @@ import { Separator } from "@/components/ui/separator";
 import { PageCanvas } from "@/components/layout/page-canvas";
 import { ProductImage } from "@/components/product-image";
 import { CatalogNav } from "@/features/products/catalog-toolbar";
-import { CreateProductMenu } from "@/features/products/create-product-menu";
 import {
   productSummaryLine,
   productTypeLabel,
@@ -113,10 +113,14 @@ export function ProductCatalog({ products }: { products: Product[] }) {
       <PageCanvas
         header={
           <CatalogNav>
-            <CreateProductMenu
-              label="Add products"
+            <Button
+              render={<Link href="/products/new" />}
+              size="sm"
               className={addProductsButtonClass}
-            />
+            >
+              <PlusIcon data-icon="inline-start" />
+              Add products
+            </Button>
           </CatalogNav>
         }
       >
@@ -129,7 +133,10 @@ export function ProductCatalog({ products }: { products: Product[] }) {
             or import from Shopify to start building marketing intelligence.
           </p>
           <div className="mt-6 flex justify-center">
-            <CreateProductMenu label="Create product" />
+            <Button render={<Link href="/products/new" />} size="sm">
+              <PlusIcon data-icon="inline-start" />
+              Create product
+            </Button>
           </div>
         </div>
       </PageCanvas>
@@ -250,10 +257,14 @@ export function ProductCatalog({ products }: { products: Product[] }) {
           </Popover>
 
           <CatalogNav>
-            <CreateProductMenu
-              label="Add products"
+            <Button
+              render={<Link href="/products/new" />}
+              size="sm"
               className={addProductsButtonClass}
-            />
+            >
+              <PlusIcon data-icon="inline-start" />
+              Add products
+            </Button>
           </CatalogNav>
         </div>
       }
