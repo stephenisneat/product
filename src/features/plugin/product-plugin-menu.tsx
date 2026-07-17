@@ -36,7 +36,7 @@ export function ProductPluginMenu() {
   return (
     <Popover>
       <PopoverTrigger
-        render={<Button type="button" variant="outline" size="sm" />}
+        render={<Button type="button" variant="ghost" size="sm" />}
       >
         <span
           className={cn(

@@ -38,7 +38,7 @@ export function AppHeader({
             Product Agent
           </span>
         )}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-0.5">
           <ChannelsMenu />
           <ProductPluginMenu />
           <WalletMenu />
