@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
   ArrowUpDownIcon,
   CheckIcon,
@@ -20,6 +19,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { UpgradeButton } from "@/features/billing/upgrade-button";
 import { CatalogNav } from "@/features/products/catalog-toolbar";
 import { cn } from "@/lib/utils";
 
@@ -149,8 +149,7 @@ export function InsightsToolbar({
               delay={50}
               closeOnClick={false}
               render={
-                <Button
-                  render={<Link href="/settings/billing" />}
+                <UpgradeButton
                   size="sm"
                   className={insightsCtaButtonClass}
                 />

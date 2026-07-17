@@ -21,6 +21,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { CreateWorkspaceDialog } from "@/features/workspaces/create-workspace-dialog";
 import { WorkspaceAvatar } from "@/features/workspaces/workspace-avatar";
+import { useUpgradeOptional } from "@/features/billing/upgrade-context";
 import {
   canUpgradePlan,
   getEntitlements,
@@ -60,6 +61,7 @@ export function WorkspacePicker({
   variant?: "default" | "header";
 }) {
   const router = useRouter();
+  const upgrade = useUpgradeOptional();
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -264,7 +266,7 @@ export function WorkspacePicker({
               className={optionItemClass}
               onClick={() => {
                 setOpen(false);
-                router.push("/settings/billing");
+                upgrade?.openUpgrade();
               }}
             >
               <SparklesIcon className="size-4" />

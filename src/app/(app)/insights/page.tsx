@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LockIcon } from "lucide-react";
 import { PageCanvas } from "@/components/layout/page-canvas";
-import { Button } from "@/components/ui/button";
+import { UpgradeButton } from "@/features/billing/upgrade-button";
 import { InsightsToolbar } from "@/features/insights/insights-toolbar";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
@@ -51,13 +50,9 @@ export default async function InsightsPage() {
                 Upgrade to Pro to unlock product and marketing insights for this
                 workspace.
               </p>
-              <Button
-                render={<Link href="/settings/billing" />}
-                size="sm"
-                className="mt-1"
-              >
+              <UpgradeButton size="sm" className="mt-1">
                 Upgrade to Pro
-              </Button>
+              </UpgradeButton>
             </div>
           </div>
         ) : (

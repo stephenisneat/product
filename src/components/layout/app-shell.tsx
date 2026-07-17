@@ -8,6 +8,7 @@ import { AgentComposer } from "@/features/agent/agent-composer";
 import { AgentContextProvider } from "@/features/agent/agent-context";
 import { WalletProvider, useWallet } from "@/features/wallet/wallet-context";
 import { BuyCreditsDialog } from "@/features/wallet/wallet-dialogs";
+import { UpgradeProvider } from "@/features/billing/upgrade-context";
 import type { WorkspaceWithRole } from "@/repositories/types";
 
 function WalletBuyCreditsHost() {
@@ -78,16 +79,18 @@ export function AppShell({
 }) {
   return (
     <WalletProvider>
-      <AgentContextProvider>
-        <AppShellFrame
-          user={user}
-          workspaces={workspaces}
-          activeWorkspaceId={activeWorkspaceId}
-          activeRole={activeRole}
-        >
-          {children}
-        </AppShellFrame>
-      </AgentContextProvider>
+      <UpgradeProvider>
+        <AgentContextProvider>
+          <AppShellFrame
+            user={user}
+            workspaces={workspaces}
+            activeWorkspaceId={activeWorkspaceId}
+            activeRole={activeRole}
+          >
+            {children}
+          </AppShellFrame>
+        </AgentContextProvider>
+      </UpgradeProvider>
     </WalletProvider>
   );
 }

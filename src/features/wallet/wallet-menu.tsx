@@ -23,6 +23,7 @@ import {
   AutoReloadDialog,
   EditLimitDialog,
 } from "@/features/wallet/wallet-dialogs";
+import { UpgradeButton } from "@/features/billing/upgrade-button";
 import { formatCents, formatCentsFloorDollars } from "@/features/wallet/money";
 import { cn } from "@/lib/utils";
 
@@ -209,14 +210,9 @@ function AdSpendLimitMenu({
               Adding ad spend requires Hobby or Pro.
             </p>
           </div>
-          <Button
-            type="button"
-            size="xs"
-            variant="outline"
-            render={<Link href="/settings/billing" />}
-          >
+          <UpgradeButton type="button" size="xs" variant="outline">
             Upgrade
-          </Button>
+          </UpgradeButton>
         </section>
       ) : (
         <section className="space-y-3 p-3">

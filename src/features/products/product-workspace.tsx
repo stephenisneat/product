@@ -15,6 +15,7 @@ import { ProductImage } from "@/components/product-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UpgradeButton } from "@/features/billing/upgrade-button";
 import { getEntitlements } from "@/lib/billing/entitlements";
 import { formatMoney } from "@/lib/format";
 import {
@@ -254,13 +255,9 @@ export function ProductWorkspace({
                   agent, but saving and launching campaigns requires Hobby or
                   Pro.
                 </p>
-                <Button
-                  render={<Link href="/settings/billing" />}
-                  size="sm"
-                  className="mt-4"
-                >
+                <UpgradeButton size="sm" className="mt-4">
                   Upgrade
-                </Button>
+                </UpgradeButton>
               </div>
             ) : campaigns.length === 0 ? (
               <p className="text-sm text-muted-foreground">

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { WorkspaceAvatar } from "@/features/workspaces/workspace-avatar";
+import { UpgradeButton } from "@/features/billing/upgrade-button";
 import { planDisplayName } from "@/lib/billing/entitlements";
 import {
   parsePrimaryDomain,
@@ -413,17 +414,12 @@ export function WorkspaceSettingsPanel({
             <p className="text-sm text-foreground">
               {planDisplayName(plan)}
             </p>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => router.push("/settings/billing")}
-            >
-              Manage billing
-            </Button>
+            <UpgradeButton type="button" size="sm" variant="outline">
+              {plan === "pro" ? "Manage plan" : "Upgrade"}
+            </UpgradeButton>
           </div>
           <p className="text-xs text-muted-foreground">
-            Plans and usage allotments are managed in Billing.
+            Open plans to upgrade or manage your subscription.
           </p>
         </section>
       ) : null}

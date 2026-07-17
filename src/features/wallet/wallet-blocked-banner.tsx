@@ -2,6 +2,7 @@
 
 import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useUpgradeOptional } from "@/features/billing/upgrade-context";
 import { useWallet } from "@/features/wallet/wallet-context";
 
 export function WalletBlockedBanner() {
@@ -11,6 +12,7 @@ export function WalletBlockedBanner() {
     blockedBannerDismissed,
     dismissBlockedBanner,
   } = useWallet();
+  const upgrade = useUpgradeOptional();
 
   if (!wallet?.blocked || blockedBannerDismissed) return null;
 
@@ -41,9 +43,7 @@ export function WalletBlockedBanner() {
               size="sm"
               variant="outline"
               className="border-amber-600/40 bg-background"
-              onClick={() => {
-                window.location.href = "/settings/billing";
-              }}
+              onClick={() => upgrade?.openUpgrade()}
             >
               Upgrade
             </Button>

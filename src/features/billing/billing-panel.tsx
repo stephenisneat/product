@@ -37,10 +37,13 @@ export function BillingPanel({
   workspace,
   role,
   memberCount = 1,
+  compact = false,
 }: {
   workspace: Workspace;
   role: WorkspaceRole;
   memberCount?: number;
+  /** Tighter layout for dialog overlay. */
+  compact?: boolean;
 }) {
   const router = useRouter();
   const isOwner = role === "owner";
@@ -102,48 +105,75 @@ export function BillingPanel({
   }
 
   return (
-    <div className="space-y-8">
-      <section className="space-y-3">
+    <div className={cn("space-y-6", !compact && "space-y-8")}>
+      {!compact ? (
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-medium">Current plan</h2>
+            <Badge
+              variant="secondary"
+              className={cn(
+                "h-5 px-1.5 text-[11px]",
+                planBadgeClass(currentPlan),
+              )}
+            >
+              {getEntitlements(currentPlan).name}
+            </Badge>
+            {workspace.billingInterval ? (
+              <span className="text-xs text-muted-foreground">
+                · billed {workspace.billingInterval}ly ·{" "}
+                {workspace.billedSeats ?? 1} seat
+                {(workspace.billedSeats ?? 1) === 1 ? "" : "s"}
+              </span>
+            ) : null}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Per-seat pricing. Included AI usage scales with seats and unused
+            allotment rolls over (capped at one month).
+          </p>
+          {isOwner && currentPlan !== "free" ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={portalBusy}
+              onClick={() => void openPortal()}
+            >
+              {portalBusy ? (
+                <Loader2Icon className="size-4 animate-spin" />
+              ) : null}
+              Manage subscription
+            </Button>
+          ) : null}
+          {!isOwner ? (
+            <p className="text-xs text-muted-foreground">
+              Only the workspace owner can change the plan.
+            </p>
+          ) : null}
+        </section>
+      ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-sm font-medium">Current plan</h2>
           <Badge
             variant="secondary"
             className={cn("h-5 px-1.5 text-[11px]", planBadgeClass(currentPlan))}
           >
             {getEntitlements(currentPlan).name}
           </Badge>
-          {workspace.billingInterval ? (
-            <span className="text-xs text-muted-foreground">
-              · billed {workspace.billingInterval}ly ·{" "}
-              {workspace.billedSeats ?? 1} seat
-              {(workspace.billedSeats ?? 1) === 1 ? "" : "s"}
-            </span>
+          <span className="text-xs text-muted-foreground">Current plan</span>
+          {isOwner && currentPlan !== "free" ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="ml-auto h-7 px-2 text-xs"
+              disabled={portalBusy}
+              onClick={() => void openPortal()}
+            >
+              Manage subscription
+            </Button>
           ) : null}
         </div>
-        <p className="text-sm text-muted-foreground">
-          Per-seat pricing. Included AI usage scales with seats and unused
-          allotment rolls over (capped at one month).
-        </p>
-        {isOwner && currentPlan !== "free" ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={portalBusy}
-            onClick={() => void openPortal()}
-          >
-            {portalBusy ? (
-              <Loader2Icon className="size-4 animate-spin" />
-            ) : null}
-            Manage subscription
-          </Button>
-        ) : null}
-        {!isOwner ? (
-          <p className="text-xs text-muted-foreground">
-            Only the workspace owner can change the plan.
-          </p>
-        ) : null}
-      </section>
+      )}
 
       {isOwner ? (
         <section className="flex flex-wrap items-end gap-4">
@@ -309,17 +339,23 @@ export function BillingPanel({
         <p className="text-sm text-muted-foreground">{message}</p>
       ) : null}
 
-      <p className="text-xs text-muted-foreground">
-        Plans are billed per seat. Included usage resets monthly with rollover
-        (up to one month).{" "}
-        <button
-          type="button"
-          className="underline underline-offset-2 hover:text-foreground"
-          onClick={() => router.push("/wallet/transactions")}
-        >
-          View usage history
-        </button>
-      </p>
+      {!compact ? (
+        <p className="text-xs text-muted-foreground">
+          Plans are billed per seat. Included usage resets monthly with rollover
+          (up to one month).{" "}
+          <button
+            type="button"
+            className="underline underline-offset-2 hover:text-foreground"
+            onClick={() => router.push("/wallet/transactions")}
+          >
+            View usage history
+          </button>
+        </p>
+      ) : !isOwner ? (
+        <p className="text-xs text-muted-foreground">
+          Only the workspace owner can change the plan.
+        </p>
+      ) : null}
     </div>
   );
 }
