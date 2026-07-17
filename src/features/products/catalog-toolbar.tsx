@@ -8,6 +8,7 @@ import {
   BriefcaseIcon,
   ChartNoAxesCombinedIcon,
   LightbulbIcon,
+  PackageIcon,
   PaletteIcon,
   PlusIcon,
   type LucideIcon,
@@ -15,6 +16,11 @@ import {
 import { Button } from "@/components/ui/button";
 
 const catalogPages = [
+  {
+    href: "/",
+    label: "Products",
+    icon: PackageIcon,
+  },
   {
     href: "/insights",
     label: "Insights",
@@ -49,28 +55,40 @@ function pageForPath(pathname: string): {
   label: string;
   icon: LucideIcon;
 } | null {
-  const match = [...catalogPages, ...toolbarOnlyPages].find(
-    ({ href }) => pathname === href || pathname.startsWith(`${href}/`),
-  );
+  const match = [...catalogPages, ...toolbarOnlyPages].find(({ href }) => {
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(`${href}/`);
+  });
   return match ? { label: match.label, icon: match.icon } : null;
 }
 
+function isCatalogNavActive(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function CatalogNav({ children }: { children?: ReactNode }) {
+  const pathname = usePathname();
+
   return (
-    <div className="ml-auto flex flex-wrap items-center gap-2">
-      {catalogPages.map(({ href, label, icon: Icon }) => (
-        <Button
-          key={href}
-          render={<Link href={href} />}
-          variant="outline"
-          size="sm"
-        >
-          <Icon data-icon="inline-start" />
-          {label}
-        </Button>
-      ))}
+    <nav className="flex flex-wrap items-center gap-2" aria-label="Catalog">
+      {catalogPages.map(({ href, label, icon: Icon }) => {
+        const isActive = isCatalogNavActive(pathname, href);
+        return (
+          <Button
+            key={href}
+            render={<Link href={href} />}
+            variant={isActive ? "secondary" : "outline"}
+            size="sm"
+            aria-current={isActive ? "page" : undefined}
+          >
+            <Icon data-icon="inline-start" />
+            {label}
+          </Button>
+        );
+      })}
       {children}
-    </div>
+    </nav>
   );
 }
 

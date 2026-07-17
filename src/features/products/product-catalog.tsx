@@ -18,7 +18,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { PageCanvas } from "@/components/layout/page-canvas";
 import { ProductImage } from "@/components/product-image";
 import { CatalogNav } from "@/features/products/catalog-toolbar";
@@ -112,16 +111,19 @@ export function ProductCatalog({ products }: { products: Product[] }) {
     return (
       <PageCanvas
         header={
-          <CatalogNav>
-            <Button
-              render={<Link href="/products/new" />}
-              size="sm"
-              className={addProductsButtonClass}
-            >
-              <PlusIcon data-icon="inline-start" />
-              Add products
-            </Button>
-          </CatalogNav>
+          <div className="flex w-full flex-wrap items-center gap-2">
+            <CatalogNav />
+            <div className="ml-auto">
+              <Button
+                render={<Link href="/products/new" />}
+                size="sm"
+                className={addProductsButtonClass}
+              >
+                <PlusIcon data-icon="inline-start" />
+                Add products
+              </Button>
+            </div>
+          </div>
         }
       >
         <div className="mx-auto max-w-3xl px-4 py-24 text-center">
@@ -156,37 +158,35 @@ export function ProductCatalog({ products }: { products: Product[] }) {
     <PageCanvas
       header={
         <div className="flex w-full flex-wrap items-center gap-2">
-          <Popover>
-            <PopoverTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-sm"
-                  className="aspect-square"
-                  aria-label="Filter products"
-                />
-              }
-            >
-              <ListFilterIcon />
-            </PopoverTrigger>
-            <PopoverContent align="start" className="min-w-56 p-0">
-              <div className="p-2">
-                <div className="relative">
-                  <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    onKeyDown={(e) => e.stopPropagation()}
-                    placeholder="Search products…"
-                    className="h-8 pl-8"
-                    aria-label="Search products"
+          <CatalogNav />
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search products…"
+                className="h-8 w-44 pl-8 sm:w-56"
+                aria-label="Search products"
+              />
+            </div>
+
+            <Popover>
+              <PopoverTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    className="aspect-square"
+                    aria-label="Filter products"
                   />
-                </div>
-              </div>
-              <Separator className="my-0" />
-              <div className="p-2">
+                }
+              >
+                <ListFilterIcon />
+              </PopoverTrigger>
+              <PopoverContent align="end" className="min-w-48 p-2">
                 <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
                   Status
                 </p>
@@ -210,53 +210,51 @@ export function ProductCatalog({ products }: { products: Product[] }) {
                     </button>
                   ))}
                 </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+              </PopoverContent>
+            </Popover>
 
-          <Popover open={sortOpen} onOpenChange={setSortOpen}>
-            <PopoverTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-sm"
-                  className="aspect-square"
-                  aria-label="Sort products"
-                />
-              }
-            >
-              <ArrowUpDownIcon />
-            </PopoverTrigger>
-            <PopoverContent align="start" className="min-w-48 p-2">
-              <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
-                Sort by
-              </p>
-              <div className="space-y-0.5">
-                {SORT_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
+            <Popover open={sortOpen} onOpenChange={setSortOpen}>
+              <PopoverTrigger
+                render={
+                  <Button
                     type="button"
-                    className={optionItemClass}
-                    onClick={() => {
-                      setSort(option.value);
-                      setSortOpen(false);
-                    }}
-                  >
-                    <CheckIcon
-                      className={cn(
-                        "size-4 shrink-0",
-                        sort === option.value ? "opacity-100" : "opacity-0",
-                      )}
-                    />
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </PopoverContent>
-          </Popover>
+                    variant="outline"
+                    size="icon-sm"
+                    className="aspect-square"
+                    aria-label="Sort products"
+                  />
+                }
+              >
+                <ArrowUpDownIcon />
+              </PopoverTrigger>
+              <PopoverContent align="end" className="min-w-48 p-2">
+                <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
+                  Sort by
+                </p>
+                <div className="space-y-0.5">
+                  {SORT_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={optionItemClass}
+                      onClick={() => {
+                        setSort(option.value);
+                        setSortOpen(false);
+                      }}
+                    >
+                      <CheckIcon
+                        className={cn(
+                          "size-4 shrink-0",
+                          sort === option.value ? "opacity-100" : "opacity-0",
+                        )}
+                      />
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
 
-          <CatalogNav>
             <Button
               render={<Link href="/products/new" />}
               size="sm"
@@ -265,7 +263,7 @@ export function ProductCatalog({ products }: { products: Product[] }) {
               <PlusIcon data-icon="inline-start" />
               Add products
             </Button>
-          </CatalogNav>
+          </div>
         </div>
       }
     >
