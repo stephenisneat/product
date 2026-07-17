@@ -2,45 +2,20 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import {
-  Building2Icon,
-  CalendarDaysIcon,
-  ChevronDownIcon,
-  GlobeIcon,
-  PlusIcon,
-  ShoppingBagIcon,
-  SmartphoneIcon,
-  StoreIcon,
-  VoteIcon,
-} from "lucide-react";
-import type { AppUser, ProductType } from "@/domain";
+import { ChevronDownIcon } from "lucide-react";
+import type { AppUser } from "@/domain";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { CreateProductButton } from "@/features/products/create-product-dialog";
-import { ImportShopifyDialog } from "@/features/products/import-shopify-dialog";
-import { PRODUCT_TYPE_OPTIONS } from "@/lib/products/product-type";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
-const TYPE_ICONS: Record<ProductType, typeof ShoppingBagIcon> = {
-  ecommerce: ShoppingBagIcon,
-  mobile_app: SmartphoneIcon,
-  website: GlobeIcon,
-  brick_and_mortar: Building2Icon,
-  event: CalendarDaysIcon,
-  election: VoteIcon,
-};
+const menuItemClass =
+  "flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground";
 
 function initialsFor(user: AppUser) {
   const source = user.name?.trim() || user.email;
@@ -59,9 +34,6 @@ export function UserMenu({
   showLabel?: boolean;
 }) {
   const router = useRouter();
-  const [createOpen, setCreateOpen] = useState(false);
-  const [productType, setProductType] = useState<ProductType>("ecommerce");
-  const [shopifyOpen, setShopifyOpen] = useState(false);
 
   async function onSignOut() {
     await fetch("/api/auth/sign-out", { method: "POST" });
@@ -69,96 +41,54 @@ export function UserMenu({
     router.refresh();
   }
 
-  function openType(type: ProductType) {
-    setProductType(type);
-    setCreateOpen(true);
-  }
-
   const label = user.name?.trim() || user.email;
 
   return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          className={cn(
-            "flex items-center gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-            showLabel && "px-1.5 py-1 hover:bg-white/5",
-            !showLabel && "rounded-full",
-          )}
-        >
-          <Avatar size="sm">
-            <AvatarFallback>{initialsFor(user)}</AvatarFallback>
-          </Avatar>
-          {showLabel ? (
-            <>
-              <span className="max-w-40 truncate text-sm text-foreground">
-                {label}
-              </span>
-              <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
-            </>
+    <Popover>
+      <PopoverTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={cn(!showLabel && "rounded-full px-1.5")}
+          />
+        }
+      >
+        <Avatar size="sm">
+          <AvatarFallback>{initialsFor(user)}</AvatarFallback>
+        </Avatar>
+        {showLabel ? (
+          <>
+            <span className="max-w-40 truncate">{label}</span>
+            <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-aria-expanded/button:rotate-180" />
+          </>
+        ) : null}
+        <span className="sr-only">Open account menu</span>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="min-w-56 p-2">
+        <div className="px-2 py-1.5">
+          {user.name ? (
+            <p className="text-sm font-medium text-foreground">{user.name}</p>
           ) : null}
-          <span className="sr-only">Open account menu</span>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-56">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col gap-0.5">
-                {user.name ? (
-                  <span className="text-sm font-medium text-foreground">
-                    {user.name}
-                  </span>
-                ) : null}
-                <span className="truncate text-xs text-muted-foreground">
-                  {user.email}
-                </span>
-              </div>
-            </DropdownMenuLabel>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <PlusIcon />
-                Create product
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="min-w-52">
-                {PRODUCT_TYPE_OPTIONS.map((option) => {
-                  const Icon = TYPE_ICONS[option.value];
-                  return (
-                    <DropdownMenuItem
-                      key={option.value}
-                      onClick={() => openType(option.value)}
-                    >
-                      <Icon />
-                      {option.label}
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-            <DropdownMenuItem onClick={() => setShopifyOpen(true)}>
-              <StoreIcon />
-              Import from Shopify
-            </DropdownMenuItem>
-            <DropdownMenuItem render={<Link href="/account" />}>
-              Account
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuItem variant="destructive" onClick={onSignOut}>
-              Sign out
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <CreateProductButton
-        productType={productType}
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        showTrigger={false}
-      />
-      <ImportShopifyDialog open={shopifyOpen} onOpenChange={setShopifyOpen} />
-    </>
+          <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+        </div>
+        <Separator className="my-2" />
+        <Link
+          href="/settings/account"
+          className={menuItemClass}
+        >
+          Account
+        </Link>
+        <Separator className="my-2" />
+        <button
+          type="button"
+          className={cn(menuItemClass, "text-destructive hover:text-destructive")}
+          onClick={() => void onSignOut()}
+        >
+          Sign out
+        </button>
+      </PopoverContent>
+    </Popover>
   );
 }
