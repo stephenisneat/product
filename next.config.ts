@@ -1,20 +1,34 @@
 import type { NextConfig } from "next";
 
-function supabaseImagePattern() {
+function supabaseImageHost() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!url) return undefined;
   try {
-    const parsed = new URL(url);
-    const protocol = parsed.protocol.replace(":", "") as "http" | "https";
-    return {
-      protocol,
-      hostname: parsed.hostname,
-      ...(parsed.port ? { port: parsed.port } : {}),
-      pathname: "/storage/v1/object/public/**",
-    };
+    return new URL(url);
   } catch {
     return undefined;
   }
+}
+
+function supabaseImagePattern() {
+  const parsed = supabaseImageHost();
+  if (!parsed) return undefined;
+  const protocol = parsed.protocol.replace(":", "") as "http" | "https";
+  return {
+    protocol,
+    hostname: parsed.hostname,
+    ...(parsed.port ? { port: parsed.port } : {}),
+    pathname: "/storage/v1/object/public/**",
+  };
+}
+
+function isLocalSupabaseHost() {
+  const hostname = supabaseImageHost()?.hostname;
+  return (
+    hostname === "127.0.0.1" ||
+    hostname === "localhost" ||
+    hostname === "[::1]"
+  );
 }
 
 const supabasePattern = supabaseImagePattern();
@@ -27,6 +41,8 @@ const nextConfig: NextConfig = {
     turbopackScopeHoisting: false,
   },
   images: {
+    // Next.js 16 blocks private IPs by default; local Supabase storage needs this.
+    dangerouslyAllowLocalIP: isLocalSupabaseHost(),
     remotePatterns: [
       {
         protocol: "https",
