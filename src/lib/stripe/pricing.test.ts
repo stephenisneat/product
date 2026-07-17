@@ -4,7 +4,10 @@ import {
   billedCostCents,
   providerCostUsd,
 } from "@/lib/stripe/pricing";
-import { getWalletBlockedReason, nextMonthResetIso } from "@/repositories/wallet";
+import {
+  getWalletBlockedReason,
+  nextMonthResetIso,
+} from "@/repositories/wallet";
 import type { WorkspaceWallet } from "@/domain";
 
 describe("AI pricing", () => {
@@ -63,6 +66,17 @@ describe("AI pricing", () => {
     });
     expect(cents).toBe(150);
   });
+
+  it("respects custom markup (Pro 1.25x)", () => {
+    const cents = billedCostCents({
+      model: "gpt-4.1-mini",
+      inputTokens: 500_000,
+      outputTokens: 500_000,
+      markup: 1.25,
+    });
+    // 1.0 USD * 1.25 = 1.25 USD = 125 cents
+    expect(cents).toBe(125);
+  });
 });
 
 describe("wallet helpers", () => {
@@ -84,30 +98,50 @@ describe("wallet helpers", () => {
     updatedAt: "2026-07-01T00:00:00.000Z",
   };
 
-  it("blocks on zero balance", () => {
-    expect(getWalletBlockedReason({ ...base, balanceCents: 0 })).toBe(
-      "zero_balance",
-    );
+  it("allows Free with zero balance while included allotment remains", () => {
+    expect(
+      getWalletBlockedReason({ ...base, balanceCents: 0 }, "free"),
+    ).toBeNull();
   });
 
-  it("blocks when usage MTD hits limit", () => {
+  it("blocks Free when included allotment is exhausted", () => {
     expect(
-      getWalletBlockedReason({
-        ...base,
-        usageLimitCents: 500,
-        usageMtdCents: 500,
-      }),
+      getWalletBlockedReason(
+        { ...base, balanceCents: 500, usageMtdCents: 150 },
+        "free",
+      ),
     ).toBe("usage_limit");
   });
 
-  it("allows when under limits with balance", () => {
+  it("blocks Hobby on zero balance after allotment", () => {
     expect(
-      getWalletBlockedReason({
-        ...base,
-        usageLimitCents: 500,
-        usageMtdCents: 100,
-      }),
+      getWalletBlockedReason(
+        { ...base, balanceCents: 0, usageMtdCents: 900 },
+        "hobby",
+      ),
+    ).toBe("zero_balance");
+  });
+
+  it("allows Hobby with balance after allotment", () => {
+    expect(
+      getWalletBlockedReason(
+        { ...base, balanceCents: 100, usageMtdCents: 900 },
+        "hobby",
+      ),
     ).toBeNull();
+  });
+
+  it("blocks when custom usage MTD hits limit", () => {
+    expect(
+      getWalletBlockedReason(
+        {
+          ...base,
+          usageLimitCents: 500,
+          usageMtdCents: 500,
+        },
+        "pro",
+      ),
+    ).toBe("usage_limit");
   });
 
   it("formats next month reset date", () => {

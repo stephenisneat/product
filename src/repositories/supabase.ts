@@ -706,6 +706,64 @@ export class SupabaseProductRepository implements ProductRepository {
     }));
   }
 
+  async createCampaign(campaign: Campaign): Promise<Campaign> {
+    const { data, error } = await this.client
+      .from("campaigns")
+      .insert({
+        id: campaign.id,
+        product_id: campaign.productId,
+        name: campaign.name,
+        status: campaign.status,
+        channels: campaign.channels,
+        objective: campaign.objective,
+        updated_at: campaign.updatedAt,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return {
+      id: data.id,
+      productId: data.product_id,
+      name: data.name,
+      status: data.status,
+      channels: data.channels ?? [],
+      objective: data.objective,
+      updatedAt: data.updated_at,
+    };
+  }
+
+  async updateCampaign(
+    productId: string,
+    campaignId: string,
+    patch: Partial<Pick<Campaign, "name" | "status" | "channels" | "objective">>,
+  ): Promise<Campaign> {
+    const row: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (patch.name !== undefined) row.name = patch.name;
+    if (patch.status !== undefined) row.status = patch.status;
+    if (patch.channels !== undefined) row.channels = patch.channels;
+    if (patch.objective !== undefined) row.objective = patch.objective;
+
+    const { data, error } = await this.client
+      .from("campaigns")
+      .update(row)
+      .eq("id", campaignId)
+      .eq("product_id", productId)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return {
+      id: data.id,
+      productId: data.product_id,
+      name: data.name,
+      status: data.status,
+      channels: data.channels ?? [],
+      objective: data.objective,
+      updatedAt: data.updated_at,
+    };
+  }
+
   async getPerformance(productId: string): Promise<PerformancePoint[]> {
     // Live analytics ingestion is out of milestone scope; keep a consistent demo series.
     return buildPerformanceSeries(productId);

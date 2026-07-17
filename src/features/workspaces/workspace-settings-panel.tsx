@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { WorkspaceAvatar } from "@/features/workspaces/workspace-avatar";
+import { planDisplayName } from "@/lib/billing/entitlements";
 import {
   parsePrimaryDomain,
   parseWorkEmailDomain,
@@ -138,14 +139,6 @@ export function WorkspaceSettingsPanel({
       { primaryDomain: normalized },
       "Primary domain updated.",
     );
-  }
-
-  async function savePlan(next: WorkspacePlan) {
-    if (!isOwner) return;
-    const previous = plan;
-    setPlan(next);
-    const ok = await patchWorkspace({ plan: next }, "Plan updated.");
-    if (!ok) setPlan(previous);
   }
 
   async function saveDomainJoin() {
@@ -416,24 +409,21 @@ export function WorkspaceSettingsPanel({
       {isOwner ? (
         <section className="space-y-3">
           <h2 className="text-sm font-medium">Plan</h2>
-          <Select
-            value={plan}
-            onValueChange={(value) => {
-              if (value === "free" || value === "pro") {
-                void savePlan(value);
-              }
-            }}
-          >
-            <SelectTrigger className="w-40" disabled={busy}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="free">Free</SelectItem>
-              <SelectItem value="pro">Pro</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm text-foreground">
+              {planDisplayName(plan)}
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => router.push("/settings/billing")}
+            >
+              Manage billing
+            </Button>
+          </div>
           <p className="text-xs text-muted-foreground">
-            Temporary control until billing is connected.
+            Plans and usage allotments are managed in Billing.
           </p>
         </section>
       ) : null}

@@ -2,8 +2,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   WalletTransaction,
   WalletTransactionType,
+  WorkspacePlan,
   WorkspaceWallet,
 } from "@/domain";
+import { getEntitlements } from "@/lib/billing/entitlements";
 
 type DbWallet = {
   workspace_id: string;
@@ -261,6 +263,33 @@ export class SupabaseWalletRepository {
     return mapTransaction(data as DbTransaction);
   }
 
+  /**
+   * Bill AI usage against the monthly included allotment first, then purchased
+   * wallet balance (Hobby/Pro top-off). Free cannot overage.
+   */
+  async chargeAiUsage(input: {
+    workspaceId: string;
+    amountCents: number;
+    includedAllotmentCents: number;
+    allowOverage: boolean;
+    description?: string;
+    metadata?: Record<string, unknown>;
+    createdBy?: string | null;
+  }): Promise<WalletTransaction> {
+    const { data, error } = await this.client.rpc("charge_ai_usage", {
+      p_workspace_id: input.workspaceId,
+      p_amount_cents: input.amountCents,
+      p_included_allotment_cents: input.includedAllotmentCents,
+      p_allow_overage: input.allowOverage,
+      p_description: input.description ?? "",
+      p_metadata: input.metadata ?? {},
+      p_created_by: input.createdBy ?? null,
+      p_stripe_object_id: null,
+    });
+    if (error) throw error;
+    return mapTransaction(data as DbTransaction);
+  }
+
   async listTransactions(
     workspaceId: string,
     opts: { limit?: number; offset?: number } = {},
@@ -298,13 +327,47 @@ export function nextMonthResetIso(mtdPeriodStart: string): string {
   });
 }
 
-export function getWalletBlockedReason(wallet: WorkspaceWallet) {
-  if (wallet.balanceCents <= 0) return "zero_balance" as const;
+/**
+ * AI gate: included monthly allotment first, then purchased balance for paid
+ * plans. Free hard-stops when the allotment is exhausted (no top-off).
+ */
+export function getWalletBlockedReason(
+  wallet: WorkspaceWallet,
+  plan: WorkspacePlan = "free",
+) {
+  const ents = getEntitlements(plan);
+  const remainingIncluded = Math.max(
+    0,
+    ents.includedUsageCents - wallet.usageMtdCents,
+  );
+
   if (
     wallet.usageLimitCents != null &&
     wallet.usageMtdCents >= wallet.usageLimitCents
   ) {
     return "usage_limit" as const;
   }
+
+  if (remainingIncluded > 0) {
+    return null;
+  }
+
+  // Included allotment exhausted.
+  if (!ents.allowUsageTopOff) {
+    return "usage_limit" as const;
+  }
+
+  if (wallet.balanceCents <= 0) {
+    return "zero_balance" as const;
+  }
+
   return null;
+}
+
+export function remainingIncludedUsageCents(
+  wallet: WorkspaceWallet,
+  plan: WorkspacePlan,
+): number {
+  const ents = getEntitlements(plan);
+  return Math.max(0, ents.includedUsageCents - wallet.usageMtdCents);
 }

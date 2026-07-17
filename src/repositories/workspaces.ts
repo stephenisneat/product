@@ -22,6 +22,8 @@ type DbWorkspace = {
   primary_domain: string | null;
   join_domain: string | null;
   domain_join_enabled: boolean;
+  stripe_subscription_id: string | null;
+  stripe_subscription_status: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -171,6 +173,12 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
     if (input.joinDomain !== undefined) patch.join_domain = input.joinDomain;
     if (input.domainJoinEnabled !== undefined) {
       patch.domain_join_enabled = input.domainJoinEnabled;
+    }
+    if (input.stripeSubscriptionId !== undefined) {
+      patch.stripe_subscription_id = input.stripeSubscriptionId;
+    }
+    if (input.stripeSubscriptionStatus !== undefined) {
+      patch.stripe_subscription_status = input.stripeSubscriptionStatus;
     }
 
     const { data, error } = await this.client

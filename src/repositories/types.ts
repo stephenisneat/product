@@ -40,6 +40,8 @@ export type WorkspaceUpdateInput = {
   primaryDomain?: string | null;
   joinDomain?: string | null;
   domainJoinEnabled?: boolean;
+  stripeSubscriptionId?: string | null;
+  stripeSubscriptionStatus?: string | null;
 };
 
 export interface ProductRepository {
@@ -53,6 +55,12 @@ export interface ProductRepository {
   getIntelligence(productId: string): Promise<ProductIntelligence | null>;
   upsertIntelligence(intelligence: ProductIntelligence): Promise<ProductIntelligence>;
   listCampaigns(productId: string): Promise<Campaign[]>;
+  createCampaign(campaign: Campaign): Promise<Campaign>;
+  updateCampaign(
+    productId: string,
+    campaignId: string,
+    patch: Partial<Pick<Campaign, "name" | "status" | "channels" | "objective">>,
+  ): Promise<Campaign>;
   getPerformance(productId: string): Promise<PerformancePoint[]>;
   listConnections(workspaceId: string): Promise<CommerceConnection[]>;
   getConnection(

@@ -11,8 +11,8 @@ import { BuyCreditsDialog } from "@/features/wallet/wallet-dialogs";
 import type { WorkspaceWithRole } from "@/repositories/types";
 
 function WalletBuyCreditsHost() {
-  const { wallet, openBuyCredits, setOpenBuyCredits } = useWallet();
-  if (!wallet) return null;
+  const { wallet, plan, openBuyCredits, setOpenBuyCredits } = useWallet();
+  if (!wallet || plan === "free") return null;
   return (
     <BuyCreditsDialog
       open={openBuyCredits}

@@ -2,25 +2,23 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
-  canManageMembers,
+  canManageWorkspace,
   getActiveWorkspace,
 } from "@/lib/auth/workspace";
+import {
+  getEntitlements,
+  isPaidPlan,
+  type PaidPlan,
+} from "@/lib/billing/entitlements";
 import { getAppUrl, getStripe, hasStripe } from "@/lib/stripe/client";
 import { ensureStripeCustomer } from "@/lib/stripe/customers";
-import {
-  CREDIT_MAX_CENTS,
-  CREDIT_MIN_CENTS,
-} from "@/lib/stripe/pricing";
+import { getStripePriceId } from "@/lib/stripe/subscription-prices";
 import { getWalletWriteRepository } from "@/repositories";
 
 export const runtime = "nodejs";
 
 const bodySchema = z.object({
-  amountCents: z
-    .number()
-    .int()
-    .min(CREDIT_MIN_CENTS)
-    .max(CREDIT_MAX_CENTS),
+  plan: z.enum(["hobby", "pro"]),
 });
 
 export async function POST(req: Request) {
@@ -40,11 +38,14 @@ export async function POST(req: Request) {
   if (!active) {
     return NextResponse.json({ error: "No workspace" }, { status: 400 });
   }
-  if (!canManageMembers(active.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!canManageWorkspace(active.role)) {
+    return NextResponse.json(
+      { error: "Only the workspace owner can change the plan." },
+      { status: 403 },
+    );
   }
 
-  const parsed = bodySchema.safeParse(await req.json());
+  const parsed = bodySchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid body", details: parsed.error.flatten() },
@@ -52,16 +53,26 @@ export async function POST(req: Request) {
     );
   }
 
-  const { amountCents } = parsed.data;
-  const plan = active.workspace.plan ?? "free";
-  if (plan === "free") {
+  const targetPlan = parsed.data.plan as PaidPlan;
+  if (!isPaidPlan(targetPlan)) {
+    return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
+  }
+
+  const priceId = getStripePriceId(targetPlan);
+  if (!priceId) {
     return NextResponse.json(
       {
-        error:
-          "Free workspaces cannot buy credits. Upgrade to Hobby or Pro to top off usage.",
-        code: "plan_upgrade_required",
+        error: `Stripe price for ${getEntitlements(targetPlan).name} is not configured`,
       },
-      { status: 403 },
+      { status: 503 },
+    );
+  }
+
+  const currentPlan = active.workspace.plan ?? "free";
+  if (currentPlan === targetPlan) {
+    return NextResponse.json(
+      { error: `Already on the ${getEntitlements(targetPlan).name} plan` },
+      { status: 400 },
     );
   }
 
@@ -74,36 +85,24 @@ export async function POST(req: Request) {
 
   const appUrl = getAppUrl();
   const session = await getStripe().checkout.sessions.create({
-    mode: "payment",
+    mode: "subscription",
     customer: customerId,
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: amountCents,
-          product_data: {
-            name: "Wallet credits",
-            description: `Add $${(amountCents / 100).toFixed(2)} to your workspace wallet`,
-          },
-        },
-      },
-    ],
-    success_url: `${appUrl}/?wallet=credits_added`,
-    cancel_url: `${appUrl}/?wallet=cancelled`,
-    metadata: {
-      workspace_id: active.workspace.id,
-      credit_amount_cents: String(amountCents),
-      user_id: user.id,
-    },
-    payment_intent_data: {
-      setup_future_usage: "off_session",
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: `${appUrl}/settings/billing?checkout=success`,
+    cancel_url: `${appUrl}/settings/billing?checkout=cancelled`,
+    subscription_data: {
       metadata: {
         workspace_id: active.workspace.id,
-        purpose: "credit_purchase",
-        credit_amount_cents: String(amountCents),
+        plan: targetPlan,
       },
     },
+    metadata: {
+      workspace_id: active.workspace.id,
+      plan: targetPlan,
+      user_id: user.id,
+      purpose: "subscription",
+    },
+    allow_promotion_codes: true,
   });
 
   if (!session.url) {

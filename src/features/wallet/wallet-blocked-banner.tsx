@@ -16,7 +16,7 @@ export function WalletBlockedBanner() {
 
   const message =
     wallet.blockedReason === "usage_limit"
-      ? "You've reached this workspace's monthly AI usage limit. Raise the limit or wait until it resets."
+      ? "You've used this workspace's included AI allotment for the month. Upgrade or wait until it resets."
       : "Your wallet balance is $0. Add credits to keep using AI features.";
 
   return (
@@ -33,6 +33,19 @@ export function WalletBlockedBanner() {
               onClick={() => setOpenBuyCredits(true)}
             >
               Buy credits
+            </Button>
+          ) : null}
+          {wallet.canManage && wallet.blockedReason === "usage_limit" ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="border-amber-600/40 bg-background"
+              onClick={() => {
+                window.location.href = "/settings/billing";
+              }}
+            >
+              Upgrade
             </Button>
           ) : null}
           <Button

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2Icon, UserIcon } from "lucide-react";
+import { Building2Icon, CreditCardIcon, UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const settingsPages = [
@@ -15,6 +15,11 @@ const settingsPages = [
     href: "/settings/workspace",
     label: "Workspace",
     icon: Building2Icon,
+  },
+  {
+    href: "/settings/billing",
+    label: "Billing",
+    icon: CreditCardIcon,
   },
 ] as const;
 

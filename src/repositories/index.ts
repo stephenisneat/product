@@ -45,4 +45,6 @@ export type { SupabaseWalletRepository } from "./wallet";
 export {
   getWalletBlockedReason,
   nextMonthResetIso,
+  remainingIncludedUsageCents,
 } from "./wallet";
+export { getWorkspaceWriteRepository } from "./workspace-write";

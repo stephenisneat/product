@@ -176,10 +176,12 @@ function AdSpendLimitMenu({
   wallet,
   loading,
   onChangeLimit,
+  locked,
 }: {
   wallet: WalletSummary | null;
   loading: boolean;
   onChangeLimit: () => void;
+  locked?: boolean;
 }) {
   return (
     <WalletPopoverShell
@@ -199,6 +201,23 @@ function AdSpendLimitMenu({
     >
       {!wallet ? (
         <WalletUnavailable loading={loading} />
+      ) : locked ? (
+        <section className="space-y-3 p-3">
+          <div>
+            <p className="text-sm font-medium">Ad spend locked</p>
+            <p className="text-xs text-muted-foreground">
+              Adding ad spend requires Hobby or Pro.
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="xs"
+            variant="outline"
+            render={<Link href="/settings/billing" />}
+          >
+            Upgrade
+          </Button>
+        </section>
       ) : (
         <section className="space-y-3 p-3">
           <div>
@@ -442,10 +461,12 @@ function CreditBalanceMenu({
 
 /** Three toolbar popovers: ad spend, usage, and credit balance. */
 export function WalletMenu() {
-  const { wallet, loading, setWallet, setOpenBuyCredits } = useWallet();
+  const { wallet, plan, loading, setWallet, setOpenBuyCredits } = useWallet();
   const [spendOpen, setSpendOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
   const [autoReloadOpen, setAutoReloadOpen] = useState(false);
+  const adSpendLocked = plan === "free";
+  const canTopOff = plan !== "free";
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -476,6 +497,7 @@ export function WalletMenu() {
       <AdSpendLimitMenu
         wallet={wallet}
         loading={loading}
+        locked={adSpendLocked}
         onChangeLimit={() => setSpendOpen(true)}
       />
       <UsageLimitMenu
@@ -486,19 +508,26 @@ export function WalletMenu() {
       <CreditBalanceMenu
         wallet={wallet}
         loading={loading}
-        onAutoReload={() => setAutoReloadOpen(true)}
-        onBuyCredits={() => setOpenBuyCredits(true)}
+        onAutoReload={() => {
+          if (canTopOff) setAutoReloadOpen(true);
+        }}
+        onBuyCredits={() => {
+          if (canTopOff) setOpenBuyCredits(true);
+          else window.location.href = "/settings/billing";
+        }}
       />
 
       {wallet ? (
         <>
-          <EditLimitDialog
-            open={spendOpen}
-            onOpenChange={setSpendOpen}
-            kind="ad_spend"
-            wallet={wallet}
-            onSaved={setWallet}
-          />
+          {!adSpendLocked ? (
+            <EditLimitDialog
+              open={spendOpen}
+              onOpenChange={setSpendOpen}
+              kind="ad_spend"
+              wallet={wallet}
+              onSaved={setWallet}
+            />
+          ) : null}
           <EditLimitDialog
             open={usageOpen}
             onOpenChange={setUsageOpen}

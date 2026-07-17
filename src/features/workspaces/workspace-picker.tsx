@@ -8,6 +8,7 @@ import {
   ChevronsUpDownIcon,
   PlusIcon,
   SettingsIcon,
+  SparklesIcon,
 } from "lucide-react";
 import type { Workspace, WorkspacePlan, WorkspaceRole } from "@/domain";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,11 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { CreateWorkspaceDialog } from "@/features/workspaces/create-workspace-dialog";
 import { WorkspaceAvatar } from "@/features/workspaces/workspace-avatar";
+import {
+  canUpgradePlan,
+  getEntitlements,
+  planDisplayName,
+} from "@/lib/billing/entitlements";
 import type { WorkspaceWithRole } from "@/repositories/types";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +33,11 @@ const optionItemClass =
   "flex w-full items-center gap-2 rounded-md py-1.5 pr-2 pl-2 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground";
 
 function planBadgeClass(plan: WorkspacePlan) {
-  if (plan === "pro") {
+  const color = getEntitlements(plan).badgeColor;
+  if (color === "green") {
+    return "border-green-500/30 bg-green-500/40 text-green-900 dark:text-green-100 font-semibold";
+  }
+  if (color === "blue") {
     return "border-blue-500/30 bg-blue-500/40 text-blue-800 dark:text-blue-100 font-semibold";
   }
   return "border-yellow-500/30 bg-yellow-500/40 text-yellow-800 dark:text-yellow-100 font-semibold";
@@ -170,7 +180,7 @@ export function WorkspacePicker({
               planBadgeClass(plan),
             )}
           >
-            {plan === "pro" ? "Pro" : "Free"}
+            {planDisplayName(plan)}
           </Badge>
           {variant === "header" ? (
             <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-aria-expanded/button:rotate-180" />
@@ -248,6 +258,19 @@ export function WorkspacePicker({
           ) : null}
 
           <Separator className="my-2" />
+          {canManage && canUpgradePlan(plan) ? (
+            <button
+              type="button"
+              className={optionItemClass}
+              onClick={() => {
+                setOpen(false);
+                router.push("/settings/billing");
+              }}
+            >
+              <SparklesIcon className="size-4" />
+              Upgrade
+            </button>
+          ) : null}
           <button
             type="button"
             className={optionItemClass}

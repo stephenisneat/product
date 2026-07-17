@@ -1,4 +1,5 @@
-import type { WorkspaceWallet } from "@/domain";
+import type { WorkspacePlan, WorkspaceWallet } from "@/domain";
+import { getEntitlements } from "@/lib/billing/entitlements";
 import { hasServiceRole } from "@/lib/supabase/service";
 import { maybeTriggerAutoReload } from "@/lib/stripe/auto-reload";
 import { billedCostCents } from "@/lib/stripe/pricing";
@@ -6,6 +7,7 @@ import {
   getWalletBlockedReason,
   getWalletWriteRepository,
 } from "@/repositories";
+import { getWorkspaceWriteRepository } from "@/repositories/workspace-write";
 
 /** AI Gateway model id (`provider/model`). */
 const CHAT_MODEL = "openai/gpt-4.1-mini";
@@ -21,11 +23,17 @@ export function isWalletAiGateEnabled(): boolean {
 }
 
 export type WalletGateResult =
-  | { ok: true; wallet: WorkspaceWallet }
+  | { ok: true; wallet: WorkspaceWallet; plan: WorkspacePlan }
   | {
       ok: false;
       response: Response;
     };
+
+async function resolveWorkspacePlan(workspaceId: string): Promise<WorkspacePlan> {
+  const repo = getWorkspaceWriteRepository();
+  const workspace = await repo.getWorkspace(workspaceId);
+  return workspace?.plan ?? "free";
+}
 
 export async function assertWalletAllowsAi(
   workspaceId: string,
@@ -34,6 +42,7 @@ export async function assertWalletAllowsAi(
     // Local/dev or unmetered: allow AI without credit balance checks.
     return {
       ok: true,
+      plan: "free",
       wallet: {
         workspaceId,
         stripeCustomerId: null,
@@ -54,9 +63,10 @@ export async function assertWalletAllowsAi(
     };
   }
 
+  const plan = await resolveWorkspacePlan(workspaceId);
   const repo = getWalletWriteRepository();
   const wallet = await repo.ensureWallet(workspaceId);
-  const reason = getWalletBlockedReason(wallet);
+  const reason = getWalletBlockedReason(wallet, plan);
   if (reason) {
     return {
       ok: false,
@@ -65,12 +75,13 @@ export async function assertWalletAllowsAi(
           error: "Wallet blocked",
           code: "wallet_blocked",
           reason,
+          plan,
         },
         { status: 402 },
       ),
     };
   }
-  return { ok: true, wallet };
+  return { ok: true, wallet, plan };
 }
 
 export async function chargeAiUsage(input: {
@@ -82,31 +93,37 @@ export async function chargeAiUsage(input: {
 }): Promise<void> {
   if (!isWalletAiGateEnabled()) return;
 
+  const plan = await resolveWorkspacePlan(input.workspaceId);
+  const ents = getEntitlements(plan);
   const model = input.model ?? CHAT_MODEL;
   const cents = billedCostCents({
     model,
     inputTokens: input.inputTokens,
     outputTokens: input.outputTokens,
+    markup: ents.aiMarkup,
   });
   if (cents <= 0) return;
 
   const repo = getWalletWriteRepository();
   try {
-    await repo.debit({
+    await repo.ensureWallet(input.workspaceId);
+    await repo.chargeAiUsage({
       workspaceId: input.workspaceId,
       amountCents: cents,
-      type: "ai_usage",
+      includedAllotmentCents: ents.includedUsageCents,
+      allowOverage: ents.allowUsageTopOff,
       description: `AI usage (${model})`,
       metadata: {
         model,
         inputTokens: input.inputTokens,
         outputTokens: input.outputTokens,
-        markup: 1.5,
+        markup: ents.aiMarkup,
+        plan,
       },
       createdBy: input.userId,
     });
     const wallet = await repo.getWallet(input.workspaceId);
-    if (wallet) {
+    if (wallet && ents.allowUsageTopOff) {
       void maybeTriggerAutoReload(wallet).catch((err) => {
         console.error("[wallet] auto-reload failed", err);
       });

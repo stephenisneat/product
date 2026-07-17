@@ -59,6 +59,17 @@ export async function PATCH(req: Request) {
     );
   }
 
+  const plan = active.workspace.plan ?? "free";
+  if (parsed.data.enabled && plan === "free") {
+    return NextResponse.json(
+      {
+        error: "Auto-reload requires Hobby or Pro. Upgrade to continue.",
+        code: "plan_upgrade_required",
+      },
+      { status: 403 },
+    );
+  }
+
   const repo = getWalletWriteRepository();
   const current = await repo.ensureWallet(active.workspace.id);
 
@@ -83,7 +94,7 @@ export async function PATCH(req: Request) {
   });
 
   const blockedReason = isWalletAiGateEnabled()
-    ? getWalletBlockedReason(wallet)
+    ? getWalletBlockedReason(wallet, active.workspace.plan ?? "free")
     : null;
   return NextResponse.json({
     wallet: {

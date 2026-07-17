@@ -5,6 +5,10 @@ import {
   canManageMembers,
   getActiveWorkspace,
 } from "@/lib/auth/workspace";
+import {
+  PlanEntitlementError,
+  assertCanSpendAndLaunch,
+} from "@/lib/billing/gates";
 import { isWalletAiGateEnabled } from "@/lib/wallet/gate";
 import {
   getWalletBlockedReason,
@@ -41,6 +45,21 @@ export async function PATCH(req: Request) {
     );
   }
 
+  const plan = active.workspace.plan ?? "free";
+  if (parsed.data.adSpendLimitCents !== undefined) {
+    try {
+      assertCanSpendAndLaunch(plan);
+    } catch (err) {
+      if (err instanceof PlanEntitlementError) {
+        return NextResponse.json(
+          { error: err.message, code: err.code },
+          { status: err.status },
+        );
+      }
+      throw err;
+    }
+  }
+
   const repo = getWalletWriteRepository();
   const current = await repo.ensureWallet(active.workspace.id);
   const wallet = await repo.updateLimits(active.workspace.id, {
@@ -55,7 +74,7 @@ export async function PATCH(req: Request) {
   });
 
   const blockedReason = isWalletAiGateEnabled()
-    ? getWalletBlockedReason(wallet)
+    ? getWalletBlockedReason(wallet, plan)
     : null;
   return NextResponse.json({
     wallet: {

@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { AgentProductSync } from "@/features/agent/agent-context";
 import { ProductWorkspace } from "@/features/products/product-workspace";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { getArtifactRepository, getProductRepository } from "@/repositories";
 
 export default async function ProductPage({
@@ -12,6 +13,11 @@ export default async function ProductPage({
   const user = await getCurrentUser();
   if (!user) {
     redirect("/login");
+  }
+
+  const active = await getActiveWorkspace();
+  if (!active) {
+    redirect("/");
   }
 
   const { id } = await params;
@@ -37,6 +43,7 @@ export default async function ProductPage({
         artifacts={artifacts}
         campaigns={campaigns}
         performance={performance}
+        plan={active.workspace.plan ?? "free"}
       />
     </>
   );

@@ -54,7 +54,7 @@ export function InsightsToolbar({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortKey>("newest");
   const [sortOpen, setSortOpen] = useState(false);
-  const showUnlock = plan === "free";
+  const showUnlock = plan !== "pro";
 
   return (
     <div className="flex w-full flex-wrap items-center gap-2">
@@ -150,7 +150,7 @@ export function InsightsToolbar({
               closeOnClick={false}
               render={
                 <Button
-                  render={<Link href="/settings/workspace" />}
+                  render={<Link href="/settings/billing" />}
                   size="sm"
                   className={insightsCtaButtonClass}
                 />
@@ -160,7 +160,7 @@ export function InsightsToolbar({
               Unlock insights
             </TooltipTrigger>
             <TooltipContent side="bottom" align="end">
-              Unlocking insights runs background jobs and incurs usage costs.
+              Insights are included on the Pro plan.
             </TooltipContent>
           </Tooltip>
         ) : null}

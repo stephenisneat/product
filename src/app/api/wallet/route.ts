@@ -5,6 +5,7 @@ import {
   canManageMembers,
   getActiveWorkspace,
 } from "@/lib/auth/workspace";
+import { getEntitlements } from "@/lib/billing/entitlements";
 import { hasServiceRole } from "@/lib/supabase/service";
 import { isWalletAiGateEnabled } from "@/lib/wallet/gate";
 import {
@@ -36,15 +37,17 @@ export async function GET() {
   try {
     const repo = getWalletWriteRepository();
     const wallet = await repo.ensureWallet(active.workspace.id);
+    const plan = active.workspace.plan ?? "free";
     const blockedReason = isWalletAiGateEnabled()
-      ? getWalletBlockedReason(wallet)
+      ? getWalletBlockedReason(wallet, plan)
       : null;
+    const ents = getEntitlements(plan);
 
     const summary: WalletSummary = {
       balanceCents: wallet.balanceCents,
       currency: wallet.currency,
       adSpendLimitCents: wallet.adSpendLimitCents,
-      usageLimitCents: wallet.usageLimitCents,
+      usageLimitCents: wallet.usageLimitCents ?? ents.includedUsageCents,
       usageMtdCents: wallet.usageMtdCents,
       adSpendMtdCents: wallet.adSpendMtdCents,
       resetsOn: nextMonthResetIso(wallet.mtdPeriodStart),
@@ -57,7 +60,15 @@ export async function GET() {
       canManage: canManageMembers(active.role),
     };
 
-    return NextResponse.json({ wallet: summary });
+    return NextResponse.json({
+      wallet: summary,
+      plan,
+      entitlements: {
+        includedUsageCents: ents.includedUsageCents,
+        allowUsageTopOff: ents.allowUsageTopOff,
+        aiMarkup: ents.aiMarkup,
+      },
+    });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to load wallet";
