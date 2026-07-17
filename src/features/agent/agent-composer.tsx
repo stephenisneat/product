@@ -295,7 +295,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
 
       <div
         className={cn(
-          "relative z-10 flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-canvas transition-transform duration-300 ease-out",
+          "relative z-10 flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-canvas transition-transform duration-[250ms] ease-[cubic-bezier(0.34,1.2,0.64,1)]",
           historyOpen &&
             "translate-x-[calc(100%-2.75rem)] shadow-[-8px_0_24px_rgba(0,0,0,0.18)]",
         )}
