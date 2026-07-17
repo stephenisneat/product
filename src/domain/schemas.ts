@@ -409,6 +409,7 @@ export const artifactPayloadSchema = z.union([
 export const artifactSchema = z.object({
   id: z.string(),
   productId: z.string(),
+  campaignId: z.string().nullable().optional(),
   type: artifactTypeSchema,
   status: artifactStatusSchema,
   title: z.string(),

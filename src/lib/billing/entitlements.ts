@@ -33,6 +33,8 @@ export type PlanEntitlements = {
   hasInsights: boolean;
   /** Max saved campaigns per product; null = unlimited. */
   maxCampaignsPerProduct: number | null;
+  /** Max creatives (ad_copy) per campaign; null = unlimited; 0 = none. */
+  maxCreativesPerCampaign: number | null;
   /** Can add ad spend / launch campaigns. */
   canSpendAndLaunch: boolean;
   /** After included allotment is used, may top off via wallet purchases. */
@@ -52,6 +54,7 @@ export const PLAN_ENTITLEMENTS: Record<WorkspacePlan, PlanEntitlements> = {
     badgeColor: "yellow",
     hasInsights: false,
     maxCampaignsPerProduct: 0,
+    maxCreativesPerCampaign: 0,
     canSpendAndLaunch: false,
     allowUsageTopOff: true,
     allowIncludedRollover: true,
@@ -66,6 +69,7 @@ export const PLAN_ENTITLEMENTS: Record<WorkspacePlan, PlanEntitlements> = {
     badgeColor: "blue",
     hasInsights: false,
     maxCampaignsPerProduct: 10,
+    maxCreativesPerCampaign: 3,
     canSpendAndLaunch: true,
     allowUsageTopOff: true,
     allowIncludedRollover: true,
@@ -80,6 +84,7 @@ export const PLAN_ENTITLEMENTS: Record<WorkspacePlan, PlanEntitlements> = {
     badgeColor: "green",
     hasInsights: true,
     maxCampaignsPerProduct: null,
+    maxCreativesPerCampaign: null,
     canSpendAndLaunch: true,
     allowUsageTopOff: true,
     allowIncludedRollover: true,
@@ -192,6 +197,14 @@ export function featureBullets(
     bullets.push("Campaign concepts only (no launch)");
   } else {
     bullets.push(`Up to ${e.maxCampaignsPerProduct} campaigns per product`);
+  }
+
+  if (e.maxCreativesPerCampaign === null) {
+    bullets.push("Unlimited creatives per campaign");
+  } else if (e.maxCreativesPerCampaign === 0) {
+    bullets.push("Creatives locked");
+  } else {
+    bullets.push(`Up to ${e.maxCreativesPerCampaign} creatives per campaign`);
   }
 
   if (e.canSpendAndLaunch) {

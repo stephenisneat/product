@@ -78,6 +78,7 @@ export interface ProductRepository {
 
 export interface ArtifactRepository {
   listByProduct(productId: string): Promise<Artifact[]>;
+  countCreativesByCampaign(campaignId: string): Promise<number>;
   getById(id: string): Promise<Artifact | null>;
   create(artifact: Artifact): Promise<Artifact>;
   update(artifact: Artifact): Promise<Artifact>;

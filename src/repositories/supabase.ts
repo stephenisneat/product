@@ -866,18 +866,17 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
       .eq("product_id", productId)
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return (data ?? []).map((row) => ({
-      id: row.id,
-      productId: row.product_id,
-      type: row.type,
-      status: row.status,
-      title: row.title,
-      summary: row.summary,
-      payload: row.payload ?? {},
-      createdBy: row.created_by,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    }));
+    return (data ?? []).map((row) => mapArtifact(row));
+  }
+
+  async countCreativesByCampaign(campaignId: string): Promise<number> {
+    const { count, error } = await this.client
+      .from("artifacts")
+      .select("id", { count: "exact", head: true })
+      .eq("campaign_id", campaignId)
+      .eq("type", "ad_copy");
+    if (error) throw error;
+    return count ?? 0;
   }
 
   async getById(id: string): Promise<Artifact | null> {
@@ -888,24 +887,14 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
       .maybeSingle();
     if (error) throw error;
     if (!data) return null;
-    return {
-      id: data.id,
-      productId: data.product_id,
-      type: data.type,
-      status: data.status,
-      title: data.title,
-      summary: data.summary,
-      payload: data.payload ?? {},
-      createdBy: data.created_by,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-    };
+    return mapArtifact(data);
   }
 
   async create(artifact: Artifact): Promise<Artifact> {
     const { error } = await this.client.from("artifacts").insert({
       id: artifact.id,
       product_id: artifact.productId,
+      campaign_id: artifact.campaignId ?? null,
       type: artifact.type,
       status: artifact.status,
       title: artifact.title,
@@ -923,6 +912,7 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
     const { error } = await this.client
       .from("artifacts")
       .update({
+        campaign_id: artifact.campaignId ?? null,
         status: artifact.status,
         title: artifact.title,
         summary: artifact.summary,
@@ -933,4 +923,32 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
     if (error) throw error;
     return artifact;
   }
+}
+
+function mapArtifact(row: {
+  id: string;
+  product_id: string;
+  campaign_id?: string | null;
+  type: Artifact["type"];
+  status: Artifact["status"];
+  title: string;
+  summary: string;
+  payload: Record<string, unknown> | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}): Artifact {
+  return {
+    id: row.id,
+    productId: row.product_id,
+    campaignId: row.campaign_id ?? null,
+    type: row.type,
+    status: row.status,
+    title: row.title,
+    summary: row.summary,
+    payload: row.payload ?? {},
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }

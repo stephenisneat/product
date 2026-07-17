@@ -45,6 +45,28 @@ export function assertCanCreateCampaign(
   }
 }
 
+export function assertCanCreateCreative(
+  plan: WorkspacePlan,
+  currentCount: number,
+): void {
+  const ents = getEntitlements(plan);
+  if (ents.maxCreativesPerCampaign === 0) {
+    throw new PlanEntitlementError(
+      "Creatives require Hobby or Pro. Upgrade to continue.",
+      "plan_upgrade_required",
+    );
+  }
+  if (
+    ents.maxCreativesPerCampaign != null &&
+    currentCount >= ents.maxCreativesPerCampaign
+  ) {
+    throw new PlanEntitlementError(
+      `Hobby allows ${ents.maxCreativesPerCampaign} creatives per campaign. Upgrade to Pro for unlimited.`,
+      "creative_limit_reached",
+    );
+  }
+}
+
 export function assertHasInsights(plan: WorkspacePlan): void {
   if (!getEntitlements(plan).hasInsights) {
     throw new PlanEntitlementError(
