@@ -13,6 +13,7 @@ import {
   PlusIcon,
   type LucideIcon,
 } from "lucide-react";
+import { NavLink } from "@/components/layout/nav-link";
 import { Button } from "@/components/ui/button";
 
 const catalogPages = [
@@ -72,21 +73,15 @@ export function CatalogNav({ children }: { children?: ReactNode }) {
 
   return (
     <nav className="flex flex-wrap items-center gap-2" aria-label="Catalog">
-      {catalogPages.map(({ href, label, icon: Icon }) => {
-        const isActive = isCatalogNavActive(pathname, href);
-        return (
-          <Button
-            key={href}
-            render={<Link href={href} />}
-            variant={isActive ? "secondary" : "outline"}
-            size="sm"
-            aria-current={isActive ? "page" : undefined}
-          >
-            <Icon data-icon="inline-start" />
-            {label}
-          </Button>
-        );
-      })}
+      {catalogPages.map(({ href, label, icon }) => (
+        <NavLink
+          key={href}
+          href={href}
+          label={label}
+          icon={icon}
+          isActive={isCatalogNavActive(pathname, href)}
+        />
+      ))}
       {children}
     </nav>
   );

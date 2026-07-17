@@ -1,9 +1,7 @@
-import Link from "next/link";
-import { ArrowLeftIcon } from "lucide-react";
 import { redirect } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { PageCanvas } from "@/components/layout/page-canvas";
 import { ChangeEmailForm } from "@/features/auth/change-email-form";
+import { SettingsNav } from "@/features/settings/settings-nav";
 import { getCurrentUser } from "@/lib/auth/session";
 
 export default async function AccountSettingsPage({
@@ -20,19 +18,7 @@ export default async function AccountSettingsPage({
   const emailUpdated = params.emailUpdated === "1";
 
   return (
-    <PageCanvas
-      header={
-        <Button
-          render={<Link href="/" />}
-          variant="ghost"
-          size="sm"
-          className="-ml-2 gap-1.5 text-muted-foreground"
-        >
-          <ArrowLeftIcon className="size-3.5" />
-          Back
-        </Button>
-      }
-    >
+    <PageCanvas header={<SettingsNav />}>
       <div className="mx-auto w-full max-w-2xl px-4 py-6">
         <div className="mb-8">
           <h1 className="font-heading text-2xl font-semibold tracking-tight">
