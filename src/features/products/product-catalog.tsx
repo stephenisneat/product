@@ -8,6 +8,7 @@ import {
   ListFilterIcon,
   PlusIcon,
   SearchIcon,
+  XIcon,
 } from "lucide-react";
 import type { Product, ProductStatus } from "@/domain";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { PageCanvas } from "@/components/layout/page-canvas";
 import { ProductImage } from "@/components/product-image";
 import { CatalogNav } from "@/features/products/catalog-toolbar";
@@ -160,18 +162,6 @@ export function ProductCatalog({ products }: { products: Product[] }) {
         <div className="flex w-full flex-wrap items-center gap-2">
           <CatalogNav />
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search products…"
-                className="h-8 w-44 pl-8 sm:w-56"
-                aria-label="Search products"
-              />
-            </div>
-
             <Popover>
               <PopoverTrigger
                 render={
@@ -186,29 +176,56 @@ export function ProductCatalog({ products }: { products: Product[] }) {
               >
                 <ListFilterIcon />
               </PopoverTrigger>
-              <PopoverContent align="end" className="min-w-48 p-2">
-                <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
-                  Status
-                </p>
-                <div className="space-y-0.5">
-                  {STATUS_FILTERS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={optionItemClass}
-                      onClick={() => setStatusFilter(option.value)}
-                    >
-                      <CheckIcon
-                        className={cn(
-                          "size-4 shrink-0",
-                          statusFilter === option.value
-                            ? "opacity-100"
-                            : "opacity-0",
-                        )}
-                      />
-                      {option.label}
-                    </button>
-                  ))}
+              <PopoverContent align="end" className="min-w-56 p-0">
+                <div className="p-2">
+                  <div className="relative">
+                    <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      placeholder="Search products…"
+                      className="h-8 pr-8 pl-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+                      aria-label="Search products"
+                    />
+                    {query ? (
+                      <button
+                        type="button"
+                        className="absolute top-1/2 right-1.5 flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
+                        aria-label="Clear search"
+                        onClick={() => setQuery("")}
+                      >
+                        <XIcon className="size-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                <Separator className="my-0" />
+                <div className="p-2">
+                  <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
+                    Status
+                  </p>
+                  <div className="space-y-0.5">
+                    {STATUS_FILTERS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={optionItemClass}
+                        onClick={() => setStatusFilter(option.value)}
+                      >
+                        <CheckIcon
+                          className={cn(
+                            "size-4 shrink-0",
+                            statusFilter === option.value
+                              ? "opacity-100"
+                              : "opacity-0",
+                          )}
+                        />
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </PopoverContent>
             </Popover>
