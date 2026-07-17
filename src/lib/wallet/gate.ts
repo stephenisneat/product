@@ -1,9 +1,13 @@
 import type { WorkspacePlan, WorkspaceWallet } from "@/domain";
-import { getEntitlements } from "@/lib/billing/entitlements";
+import {
+  getEntitlements,
+  includedUsageCentsForSeats,
+} from "@/lib/billing/entitlements";
 import { hasServiceRole } from "@/lib/supabase/service";
 import { maybeTriggerAutoReload } from "@/lib/stripe/auto-reload";
 import { billedCostCents } from "@/lib/stripe/pricing";
 import {
+  effectiveIncludedAllotmentCents,
   getWalletBlockedReason,
   getWalletWriteRepository,
 } from "@/repositories";
@@ -23,26 +27,32 @@ export function isWalletAiGateEnabled(): boolean {
 }
 
 export type WalletGateResult =
-  | { ok: true; wallet: WorkspaceWallet; plan: WorkspacePlan }
+  | { ok: true; wallet: WorkspaceWallet; plan: WorkspacePlan; seats: number }
   | {
       ok: false;
       response: Response;
     };
 
-async function resolveWorkspacePlan(workspaceId: string): Promise<WorkspacePlan> {
+async function resolveWorkspaceBilling(workspaceId: string): Promise<{
+  plan: WorkspacePlan;
+  seats: number;
+}> {
   const repo = getWorkspaceWriteRepository();
   const workspace = await repo.getWorkspace(workspaceId);
-  return workspace?.plan ?? "free";
+  return {
+    plan: workspace?.plan ?? "free",
+    seats: workspace?.billedSeats ?? 1,
+  };
 }
 
 export async function assertWalletAllowsAi(
   workspaceId: string,
 ): Promise<WalletGateResult> {
   if (!isWalletAiGateEnabled()) {
-    // Local/dev or unmetered: allow AI without credit balance checks.
     return {
       ok: true,
       plan: "free",
+      seats: 1,
       wallet: {
         workspaceId,
         stripeCustomerId: null,
@@ -52,6 +62,8 @@ export async function assertWalletAllowsAi(
         usageLimitCents: null,
         usageMtdCents: 0,
         adSpendMtdCents: 0,
+        actionsMtd: 0,
+        includedRolloverCents: 0,
         mtdPeriodStart: new Date().toISOString().slice(0, 10),
         autoReloadEnabled: false,
         autoReloadThresholdCents: null,
@@ -63,10 +75,10 @@ export async function assertWalletAllowsAi(
     };
   }
 
-  const plan = await resolveWorkspacePlan(workspaceId);
+  const { plan, seats } = await resolveWorkspaceBilling(workspaceId);
   const repo = getWalletWriteRepository();
-  const wallet = await repo.ensureWallet(workspaceId);
-  const reason = getWalletBlockedReason(wallet, plan);
+  const wallet = await repo.ensureWallet(workspaceId, { plan, seats });
+  const reason = getWalletBlockedReason(wallet, plan, seats);
   if (reason) {
     return {
       ok: false,
@@ -81,7 +93,7 @@ export async function assertWalletAllowsAi(
       ),
     };
   }
-  return { ok: true, wallet, plan };
+  return { ok: true, wallet, plan, seats };
 }
 
 export async function chargeAiUsage(input: {
@@ -93,7 +105,7 @@ export async function chargeAiUsage(input: {
 }): Promise<void> {
   if (!isWalletAiGateEnabled()) return;
 
-  const plan = await resolveWorkspacePlan(input.workspaceId);
+  const { plan, seats } = await resolveWorkspaceBilling(input.workspaceId);
   const ents = getEntitlements(plan);
   const model = input.model ?? CHAT_MODEL;
   const cents = billedCostCents({
@@ -106,11 +118,12 @@ export async function chargeAiUsage(input: {
 
   const repo = getWalletWriteRepository();
   try {
-    await repo.ensureWallet(input.workspaceId);
+    const wallet = await repo.ensureWallet(input.workspaceId, { plan, seats });
+    const allotment = effectiveIncludedAllotmentCents(wallet, plan, seats);
     await repo.chargeAiUsage({
       workspaceId: input.workspaceId,
       amountCents: cents,
-      includedAllotmentCents: ents.includedUsageCents,
+      includedAllotmentCents: allotment,
       allowOverage: ents.allowUsageTopOff,
       description: `AI usage (${model})`,
       metadata: {
@@ -119,12 +132,16 @@ export async function chargeAiUsage(input: {
         outputTokens: input.outputTokens,
         markup: ents.aiMarkup,
         plan,
+        seats,
+        baseAllotmentCents: includedUsageCentsForSeats(plan, seats),
+        rolloverCents: wallet.includedRolloverCents,
       },
       createdBy: input.userId,
+      actionCount: 1,
     });
-    const wallet = await repo.getWallet(input.workspaceId);
-    if (wallet && ents.allowUsageTopOff) {
-      void maybeTriggerAutoReload(wallet).catch((err) => {
+    const updated = await repo.getWallet(input.workspaceId);
+    if (updated && ents.allowUsageTopOff) {
+      void maybeTriggerAutoReload(updated).catch((err) => {
         console.error("[wallet] auto-reload failed", err);
       });
     }

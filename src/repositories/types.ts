@@ -1,5 +1,6 @@
 import type {
   Artifact,
+  BillingInterval,
   Campaign,
   CanonicalProduct,
   CommerceConnection,
@@ -37,6 +38,8 @@ export type WorkspaceUpdateInput = {
   name?: string;
   avatarUrl?: string | null;
   plan?: WorkspacePlan;
+  billingInterval?: BillingInterval | null;
+  billedSeats?: number;
   primaryDomain?: string | null;
   joinDomain?: string | null;
   domainJoinEnabled?: boolean;

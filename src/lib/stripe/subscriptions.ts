@@ -1,6 +1,6 @@
 import type Stripe from "stripe";
-import type { WorkspacePlan } from "@/domain";
-import { isPaidPlan } from "@/lib/billing/entitlements";
+import type { BillingInterval, WorkspacePlan } from "@/domain";
+import { clampSeatCount, isPaidPlan } from "@/lib/billing/entitlements";
 import {
   planFromStripePriceId,
   planFromSubscriptionMetadata,
@@ -14,12 +14,9 @@ function priceIdFromSubscription(sub: Stripe.Subscription): string | null {
   return typeof price === "string" ? price : price.id;
 }
 
-function activePaidPlan(sub: Stripe.Subscription): WorkspacePlan {
-  const priceId = priceIdFromSubscription(sub);
-  return planFromSubscriptionMetadata(
-    sub.metadata as Record<string, string>,
-    priceId,
-  );
+function seatsFromSubscription(sub: Stripe.Subscription): number {
+  const qty = sub.items.data[0]?.quantity;
+  return clampSeatCount(typeof qty === "number" ? qty : 1);
 }
 
 export async function syncWorkspaceSubscription(
@@ -43,19 +40,27 @@ export async function syncWorkspaceSubscription(
     status === "active" || status === "trialing" || status === "past_due";
 
   let plan: WorkspacePlan = "free";
-  if (isActive) {
-    const resolved = activePaidPlan(sub);
-    plan = isPaidPlan(resolved) ? resolved : "free";
-  }
+  let interval: BillingInterval | null = null;
 
-  // Prefer price id when metadata is stale after plan changes in portal.
   if (isActive) {
     const fromPrice = planFromStripePriceId(priceIdFromSubscription(sub));
-    if (fromPrice) plan = fromPrice;
+    if (fromPrice) {
+      plan = fromPrice.plan;
+      interval = fromPrice.interval;
+    } else {
+      const resolved = planFromSubscriptionMetadata(
+        sub.metadata as Record<string, string>,
+        priceIdFromSubscription(sub),
+      );
+      plan = isPaidPlan(resolved.plan) ? resolved.plan : "free";
+      interval = resolved.interval;
+    }
   }
 
   await repo.updateWorkspace(workspaceId, {
     plan,
+    billingInterval: isActive ? interval : null,
+    billedSeats: isActive ? seatsFromSubscription(sub) : 1,
     stripeSubscriptionId: sub.id,
     stripeSubscriptionStatus: status,
   });
@@ -66,17 +71,17 @@ export async function clearWorkspaceSubscription(input: {
   subscriptionId?: string | null;
 }): Promise<void> {
   const repo = getWorkspaceWriteRepository();
-  let workspaceId = input.workspaceId ?? null;
+  const workspaceId = input.workspaceId ?? null;
 
   if (!workspaceId && input.subscriptionId) {
-    // Look up by scanning is expensive; metadata should always be present.
-    // Fallback: leave plan as-is if we can't resolve.
     return;
   }
   if (!workspaceId) return;
 
   await repo.updateWorkspace(workspaceId, {
     plan: "free",
+    billingInterval: null,
+    billedSeats: 1,
     stripeSubscriptionId: null,
     stripeSubscriptionStatus: "canceled",
   });

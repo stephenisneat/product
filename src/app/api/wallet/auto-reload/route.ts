@@ -60,18 +60,9 @@ export async function PATCH(req: Request) {
   }
 
   const plan = active.workspace.plan ?? "free";
-  if (parsed.data.enabled && plan === "free") {
-    return NextResponse.json(
-      {
-        error: "Auto-reload requires Hobby or Pro. Upgrade to continue.",
-        code: "plan_upgrade_required",
-      },
-      { status: 403 },
-    );
-  }
-
+  const seats = active.workspace.billedSeats ?? 1;
   const repo = getWalletWriteRepository();
-  const current = await repo.ensureWallet(active.workspace.id);
+  const current = await repo.ensureWallet(active.workspace.id, { plan, seats });
 
   if (parsed.data.enabled && !current.stripeDefaultPaymentMethodId) {
     return NextResponse.json(
@@ -94,7 +85,7 @@ export async function PATCH(req: Request) {
   });
 
   const blockedReason = isWalletAiGateEnabled()
-    ? getWalletBlockedReason(wallet, active.workspace.plan ?? "free")
+    ? getWalletBlockedReason(wallet, plan, seats)
     : null;
   return NextResponse.json({
     wallet: {
@@ -104,6 +95,9 @@ export async function PATCH(req: Request) {
       usageLimitCents: wallet.usageLimitCents,
       usageMtdCents: wallet.usageMtdCents,
       adSpendMtdCents: wallet.adSpendMtdCents,
+      actionsMtd: wallet.actionsMtd,
+      includedRolloverCents: wallet.includedRolloverCents,
+      includedActions: null,
       resetsOn: nextMonthResetIso(wallet.mtdPeriodStart),
       autoReloadEnabled: wallet.autoReloadEnabled,
       autoReloadThresholdCents: wallet.autoReloadThresholdCents,

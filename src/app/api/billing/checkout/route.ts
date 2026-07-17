@@ -6,19 +6,23 @@ import {
   getActiveWorkspace,
 } from "@/lib/auth/workspace";
 import {
+  clampSeatCount,
   getEntitlements,
   isPaidPlan,
+  type BillingInterval,
   type PaidPlan,
 } from "@/lib/billing/entitlements";
 import { getAppUrl, getStripe, hasStripe } from "@/lib/stripe/client";
 import { ensureStripeCustomer } from "@/lib/stripe/customers";
 import { getStripePriceId } from "@/lib/stripe/subscription-prices";
-import { getWalletWriteRepository } from "@/repositories";
+import { getWalletWriteRepository, getWorkspaceRepository } from "@/repositories";
 
 export const runtime = "nodejs";
 
 const bodySchema = z.object({
   plan: z.enum(["hobby", "pro"]),
+  interval: z.enum(["month", "year"]).default("month"),
+  seats: z.number().int().min(1).max(500).optional(),
 });
 
 export async function POST(req: Request) {
@@ -54,27 +58,26 @@ export async function POST(req: Request) {
   }
 
   const targetPlan = parsed.data.plan as PaidPlan;
+  const interval = parsed.data.interval as BillingInterval;
   if (!isPaidPlan(targetPlan)) {
     return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
   }
 
-  const priceId = getStripePriceId(targetPlan);
+  const priceId = getStripePriceId(targetPlan, interval);
   if (!priceId) {
     return NextResponse.json(
       {
-        error: `Stripe price for ${getEntitlements(targetPlan).name} is not configured`,
+        error: `Stripe ${interval}ly price for ${getEntitlements(targetPlan).name} is not configured`,
       },
       { status: 503 },
     );
   }
 
-  const currentPlan = active.workspace.plan ?? "free";
-  if (currentPlan === targetPlan) {
-    return NextResponse.json(
-      { error: `Already on the ${getEntitlements(targetPlan).name} plan` },
-      { status: 400 },
-    );
-  }
+  const wsRepo = await getWorkspaceRepository();
+  const members = await wsRepo.listMembers(active.workspace.id);
+  const seats = clampSeatCount(
+    parsed.data.seats ?? Math.max(members.length, 1),
+  );
 
   const repo = getWalletWriteRepository();
   const { customerId } = await ensureStripeCustomer(
@@ -87,18 +90,22 @@ export async function POST(req: Request) {
   const session = await getStripe().checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items: [{ price: priceId, quantity: seats }],
     success_url: `${appUrl}/settings/billing?checkout=success`,
     cancel_url: `${appUrl}/settings/billing?checkout=cancelled`,
     subscription_data: {
       metadata: {
         workspace_id: active.workspace.id,
         plan: targetPlan,
+        billing_interval: interval,
+        seats: String(seats),
       },
     },
     metadata: {
       workspace_id: active.workspace.id,
       plan: targetPlan,
+      billing_interval: interval,
+      seats: String(seats),
       user_id: user.id,
       purpose: "subscription",
     },
@@ -112,5 +119,10 @@ export async function POST(req: Request) {
     );
   }
 
-  return NextResponse.json({ url: session.url, sessionId: session.id });
+  return NextResponse.json({
+    url: session.url,
+    sessionId: session.id,
+    seats,
+    interval,
+  });
 }

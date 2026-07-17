@@ -466,7 +466,6 @@ export function WalletMenu() {
   const [usageOpen, setUsageOpen] = useState(false);
   const [autoReloadOpen, setAutoReloadOpen] = useState(false);
   const adSpendLocked = plan === "free";
-  const canTopOff = plan !== "free";
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -508,13 +507,8 @@ export function WalletMenu() {
       <CreditBalanceMenu
         wallet={wallet}
         loading={loading}
-        onAutoReload={() => {
-          if (canTopOff) setAutoReloadOpen(true);
-        }}
-        onBuyCredits={() => {
-          if (canTopOff) setOpenBuyCredits(true);
-          else window.location.href = "/settings/billing";
-        }}
+        onAutoReload={() => setAutoReloadOpen(true)}
+        onBuyCredits={() => setOpenBuyCredits(true)}
       />
 
       {wallet ? (

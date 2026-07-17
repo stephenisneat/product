@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { BillingPanel } from "@/features/billing/billing-panel";
+import { getWorkspaceRepository } from "@/repositories";
 
 export default async function BillingSettingsPage({
   searchParams,
@@ -17,6 +18,9 @@ export default async function BillingSettingsPage({
   if (!active) {
     redirect("/");
   }
+
+  const repo = await getWorkspaceRepository();
+  const members = await repo.listMembers(active.workspace.id);
 
   const params = await searchParams;
   const checkoutNote =
@@ -34,14 +38,18 @@ export default async function BillingSettingsPage({
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Choose a plan for {active.workspace.name}. Included AI usage renews
-          each month.
+          each month with rollover.
         </p>
         {checkoutNote ? (
           <p className="mt-2 text-sm text-muted-foreground">{checkoutNote}</p>
         ) : null}
       </div>
 
-      <BillingPanel workspace={active.workspace} role={active.role} />
+      <BillingPanel
+        workspace={active.workspace}
+        role={active.role}
+        memberCount={members.length}
+      />
     </div>
   );
 }

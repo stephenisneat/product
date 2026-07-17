@@ -16,7 +16,6 @@ describe("AI pricing", () => {
   });
 
   it("computes provider cost for gpt-4.1-mini", () => {
-    // 1M input @ $0.40 + 1M output @ $1.60 = $2.00
     const usd = providerCostUsd({
       model: "gpt-4.1-mini",
       inputTokens: 1_000_000,
@@ -35,9 +34,6 @@ describe("AI pricing", () => {
   });
 
   it("bills at 1.5x and rounds up to cents", () => {
-    // 1000 input tokens: 1000/1e6 * 0.4 = 0.0004 USD
-    // 500 output: 500/1e6 * 1.6 = 0.0008 USD
-    // total 0.0012 * 1.5 = 0.0018 USD → ceil to 1 cent minimum
     const cents = billedCostCents({
       model: "gpt-4.1-mini",
       inputTokens: 1000,
@@ -57,8 +53,6 @@ describe("AI pricing", () => {
   });
 
   it("scales for larger usage", () => {
-    // 500k in + 500k out:
-    // 0.5*0.4 + 0.5*1.6 = 0.2 + 0.8 = 1.0 USD * 1.5 = 1.5 USD = 150 cents
     const cents = billedCostCents({
       model: "gpt-4.1-mini",
       inputTokens: 500_000,
@@ -67,15 +61,14 @@ describe("AI pricing", () => {
     expect(cents).toBe(150);
   });
 
-  it("respects custom markup (Pro 1.25x)", () => {
+  it("respects Pro 1.0x pass-through markup", () => {
     const cents = billedCostCents({
       model: "gpt-4.1-mini",
       inputTokens: 500_000,
       outputTokens: 500_000,
-      markup: 1.25,
+      markup: 1.0,
     });
-    // 1.0 USD * 1.25 = 1.25 USD = 125 cents
-    expect(cents).toBe(125);
+    expect(cents).toBe(100);
   });
 });
 
@@ -89,6 +82,8 @@ describe("wallet helpers", () => {
     usageLimitCents: null,
     usageMtdCents: 0,
     adSpendMtdCents: 0,
+    actionsMtd: 0,
+    includedRolloverCents: 0,
     mtdPeriodStart: "2026-07-01",
     autoReloadEnabled: false,
     autoReloadThresholdCents: null,
@@ -98,19 +93,42 @@ describe("wallet helpers", () => {
     updatedAt: "2026-07-01T00:00:00.000Z",
   };
 
-  it("allows Free with zero balance while included allotment remains", () => {
+  it("allows Free with zero balance while included actions remain", () => {
     expect(
       getWalletBlockedReason({ ...base, balanceCents: 0 }, "free"),
     ).toBeNull();
   });
 
-  it("blocks Free when included allotment is exhausted", () => {
+  it("blocks Free when actions exhausted and no top-off balance", () => {
     expect(
       getWalletBlockedReason(
-        { ...base, balanceCents: 500, usageMtdCents: 150 },
+        { ...base, balanceCents: 0, actionsMtd: 100, usageMtdCents: 50 },
         "free",
       ),
-    ).toBe("usage_limit");
+    ).toBe("zero_balance");
+  });
+
+  it("allows Free top-off after action cap when balance remains", () => {
+    expect(
+      getWalletBlockedReason(
+        { ...base, balanceCents: 200, actionsMtd: 100, usageMtdCents: 200 },
+        "free",
+      ),
+    ).toBeNull();
+  });
+
+  it("counts rollover toward included allotment", () => {
+    expect(
+      getWalletBlockedReason(
+        {
+          ...base,
+          balanceCents: 0,
+          usageMtdCents: 200,
+          includedRolloverCents: 100,
+        },
+        "free",
+      ),
+    ).toBeNull();
   });
 
   it("blocks Hobby on zero balance after allotment", () => {

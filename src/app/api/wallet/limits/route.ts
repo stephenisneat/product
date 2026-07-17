@@ -46,6 +46,7 @@ export async function PATCH(req: Request) {
   }
 
   const plan = active.workspace.plan ?? "free";
+  const seats = active.workspace.billedSeats ?? 1;
   if (parsed.data.adSpendLimitCents !== undefined) {
     try {
       assertCanSpendAndLaunch(plan);
@@ -61,7 +62,7 @@ export async function PATCH(req: Request) {
   }
 
   const repo = getWalletWriteRepository();
-  const current = await repo.ensureWallet(active.workspace.id);
+  const current = await repo.ensureWallet(active.workspace.id, { plan, seats });
   const wallet = await repo.updateLimits(active.workspace.id, {
     adSpendLimitCents:
       parsed.data.adSpendLimitCents !== undefined
@@ -74,7 +75,7 @@ export async function PATCH(req: Request) {
   });
 
   const blockedReason = isWalletAiGateEnabled()
-    ? getWalletBlockedReason(wallet, plan)
+    ? getWalletBlockedReason(wallet, plan, seats)
     : null;
   return NextResponse.json({
     wallet: {
@@ -84,6 +85,9 @@ export async function PATCH(req: Request) {
       usageLimitCents: wallet.usageLimitCents,
       usageMtdCents: wallet.usageMtdCents,
       adSpendMtdCents: wallet.adSpendMtdCents,
+      actionsMtd: wallet.actionsMtd,
+      includedRolloverCents: wallet.includedRolloverCents,
+      includedActions: null,
       resetsOn: nextMonthResetIso(wallet.mtdPeriodStart),
       autoReloadEnabled: wallet.autoReloadEnabled,
       autoReloadThresholdCents: wallet.autoReloadThresholdCents,

@@ -7,17 +7,18 @@ import type { Workspace, WorkspacePlan, WorkspaceRole } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  ANNUAL_DISCOUNT,
   PLAN_ENTITLEMENTS,
+  clampSeatCount,
+  effectiveMonthlyCentsPerSeat,
+  featureBullets,
+  formatUsd,
   getEntitlements,
+  priceCentsPerSeat,
+  type BillingInterval,
   type PaidPlan,
 } from "@/lib/billing/entitlements";
 import { cn } from "@/lib/utils";
-
-function formatUsd(cents: number) {
-  if (cents === 0) return "$0";
-  if (cents % 100 === 0) return `$${cents / 100}`;
-  return `$${(cents / 100).toFixed(2)}`;
-}
 
 function planBadgeClass(plan: WorkspacePlan) {
   const color = getEntitlements(plan).badgeColor;
@@ -32,49 +33,24 @@ function planBadgeClass(plan: WorkspacePlan) {
 
 const PLAN_ORDER: WorkspacePlan[] = ["free", "hobby", "pro"];
 
-function featureBullets(plan: WorkspacePlan): string[] {
-  const e = getEntitlements(plan);
-  const bullets: string[] = [
-    `${formatUsd(e.includedUsageCents)} AI usage included / mo`,
-  ];
-  if (e.allowUsageTopOff) {
-    bullets.push("Top off credits after included usage");
-  } else {
-    bullets.push("No credit top-offs (upgrade to continue)");
-  }
-  if (e.maxCampaignsPerProduct === null) {
-    bullets.push("Unlimited campaigns per product");
-  } else if (e.maxCampaignsPerProduct === 0) {
-    bullets.push("Campaign concepts only (no launch)");
-  } else {
-    bullets.push(`Up to ${e.maxCampaignsPerProduct} campaigns per product`);
-  }
-  if (e.canSpendAndLaunch) {
-    bullets.push("Add ad spend & launch campaigns");
-  } else {
-    bullets.push("Ad spend & launch locked");
-  }
-  if (e.hasInsights) {
-    bullets.push("Insights unlocked");
-  } else {
-    bullets.push("Insights locked");
-  }
-  if (plan === "pro") {
-    bullets.push("Better AI rates (~20% more usage per dollar)");
-  }
-  return bullets;
-}
-
 export function BillingPanel({
   workspace,
   role,
+  memberCount = 1,
 }: {
   workspace: Workspace;
   role: WorkspaceRole;
+  memberCount?: number;
 }) {
   const router = useRouter();
   const isOwner = role === "owner";
   const currentPlan = workspace.plan ?? "free";
+  const [interval, setInterval] = useState<BillingInterval>(
+    workspace.billingInterval === "year" ? "year" : "month",
+  );
+  const [seats, setSeats] = useState(
+    clampSeatCount(workspace.billedSeats || memberCount || 1),
+  );
   const [busyPlan, setBusyPlan] = useState<PaidPlan | null>(null);
   const [portalBusy, setPortalBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,7 +65,7 @@ export function BillingPanel({
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, interval, seats }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
@@ -136,13 +112,17 @@ export function BillingPanel({
           >
             {getEntitlements(currentPlan).name}
           </Badge>
+          {workspace.billingInterval ? (
+            <span className="text-xs text-muted-foreground">
+              · billed {workspace.billingInterval}ly ·{" "}
+              {workspace.billedSeats ?? 1} seat
+              {(workspace.billedSeats ?? 1) === 1 ? "" : "s"}
+            </span>
+          ) : null}
         </div>
         <p className="text-sm text-muted-foreground">
-          {formatUsd(getEntitlements(currentPlan).includedUsageCents)} included
-          AI usage each month
-          {getEntitlements(currentPlan).allowUsageTopOff
-            ? ", then top off with wallet credits."
-            : ". Upgrade to Hobby or Pro for more usage and campaigns."}
+          Per-seat pricing. Included AI usage scales with seats and unused
+          allotment rolls over (capped at one month).
         </p>
         {isOwner && currentPlan !== "free" ? (
           <Button
@@ -165,13 +145,82 @@ export function BillingPanel({
         ) : null}
       </section>
 
+      {isOwner ? (
+        <section className="flex flex-wrap items-end gap-4">
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground">Billing</p>
+            <div className="inline-flex rounded-lg border border-border p-0.5">
+              <button
+                type="button"
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  interval === "month"
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => setInterval("month")}
+              >
+                Monthly
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  interval === "year"
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => setInterval("year")}
+              >
+                Annual
+                <span className="ml-1 text-[10px] opacity-80">
+                  −{Math.round(ANNUAL_DISCOUNT * 100)}%
+                </span>
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label
+              htmlFor="billing-seats"
+              className="text-xs font-medium text-muted-foreground"
+            >
+              Seats
+            </label>
+            <input
+              id="billing-seats"
+              type="number"
+              min={1}
+              max={500}
+              value={seats}
+              onChange={(e) =>
+                setSeats(clampSeatCount(Number(e.target.value) || 1))
+              }
+              className="h-8 w-20 rounded-md border border-border bg-background px-2 text-sm"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              {memberCount} member{memberCount === 1 ? "" : "s"} today
+            </p>
+          </div>
+        </section>
+      ) : null}
+
       <section className="grid gap-4 sm:grid-cols-3">
         {PLAN_ORDER.map((plan) => {
           const e = PLAN_ENTITLEMENTS[plan];
-          const isCurrent = plan === currentPlan;
+          const isCurrent =
+            plan === currentPlan &&
+            (plan === "free" ||
+              (workspace.billingInterval ?? "month") === interval);
           const isPaid = plan === "hobby" || plan === "pro";
           const canSelect =
-            isOwner && isPaid && !isCurrent && busyPlan === null;
+            isOwner && isPaid && busyPlan === null;
+          const perSeat =
+            interval === "year"
+              ? effectiveMonthlyCentsPerSeat(plan)
+              : e.priceCentsPerSeatMonthly;
+          const periodTotal = isPaid
+            ? priceCentsPerSeat(plan, interval) * seats
+            : 0;
 
           return (
             <div
@@ -198,13 +247,27 @@ export function BillingPanel({
                 ) : null}
               </div>
               <p className="font-heading text-2xl font-semibold tracking-tight">
-                {formatUsd(e.priceCents)}
+                {formatUsd(perSeat)}
                 <span className="text-sm font-normal text-muted-foreground">
-                  /mo
+                  /seat/mo
                 </span>
               </p>
+              {isPaid && interval === "year" ? (
+                <p className="text-[11px] text-muted-foreground">
+                  {formatUsd(periodTotal)} billed annually
+                </p>
+              ) : isPaid ? (
+                <p className="text-[11px] text-muted-foreground">
+                  {formatUsd(periodTotal)} / mo for {seats} seat
+                  {seats === 1 ? "" : "s"}
+                </p>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">
+                  Forever free · top-offs available
+                </p>
+              )}
               <ul className="mt-3 flex-1 space-y-1.5 text-xs text-muted-foreground">
-                {featureBullets(plan).map((line) => (
+                {featureBullets(plan, { seats }).map((line) => (
                   <li key={line} className="flex gap-1.5">
                     <CheckIcon className="mt-0.5 size-3 shrink-0" />
                     <span>{line}</span>
@@ -223,9 +286,7 @@ export function BillingPanel({
                   {busyPlan === plan ? (
                     <Loader2Icon className="size-4 animate-spin" />
                   ) : null}
-                  {isCurrent
-                    ? "Current plan"
-                    : `Upgrade to ${e.name}`}
+                  {isCurrent ? "Current plan" : `Upgrade to ${e.name}`}
                 </Button>
               ) : (
                 <Button
@@ -249,8 +310,8 @@ export function BillingPanel({
       ) : null}
 
       <p className="text-xs text-muted-foreground">
-        Plans are billed per workspace. Included usage resets monthly and does
-        not roll over.{" "}
+        Plans are billed per seat. Included usage resets monthly with rollover
+        (up to one month).{" "}
         <button
           type="button"
           className="underline underline-offset-2 hover:text-foreground"

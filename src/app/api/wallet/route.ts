@@ -5,10 +5,14 @@ import {
   canManageMembers,
   getActiveWorkspace,
 } from "@/lib/auth/workspace";
-import { getEntitlements } from "@/lib/billing/entitlements";
+import {
+  getEntitlements,
+  includedUsageCentsForSeats,
+} from "@/lib/billing/entitlements";
 import { hasServiceRole } from "@/lib/supabase/service";
 import { isWalletAiGateEnabled } from "@/lib/wallet/gate";
 import {
+  effectiveIncludedAllotmentCents,
   getWalletBlockedReason,
   getWalletWriteRepository,
   nextMonthResetIso,
@@ -35,21 +39,29 @@ export async function GET() {
   }
 
   try {
-    const repo = getWalletWriteRepository();
-    const wallet = await repo.ensureWallet(active.workspace.id);
     const plan = active.workspace.plan ?? "free";
+    const seats = active.workspace.billedSeats ?? 1;
+    const repo = getWalletWriteRepository();
+    const wallet = await repo.ensureWallet(active.workspace.id, {
+      plan,
+      seats,
+    });
     const blockedReason = isWalletAiGateEnabled()
-      ? getWalletBlockedReason(wallet, plan)
+      ? getWalletBlockedReason(wallet, plan, seats)
       : null;
     const ents = getEntitlements(plan);
+    const included = effectiveIncludedAllotmentCents(wallet, plan, seats);
 
     const summary: WalletSummary = {
       balanceCents: wallet.balanceCents,
       currency: wallet.currency,
       adSpendLimitCents: wallet.adSpendLimitCents,
-      usageLimitCents: wallet.usageLimitCents ?? ents.includedUsageCents,
+      usageLimitCents: wallet.usageLimitCents ?? included,
       usageMtdCents: wallet.usageMtdCents,
       adSpendMtdCents: wallet.adSpendMtdCents,
+      actionsMtd: wallet.actionsMtd,
+      includedRolloverCents: wallet.includedRolloverCents,
+      includedActions: ents.includedActions,
       resetsOn: nextMonthResetIso(wallet.mtdPeriodStart),
       autoReloadEnabled: wallet.autoReloadEnabled,
       autoReloadThresholdCents: wallet.autoReloadThresholdCents,
@@ -63,9 +75,15 @@ export async function GET() {
     return NextResponse.json({
       wallet: summary,
       plan,
+      seats,
+      billingInterval: active.workspace.billingInterval ?? null,
       entitlements: {
-        includedUsageCents: ents.includedUsageCents,
+        includedUsageCents: includedUsageCentsForSeats(plan, seats),
+        includedRolloverCents: wallet.includedRolloverCents,
+        effectiveIncludedCents: included,
+        includedActions: ents.includedActions,
         allowUsageTopOff: ents.allowUsageTopOff,
+        allowIncludedRollover: ents.allowIncludedRollover,
         aiMarkup: ents.aiMarkup,
       },
     });

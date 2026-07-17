@@ -43,6 +43,7 @@ export type {
 } from "./types";
 export type { SupabaseWalletRepository } from "./wallet";
 export {
+  effectiveIncludedAllotmentCents,
   getWalletBlockedReason,
   nextMonthResetIso,
   remainingIncludedUsageCents,

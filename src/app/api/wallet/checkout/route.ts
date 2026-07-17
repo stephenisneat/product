@@ -53,17 +53,6 @@ export async function POST(req: Request) {
   }
 
   const { amountCents } = parsed.data;
-  const plan = active.workspace.plan ?? "free";
-  if (plan === "free") {
-    return NextResponse.json(
-      {
-        error:
-          "Free workspaces cannot buy credits. Upgrade to Hobby or Pro to top off usage.",
-        code: "plan_upgrade_required",
-      },
-      { status: 403 },
-    );
-  }
 
   const repo = getWalletWriteRepository();
   const { customerId } = await ensureStripeCustomer(
