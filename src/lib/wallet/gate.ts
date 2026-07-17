@@ -10,6 +10,16 @@ import {
 /** AI Gateway model id (`provider/model`). */
 const CHAT_MODEL = "openai/gpt-4.1-mini";
 
+/**
+ * Credit-balance / usage-limit gates for AI.
+ * Disabled locally (`next dev`) and when the service role key is unset,
+ * so development is not blocked by empty wallets.
+ */
+export function isWalletAiGateEnabled(): boolean {
+  if (process.env.NODE_ENV === "development") return false;
+  return hasServiceRole();
+}
+
 export type WalletGateResult =
   | { ok: true; wallet: WorkspaceWallet }
   | {
@@ -20,8 +30,8 @@ export type WalletGateResult =
 export async function assertWalletAllowsAi(
   workspaceId: string,
 ): Promise<WalletGateResult> {
-  if (!hasServiceRole()) {
-    // Without service role we cannot meter; allow AI so local/dev still works.
+  if (!isWalletAiGateEnabled()) {
+    // Local/dev or unmetered: allow AI without credit balance checks.
     return {
       ok: true,
       wallet: {
@@ -70,7 +80,7 @@ export async function chargeAiUsage(input: {
   outputTokens: number;
   model?: string;
 }): Promise<void> {
-  if (!hasServiceRole()) return;
+  if (!isWalletAiGateEnabled()) return;
 
   const model = input.model ?? CHAT_MODEL;
   const cents = billedCostCents({

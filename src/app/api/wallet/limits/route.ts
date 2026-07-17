@@ -5,6 +5,7 @@ import {
   canManageMembers,
   getActiveWorkspace,
 } from "@/lib/auth/workspace";
+import { isWalletAiGateEnabled } from "@/lib/wallet/gate";
 import {
   getWalletBlockedReason,
   getWalletWriteRepository,
@@ -53,7 +54,9 @@ export async function PATCH(req: Request) {
         : current.usageLimitCents,
   });
 
-  const blockedReason = getWalletBlockedReason(wallet);
+  const blockedReason = isWalletAiGateEnabled()
+    ? getWalletBlockedReason(wallet)
+    : null;
   return NextResponse.json({
     wallet: {
       balanceCents: wallet.balanceCents,

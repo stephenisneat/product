@@ -6,6 +6,7 @@ import {
   getActiveWorkspace,
 } from "@/lib/auth/workspace";
 import { hasServiceRole } from "@/lib/supabase/service";
+import { isWalletAiGateEnabled } from "@/lib/wallet/gate";
 import {
   getWalletBlockedReason,
   getWalletWriteRepository,
@@ -35,7 +36,9 @@ export async function GET() {
   try {
     const repo = getWalletWriteRepository();
     const wallet = await repo.ensureWallet(active.workspace.id);
-    const blockedReason = getWalletBlockedReason(wallet);
+    const blockedReason = isWalletAiGateEnabled()
+      ? getWalletBlockedReason(wallet)
+      : null;
 
     const summary: WalletSummary = {
       balanceCents: wallet.balanceCents,
