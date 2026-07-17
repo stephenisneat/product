@@ -14,11 +14,11 @@ export const PRODUCT_TYPE_OPTIONS: {
   {
     value: "mobile_app",
     label: "Mobile app",
-    description: "iOS, Android, or web applications",
+    description: "iOS, Android, and web apps",
   },
   {
     value: "website",
-    label: "Website",
+    label: "Web app",
     description: "Marketing sites, SaaS products, and content",
   },
   {

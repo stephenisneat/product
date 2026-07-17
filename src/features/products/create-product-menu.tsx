@@ -49,8 +49,19 @@ const TYPE_ICONS: Record<ProductType, typeof ShoppingBagIcon> = {
   election: VoteIcon,
 };
 
+const TYPE_EXAMPLES: Record<ProductType, [string, string, string]> = {
+  ecommerce: ["Nike sneakers", "Allbirds wool runners", "Glossier skincare"],
+  mobile_app: ["Duolingo", "Strava", "Headspace"],
+  website: ["Notion", "Linear", "Stripe"],
+  brick_and_mortar: ["Apple Store", "Sweetgreen", "Warby Parker"],
+  event: ["Coachella", "Web Summit", "F1 Grand Prix"],
+  election: ["Presidential race", "Senate campaign", "Mayoral race"],
+};
+
 const optionCardClass =
-  "flex h-full min-h-0 flex-col items-start gap-3 rounded-xl border border-border bg-background p-4 text-left outline-none transition-colors hover:border-foreground/20 hover:bg-accent/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50";
+  "flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-border bg-background px-5 py-8 text-center outline-none transition-colors hover:border-foreground/20 hover:bg-accent/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50";
+
+const optionGridClass = "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4";
 
 type Step =
   | { kind: "type" }
@@ -126,7 +137,7 @@ export function CreateProductMenu({
 
   const crumbs: Crumb[] = [
     {
-      label: "Add products",
+      label: "Select type",
       onClick: step.kind === "type" ? undefined : () => setStep({ kind: "type" }),
     },
   ];
@@ -170,7 +181,7 @@ export function CreateProductMenu({
       </DialogTrigger>
       <DialogContent
         showCloseButton={false}
-        overlayClassName="bg-black/50 supports-backdrop-filter:backdrop-blur-xs"
+        overlayClassName="bg-black/65 supports-backdrop-filter:backdrop-blur-xs"
         className="inset-10 flex h-auto max-h-none w-auto max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden p-0 sm:inset-16 sm:max-w-none lg:inset-24"
       >
         <header className="flex shrink-0 items-center gap-3 border-b border-border px-6 py-4">
@@ -237,13 +248,14 @@ export function CreateProductMenu({
 
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">
           {step.kind === "type" ? (
-            <div className="flex min-h-0 flex-1 flex-col gap-6">
-              <h2 className="font-heading shrink-0 text-2xl font-semibold tracking-tight sm:text-3xl">
+            <div className="flex flex-col gap-8">
+              <h2 className="font-heading py-2 text-center text-3xl font-semibold tracking-tight sm:py-4 sm:text-4xl">
                 What are you selling?
               </h2>
-              <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 lg:grid-cols-3">
+              <div className={optionGridClass}>
                 {PRODUCT_TYPE_OPTIONS.map((option) => {
                   const Icon = TYPE_ICONS[option.value];
+                  const examples = TYPE_EXAMPLES[option.value];
                   return (
                     <button
                       key={option.value}
@@ -258,8 +270,11 @@ export function CreateProductMenu({
                         <span className="block text-sm font-medium">
                           {option.label}
                         </span>
-                        <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                        <span className="mt-1.5 block text-xs leading-relaxed text-muted-foreground">
                           {option.description}
+                        </span>
+                        <span className="mt-1.5 block text-xs leading-relaxed text-muted-foreground/80">
+                          {examples.join(" · ")}
                         </span>
                       </span>
                     </button>
@@ -270,28 +285,11 @@ export function CreateProductMenu({
           ) : null}
 
           {step.kind === "ecommerce-source" ? (
-            <div className="flex min-h-0 flex-1 flex-col gap-6">
-              <h2 className="font-heading shrink-0 text-2xl font-semibold tracking-tight sm:text-3xl">
+            <div className="flex flex-col gap-6">
+              <h2 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
                 How do you want to add it?
               </h2>
-              <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 lg:grid-cols-3">
-                <button
-                  type="button"
-                  className={optionCardClass}
-                  onClick={() =>
-                    setStep({ kind: "create", productType: "ecommerce" })
-                  }
-                >
-                  <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-foreground">
-                    <PenLineIcon className="size-4" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium">Manual</span>
-                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                      Enter product details yourself
-                    </span>
-                  </span>
-                </button>
+              <div className={optionGridClass}>
                 <button
                   type="button"
                   className={optionCardClass}
@@ -302,7 +300,7 @@ export function CreateProductMenu({
                   </span>
                   <span className="min-w-0">
                     <span className="block text-sm font-medium">Shopify</span>
-                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                    <span className="mt-1.5 block text-xs leading-relaxed text-muted-foreground">
                       Sync products from your Shopify store
                     </span>
                   </span>
@@ -319,12 +317,29 @@ export function CreateProductMenu({
                     </span>
                     <span className="min-w-0">
                       <span className="block text-sm font-medium">{name}</span>
-                      <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                      <span className="mt-1.5 block text-xs leading-relaxed text-muted-foreground">
                         Coming soon
                       </span>
                     </span>
                   </button>
                 ))}
+                <button
+                  type="button"
+                  className={optionCardClass}
+                  onClick={() =>
+                    setStep({ kind: "create", productType: "ecommerce" })
+                  }
+                >
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-foreground">
+                    <PenLineIcon className="size-4" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">Manual</span>
+                    <span className="mt-1.5 block text-xs leading-relaxed text-muted-foreground">
+                      Enter product details yourself
+                    </span>
+                  </span>
+                </button>
               </div>
             </div>
           ) : null}
