@@ -4,6 +4,11 @@ export function formatCents(cents: number, currency = "USD"): string {
   return formatMoney(cents / 100, currency);
 }
 
+/** Whole dollars only — rounds down (e.g. header balance trigger). */
+export function formatCentsFloorDollars(cents: number, currency = "USD"): string {
+  return formatMoney(Math.floor(cents / 100), currency);
+}
+
 export function dollarsToCents(dollars: number): number {
   return Math.round(dollars * 100);
 }

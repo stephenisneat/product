@@ -22,7 +22,7 @@ import {
   AutoReloadDialog,
   EditLimitDialog,
 } from "@/features/wallet/wallet-dialogs";
-import { formatCents } from "@/features/wallet/money";
+import { formatCents, formatCentsFloorDollars } from "@/features/wallet/money";
 import { cn } from "@/lib/utils";
 
 /** Remaining capacity below this is treated as "getting low". */
@@ -353,7 +353,9 @@ function CreditBalanceMenu({
                 : balanceToneClass(remainingPct),
             )}
           >
-            {loading && !wallet ? "…" : formatCents(wallet?.balanceCents ?? 0)}
+            {loading && !wallet
+              ? "…"
+              : formatCentsFloorDollars(wallet?.balanceCents ?? 0)}
           </span>
           Balance
         </>
