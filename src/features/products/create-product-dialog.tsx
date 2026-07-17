@@ -392,6 +392,8 @@ export function CreateProductButton({
   open: openProp,
   onOpenChange: onOpenChangeProp,
   showTrigger = true,
+  embedded = false,
+  onSuccess,
 }: {
   productType?: ProductType;
   variant?: "default" | "outline" | "secondary" | "ghost";
@@ -401,6 +403,8 @@ export function CreateProductButton({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   showTrigger?: boolean;
+  embedded?: boolean;
+  onSuccess?: () => void;
 }) {
   const router = useRouter();
   const fileInputId = useId();
@@ -562,7 +566,15 @@ export function CreateProductButton({
       }
 
       toast.success(`${productTypeLabel(productType)} created`);
-      onOpenChange(false);
+      if (onSuccess) {
+        resetForm();
+        if (!isControlled) {
+          setUncontrolledOpen(false);
+        }
+        onSuccess();
+      } else {
+        onOpenChange(false);
+      }
       router.push(`/products/${body.product?.id ?? productId}`);
       router.refresh();
     } catch (err) {
@@ -575,22 +587,11 @@ export function CreateProductButton({
   const typeLabel = productTypeLabel(productType);
   const fieldErrors = errors as Record<string, { message?: string } | undefined>;
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      {showTrigger ? (
-        <DialogTrigger
-          render={<Button variant={variant} size={size} className={className} />}
-        >
-          <PlusIcon data-icon="inline-start" />
-          {label}
-        </DialogTrigger>
-      ) : null}
-      <DialogContent className="max-h-[min(90vh,720px)] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>New {typeLabel.toLowerCase()}</DialogTitle>
-          <DialogDescription>{TYPE_DESCRIPTIONS[productType]}</DialogDescription>
-        </DialogHeader>
+  if (embedded && !open) {
+    return null;
+  }
 
+  const form = (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor={fileInputId}>Images</Label>
@@ -1189,7 +1190,13 @@ export function CreateProductButton({
 
           {error ? <p className="text-xs text-destructive">{error}</p> : null}
 
-          <DialogFooter className="pt-2">
+          <DialogFooter
+            className={
+              embedded
+                ? "mx-0 mb-0 rounded-xl border border-border bg-muted/40"
+                : "pt-2"
+            }
+          >
             <Button
               type="button"
               variant="outline"
@@ -1203,6 +1210,40 @@ export function CreateProductButton({
             </Button>
           </DialogFooter>
         </form>
+  );
+
+  if (embedded) {
+    return (
+      <div className="mx-auto w-full max-w-lg">
+        <div className="mb-4 space-y-1">
+          <h2 className="font-heading text-base font-medium">
+            New {typeLabel.toLowerCase()}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {TYPE_DESCRIPTIONS[productType]}
+          </p>
+        </div>
+        {form}
+      </div>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {showTrigger ? (
+        <DialogTrigger
+          render={<Button variant={variant} size={size} className={className} />}
+        >
+          <PlusIcon data-icon="inline-start" />
+          {label}
+        </DialogTrigger>
+      ) : null}
+      <DialogContent className="max-h-[min(90vh,720px)] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>New {typeLabel.toLowerCase()}</DialogTitle>
+          <DialogDescription>{TYPE_DESCRIPTIONS[productType]}</DialogDescription>
+        </DialogHeader>
+        {form}
       </DialogContent>
     </Dialog>
   );

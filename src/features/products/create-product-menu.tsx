@@ -1,29 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   Building2Icon,
   CalendarDaysIcon,
+  ChevronRightIcon,
   GlobeIcon,
+  PenLineIcon,
   PlusIcon,
   ShoppingBagIcon,
   SmartphoneIcon,
   StoreIcon,
   VoteIcon,
+  XIcon,
 } from "lucide-react";
+import { toast } from "sonner";
 import type { ProductType } from "@/domain";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { CreateProductButton } from "@/features/products/create-product-dialog";
 import { ImportShopifyDialog } from "@/features/products/import-shopify-dialog";
-import { PRODUCT_TYPE_OPTIONS } from "@/lib/products/product-type";
+import {
+  PRODUCT_TYPE_OPTIONS,
+  productTypeLabel,
+} from "@/lib/products/product-type";
 import { cn } from "@/lib/utils";
 
 const COMING_SOON = [
@@ -45,6 +52,17 @@ const TYPE_ICONS: Record<ProductType, typeof ShoppingBagIcon> = {
 const optionCardClass =
   "flex h-full min-h-0 flex-col items-start gap-3 rounded-xl border border-border bg-background p-4 text-left outline-none transition-colors hover:border-foreground/20 hover:bg-accent/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50";
 
+type Step =
+  | { kind: "type" }
+  | { kind: "ecommerce-source" }
+  | { kind: "create"; productType: ProductType }
+  | { kind: "shopify" };
+
+type Crumb = {
+  label: string;
+  onClick?: () => void;
+};
+
 export function CreateProductMenu({
   variant = "default",
   size = "sm",
@@ -57,40 +75,172 @@ export function CreateProductMenu({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [manualOpen, setManualOpen] = useState(false);
-  const [productType, setProductType] = useState<ProductType>("ecommerce");
-  const [shopifyOpen, setShopifyOpen] = useState(false);
+  const [step, setStep] = useState<Step>({ kind: "type" });
+  const [, startTransition] = useTransition();
 
-  function openType(type: ProductType) {
-    setOpen(false);
-    setProductType(type);
-    setManualOpen(true);
+  function resetFlow() {
+    setStep({ kind: "type" });
+  }
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) {
+      resetFlow();
+    }
+  }
+
+  function selectType(type: ProductType) {
+    if (type === "ecommerce") {
+      setStep({ kind: "ecommerce-source" });
+      return;
+    }
+    setStep({ kind: "create", productType: type });
+  }
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("shopify");
+    if (!status) return;
+
+    const shop = params.get("shop");
+    const reason = params.get("reason") ?? "unknown";
+
+    params.delete("shopify");
+    params.delete("shop");
+    params.delete("reason");
+    const next = params.toString();
+    const path = `${window.location.pathname}${next ? `?${next}` : ""}`;
+    window.history.replaceState({}, "", path);
+
+    if (status === "connected") {
+      toast.success(shop ? `Connected to ${shop}` : "Shopify store connected");
+      startTransition(() => {
+        setOpen(true);
+        setStep({ kind: "shopify" });
+      });
+    } else if (status === "error") {
+      toast.error(`Shopify connection failed (${reason})`);
+    }
+  }, [startTransition]);
+
+  const crumbs: Crumb[] = [
+    {
+      label: "Add products",
+      onClick: step.kind === "type" ? undefined : () => setStep({ kind: "type" }),
+    },
+  ];
+
+  if (step.kind === "ecommerce-source" || step.kind === "shopify") {
+    crumbs.push({
+      label: "Ecommerce",
+      onClick:
+        step.kind === "ecommerce-source"
+          ? undefined
+          : () => setStep({ kind: "ecommerce-source" }),
+    });
+  }
+
+  if (step.kind === "create") {
+    crumbs.push({
+      label: productTypeLabel(step.productType),
+      onClick:
+        step.productType === "ecommerce"
+          ? () => setStep({ kind: "ecommerce-source" })
+          : undefined,
+    });
+    if (step.productType === "ecommerce") {
+      crumbs.push({ label: "Manual" });
+    }
+  }
+
+  if (step.kind === "shopify") {
+    crumbs.push({ label: "Shopify" });
   }
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger
-          render={
-            <Button variant={variant} size={size} className={className} />
-          }
-        >
-          <PlusIcon data-icon="inline-start" />
-          {label}
-        </DialogTrigger>
-        <DialogContent className="inset-10 flex h-auto max-h-none w-auto max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden p-6 sm:inset-16 sm:max-w-none lg:inset-24">
-          <DialogHeader className="shrink-0">
-            <DialogTitle>Add products</DialogTitle>
-            <DialogDescription>
-              Create a new product or import from a connected store.
-            </DialogDescription>
-          </DialogHeader>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger
+        render={
+          <Button variant={variant} size={size} className={className} />
+        }
+      >
+        <PlusIcon data-icon="inline-start" />
+        {label}
+      </DialogTrigger>
+      <DialogContent
+        showCloseButton={false}
+        overlayClassName="bg-black/50 supports-backdrop-filter:backdrop-blur-xs"
+        className="inset-10 flex h-auto max-h-none w-auto max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden p-0 sm:inset-16 sm:max-w-none lg:inset-24"
+      >
+        <header className="flex shrink-0 items-center gap-3 border-b border-border px-6 py-4">
+          <nav aria-label="Flow" className="min-w-0 flex-1">
+            <ol className="flex flex-wrap items-center gap-1 text-sm">
+              {crumbs.map((crumb, index) => {
+                const isLast = index === crumbs.length - 1;
+                return (
+                  <li key={`${crumb.label}-${index}`} className="flex items-center gap-1">
+                    {index > 0 ? (
+                      <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                    ) : null}
+                    {crumb.onClick && !isLast ? (
+                      <button
+                        type="button"
+                        onClick={crumb.onClick}
+                        className="truncate text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        {crumb.label}
+                      </button>
+                    ) : (
+                      <span
+                        className={cn(
+                          "truncate",
+                          isLast
+                            ? "font-medium text-foreground"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        {crumb.label}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+          <DialogTitle className="sr-only">
+            {step.kind === "type"
+              ? "What are you selling?"
+              : step.kind === "ecommerce-source"
+                ? "How do you want to add ecommerce products?"
+                : step.kind === "shopify"
+                  ? "Import from Shopify"
+                  : `New ${productTypeLabel(step.productType).toLowerCase()}`}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            Create a new product or import from a connected store.
+          </DialogDescription>
+          <DialogClose
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0"
+              />
+            }
+          >
+            <XIcon />
+            <span className="sr-only">Close</span>
+          </DialogClose>
+        </header>
 
-          <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto">
-            <section className="flex min-h-0 flex-1 flex-col gap-3">
-              <h3 className="shrink-0 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                Create
-              </h3>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">
+          {step.kind === "type" ? (
+            <div className="flex min-h-0 flex-1 flex-col gap-6">
+              <h2 className="font-heading shrink-0 text-2xl font-semibold tracking-tight sm:text-3xl">
+                What are you selling?
+              </h2>
               <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 lg:grid-cols-3">
                 {PRODUCT_TYPE_OPTIONS.map((option) => {
                   const Icon = TYPE_ICONS[option.value];
@@ -99,7 +249,7 @@ export function CreateProductMenu({
                       key={option.value}
                       type="button"
                       className={optionCardClass}
-                      onClick={() => openType(option.value)}
+                      onClick={() => selectType(option.value)}
                     >
                       <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-foreground">
                         <Icon className="size-4" />
@@ -116,28 +266,42 @@ export function CreateProductMenu({
                   );
                 })}
               </div>
-            </section>
+            </div>
+          ) : null}
 
-            <section className="flex min-h-0 flex-1 flex-col gap-3">
-              <h3 className="shrink-0 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                Import
-              </h3>
+          {step.kind === "ecommerce-source" ? (
+            <div className="flex min-h-0 flex-1 flex-col gap-6">
+              <h2 className="font-heading shrink-0 text-2xl font-semibold tracking-tight sm:text-3xl">
+                How do you want to add it?
+              </h2>
               <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 lg:grid-cols-3">
                 <button
                   type="button"
                   className={optionCardClass}
-                  onClick={() => {
-                    setOpen(false);
-                    setShopifyOpen(true);
-                  }}
+                  onClick={() =>
+                    setStep({ kind: "create", productType: "ecommerce" })
+                  }
+                >
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-foreground">
+                    <PenLineIcon className="size-4" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">Manual</span>
+                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                      Enter product details yourself
+                    </span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={optionCardClass}
+                  onClick={() => setStep({ kind: "shopify" })}
                 >
                   <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-foreground">
                     <StoreIcon className="size-4" />
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-sm font-medium">
-                      Import from Shopify
-                    </span>
+                    <span className="block text-sm font-medium">Shopify</span>
                     <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
                       Sync products from your Shopify store
                     </span>
@@ -154,9 +318,7 @@ export function CreateProductMenu({
                       <StoreIcon className="size-4" />
                     </span>
                     <span className="min-w-0">
-                      <span className="block text-sm font-medium">
-                        Import from {name}
-                      </span>
+                      <span className="block text-sm font-medium">{name}</span>
                       <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
                         Coming soon
                       </span>
@@ -164,18 +326,45 @@ export function CreateProductMenu({
                   </button>
                 ))}
               </div>
-            </section>
-          </div>
-        </DialogContent>
-      </Dialog>
+            </div>
+          ) : null}
 
-      <CreateProductButton
-        productType={productType}
-        open={manualOpen}
-        onOpenChange={setManualOpen}
-        showTrigger={false}
-      />
-      <ImportShopifyDialog open={shopifyOpen} onOpenChange={setShopifyOpen} />
-    </>
+          {step.kind === "create" ? (
+            <CreateProductButton
+              embedded
+              productType={step.productType}
+              open
+              onSuccess={() => handleOpenChange(false)}
+              onOpenChange={(next) => {
+                if (!next) {
+                  if (step.productType === "ecommerce") {
+                    setStep({ kind: "ecommerce-source" });
+                  } else {
+                    setStep({ kind: "type" });
+                  }
+                }
+              }}
+              showTrigger={false}
+            />
+          ) : null}
+
+          <ImportShopifyDialog
+            embedded
+            open={step.kind === "shopify"}
+            onSuccess={() => handleOpenChange(false)}
+            onOpenChange={(next) => {
+              if (next) {
+                setOpen(true);
+                setStep({ kind: "shopify" });
+                return;
+              }
+              if (step.kind === "shopify") {
+                setStep({ kind: "ecommerce-source" });
+              }
+            }}
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
