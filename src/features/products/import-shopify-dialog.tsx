@@ -392,19 +392,7 @@ export function ImportShopifyDialog({
 
   if (embedded) {
     if (!open) return null;
-    return (
-      <div className="mx-auto w-full max-w-lg space-y-4">
-        <div className="space-y-1">
-          <h2 className="font-heading text-base font-medium">
-            Import from Shopify
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Connect your store with OAuth, then choose which products to import.
-          </p>
-        </div>
-        {body}
-      </div>
-    );
+    return <div className="mx-auto w-full max-w-lg space-y-4">{body}</div>;
   }
 
   return (

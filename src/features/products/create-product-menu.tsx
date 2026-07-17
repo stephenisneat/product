@@ -63,6 +63,9 @@ const optionCardClass =
 
 const optionGridClass = "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4";
 
+const stepTitleClass =
+  "font-heading py-2 text-center text-3xl font-semibold tracking-tight sm:py-4 sm:text-4xl";
+
 type Step =
   | { kind: "type" }
   | { kind: "ecommerce-source" }
@@ -182,7 +185,7 @@ export function CreateProductMenu({
       <DialogContent
         showCloseButton={false}
         overlayClassName="bg-black/65 supports-backdrop-filter:backdrop-blur-xs"
-        className="inset-10 flex h-auto max-h-none w-auto max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden p-0 sm:inset-16 sm:max-w-none lg:inset-24"
+        className="inset-10 flex h-auto max-h-none w-auto max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden bg-canvas p-0 sm:inset-16 sm:max-w-none lg:inset-24"
       >
         <header className="flex shrink-0 items-center gap-3 border-b border-border px-6 py-4">
           <nav aria-label="Flow" className="min-w-0 flex-1">
@@ -223,10 +226,12 @@ export function CreateProductMenu({
             {step.kind === "type"
               ? "What are you selling?"
               : step.kind === "ecommerce-source"
-                ? "How do you want to add ecommerce products?"
+                ? "How do you want to add it?"
                 : step.kind === "shopify"
                   ? "Import from Shopify"
-                  : `New ${productTypeLabel(step.productType).toLowerCase()}`}
+                  : step.productType === "ecommerce"
+                    ? "Enter product details"
+                    : `Create your ${productTypeLabel(step.productType).toLowerCase()}`}
           </DialogTitle>
           <DialogDescription className="sr-only">
             Create a new product or import from a connected store.
@@ -249,9 +254,7 @@ export function CreateProductMenu({
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">
           {step.kind === "type" ? (
             <div className="flex flex-col gap-8">
-              <h2 className="font-heading py-2 text-center text-3xl font-semibold tracking-tight sm:py-4 sm:text-4xl">
-                What are you selling?
-              </h2>
+              <h2 className={stepTitleClass}>What are you selling?</h2>
               <div className={optionGridClass}>
                 {PRODUCT_TYPE_OPTIONS.map((option) => {
                   const Icon = TYPE_ICONS[option.value];
@@ -285,10 +288,8 @@ export function CreateProductMenu({
           ) : null}
 
           {step.kind === "ecommerce-source" ? (
-            <div className="flex flex-col gap-6">
-              <h2 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-                How do you want to add it?
-              </h2>
+            <div className="flex flex-col gap-8">
+              <h2 className={stepTitleClass}>How do you want to add it?</h2>
               <div className={optionGridClass}>
                 <button
                   type="button"
@@ -345,39 +346,49 @@ export function CreateProductMenu({
           ) : null}
 
           {step.kind === "create" ? (
-            <CreateProductButton
-              embedded
-              productType={step.productType}
-              open
-              onSuccess={() => handleOpenChange(false)}
-              onOpenChange={(next) => {
-                if (!next) {
-                  if (step.productType === "ecommerce") {
-                    setStep({ kind: "ecommerce-source" });
-                  } else {
-                    setStep({ kind: "type" });
+            <div className="flex flex-col gap-8">
+              <h2 className={stepTitleClass}>
+                {step.productType === "ecommerce"
+                  ? "Enter product details"
+                  : `Create your ${productTypeLabel(step.productType).toLowerCase()}`}
+              </h2>
+              <CreateProductButton
+                embedded
+                productType={step.productType}
+                open
+                onSuccess={() => handleOpenChange(false)}
+                onOpenChange={(next) => {
+                  if (!next) {
+                    if (step.productType === "ecommerce") {
+                      setStep({ kind: "ecommerce-source" });
+                    } else {
+                      setStep({ kind: "type" });
+                    }
                   }
-                }
-              }}
-              showTrigger={false}
-            />
+                }}
+                showTrigger={false}
+              />
+            </div>
           ) : null}
 
-          <ImportShopifyDialog
-            embedded
-            open={step.kind === "shopify"}
-            onSuccess={() => handleOpenChange(false)}
-            onOpenChange={(next) => {
-              if (next) {
-                setOpen(true);
-                setStep({ kind: "shopify" });
-                return;
-              }
-              if (step.kind === "shopify") {
-                setStep({ kind: "ecommerce-source" });
-              }
-            }}
-          />
+          {step.kind === "shopify" ? (
+            <div className="flex flex-col gap-8">
+              <h2 className={stepTitleClass}>Import from Shopify</h2>
+              <ImportShopifyDialog
+                embedded
+                open
+                onSuccess={() => handleOpenChange(false)}
+                onOpenChange={(next) => {
+                  if (next) {
+                    setOpen(true);
+                    setStep({ kind: "shopify" });
+                    return;
+                  }
+                  setStep({ kind: "ecommerce-source" });
+                }}
+              />
+            </div>
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

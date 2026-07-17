@@ -1213,19 +1213,7 @@ export function CreateProductButton({
   );
 
   if (embedded) {
-    return (
-      <div className="mx-auto w-full max-w-lg">
-        <div className="mb-4 space-y-1">
-          <h2 className="font-heading text-base font-medium">
-            New {typeLabel.toLowerCase()}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {TYPE_DESCRIPTIONS[productType]}
-          </p>
-        </div>
-        {form}
-      </div>
-    );
+    return <div className="mx-auto w-full max-w-lg">{form}</div>;
   }
 
   return (
