@@ -41,7 +41,11 @@ export function ChangeEmailForm({ currentEmail }: { currentEmail: string }) {
     const { error: updateError } = await supabase.auth.updateUser(
       { email: values.email },
       {
-        emailRedirectTo: authCallbackUrl(window.location.origin, "/account?emailUpdated=1"),
+        emailRedirectTo: authCallbackUrl(
+          window.location.origin,
+          "/settings/account?emailUpdated=1",
+        ),
+
       },
     );
 
