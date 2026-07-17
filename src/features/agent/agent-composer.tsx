@@ -16,7 +16,21 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { AppUser } from "@/domain";
+import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
+import { Marker, MarkerContent } from "@/components/ui/marker";
+import {
+  Message,
+  MessageContent,
+} from "@/components/ui/message";
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@/components/ui/message-scroller";
 import {
   Popover,
   PopoverContent,
@@ -306,6 +320,9 @@ export function AgentComposer({ user }: { user: AppUser }) {
 
   const busy = status === "submitted" || status === "streaming";
   const walletBlocked = walletCtx?.wallet?.blocked === true;
+  const waitingForAssistant =
+    busy &&
+    (messages.length === 0 || messages[messages.length - 1]?.role === "user");
 
   messagesRef.current = messages;
 
@@ -653,37 +670,73 @@ export function AgentComposer({ user }: { user: AppUser }) {
             historyOpen && "pointer-events-none opacity-0",
           )}
         >
-          <ScrollArea className="flex-1 px-3 py-3">
-            <div className="space-y-3">
-              {messages.length === 0 ? (
-                <div className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+          {messages.length === 0 && !waitingForAssistant && !error ? (
+            <div className="flex flex-1 items-start px-3 py-3">
+              <Marker className="rounded-md border border-dashed border-border px-3 py-3 text-xs">
+                <MarkerContent>
                   {isWorkspace
                     ? "Ask about your catalog, prioritize products, or request proposals across the workspace."
                     : `Ask about ${productTitle ?? "this product"} — positioning, ad copy, or a campaign concept.`}
-                </div>
-              ) : null}
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={
-                    message.role === "user"
-                      ? "ml-6 rounded-md bg-primary px-2.5 py-2 text-xs text-primary-foreground"
-                      : "mr-2 rounded-md border border-border bg-background px-2.5 py-2 text-xs leading-relaxed"
-                  }
-                >
-                  <p className="mb-1 font-mono text-[10px] uppercase tracking-wide opacity-60">
-                    {message.role}
-                  </p>
-                  <div className="whitespace-pre-wrap">
-                    {messageText(message)}
-                  </div>
-                </div>
-              ))}
-              {error ? (
-                <p className="text-xs text-destructive">{error.message}</p>
-              ) : null}
+                </MarkerContent>
+              </Marker>
             </div>
-          </ScrollArea>
+          ) : (
+            <MessageScrollerProvider autoScroll>
+              <MessageScroller className="flex-1">
+                <MessageScrollerViewport>
+                  <MessageScrollerContent
+                    aria-busy={busy}
+                    className="gap-3 px-3 py-3"
+                  >
+                    {messages.map((message) => {
+                      const isUser = message.role === "user";
+                      const text = messageText(message);
+                      return (
+                        <MessageScrollerItem
+                          key={message.id}
+                          messageId={message.id}
+                          scrollAnchor={isUser}
+                        >
+                          <Message align={isUser ? "end" : "start"}>
+                            <MessageContent>
+                              <Bubble
+                                variant={isUser ? "default" : "muted"}
+                                align={isUser ? "end" : "start"}
+                                className="max-w-[92%]"
+                              >
+                                <BubbleContent className="whitespace-pre-wrap text-xs">
+                                  {text || (busy && !isUser ? "…" : "")}
+                                </BubbleContent>
+                              </Bubble>
+                            </MessageContent>
+                          </Message>
+                        </MessageScrollerItem>
+                      );
+                    })}
+                    {waitingForAssistant ? (
+                      <MessageScrollerItem>
+                        <Marker role="status">
+                          <MarkerContent className="animate-pulse text-xs">
+                            Thinking…
+                          </MarkerContent>
+                        </Marker>
+                      </MessageScrollerItem>
+                    ) : null}
+                    {error ? (
+                      <MessageScrollerItem>
+                        <Marker role="alert">
+                          <MarkerContent className="text-xs text-destructive">
+                            {error.message}
+                          </MarkerContent>
+                        </Marker>
+                      </MessageScrollerItem>
+                    ) : null}
+                  </MessageScrollerContent>
+                </MessageScrollerViewport>
+                <MessageScrollerButton />
+              </MessageScroller>
+            </MessageScrollerProvider>
+          )}
 
           <form
             onSubmit={onSubmit}
