@@ -36,9 +36,13 @@ type Connection = {
 export function ImportShopifyDialog({
   open,
   onOpenChange,
+  embedded = false,
+  onSuccess,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  embedded?: boolean;
+  onSuccess?: () => void;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -136,6 +140,7 @@ export function ImportShopifyDialog({
   }, [open, loadConnections]);
 
   useEffect(() => {
+    if (embedded) return;
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const status = params.get("shopify");
@@ -160,7 +165,7 @@ export function ImportShopifyDialog({
     } else if (status === "error") {
       toast.error(`Shopify connection failed (${reason})`);
     }
-  }, [onOpenChange, startTransition]);
+  }, [embedded, onOpenChange, startTransition]);
 
   function toggleProduct(id: string) {
     setSelected((prev) => {
@@ -208,7 +213,11 @@ export function ImportShopifyDialog({
       toast.success(
         `Imported ${body.imported ?? selected.size} product${(body.imported ?? selected.size) === 1 ? "" : "s"}`,
       );
-      onOpenChange(false);
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        onOpenChange(false);
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Import failed");
@@ -220,6 +229,172 @@ export function ImportShopifyDialog({
   const allSelected =
     products.length > 0 && selected.size === products.length;
 
+  const footerClassName = embedded
+    ? "mx-0 mb-0 rounded-xl border border-border bg-muted/40"
+    : undefined;
+
+  const body = !shopConfigured ? (
+    <p className="text-sm text-muted-foreground">
+      Shopify is not configured for this environment. Add{" "}
+      <span className="font-mono text-xs">SHOPIFY_API_KEY</span>,{" "}
+      <span className="font-mono text-xs">SHOPIFY_API_SECRET</span>, and{" "}
+      <span className="font-mono text-xs">NEXT_PUBLIC_APP_URL</span>.
+    </p>
+  ) : !activeShop ? (
+    <div className="space-y-3">
+      {shopifyConnections.length > 0 ? (
+        <div className="space-y-2">
+          <Label>Connected stores</Label>
+          <ul className="space-y-1">
+            {shopifyConnections.map((connection) => (
+              <li key={connection.id}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-start font-mono text-xs"
+                  onClick={() => {
+                    void loadRemoteProducts(connection.shopDomain);
+                  }}
+                >
+                  {connection.shopDomain}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      <div className="space-y-2">
+        <Label htmlFor="shop-domain">
+          {shopifyConnections.length > 0
+            ? "Connect another store"
+            : "Store domain"}
+        </Label>
+        <Input
+          id="shop-domain"
+          placeholder="my-store.myshopify.com"
+          value={shopInput}
+          onChange={(event) => setShopInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              startInstall();
+            }
+          }}
+        />
+        <p className="text-xs text-muted-foreground">
+          You will be redirected to Shopify to install the Product Agent app.
+        </p>
+      </div>
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      <DialogFooter className={footerClassName}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onOpenChange(false)}
+        >
+          Cancel
+        </Button>
+        <Button type="button" onClick={startInstall} disabled={loading}>
+          Connect Shopify
+        </Button>
+      </DialogFooter>
+    </div>
+  ) : (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span className="truncate font-mono">{activeShop}</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="shrink-0"
+          onClick={() => {
+            setActiveShop(null);
+            setProducts([]);
+            setSelected(new Set());
+          }}
+        >
+          Change store
+        </Button>
+      </div>
+
+      {loading ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          Loading products…
+        </p>
+      ) : products.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          No products found in this store.
+        </p>
+      ) : (
+        <>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox
+              checked={allSelected}
+              onCheckedChange={(checked) => toggleAll(Boolean(checked))}
+            />
+            Select all ({products.length})
+          </label>
+          <ScrollArea className="h-64 rounded-md border border-border">
+            <ul className="divide-y divide-border p-1">
+              {products.map((product) => {
+                const isChecked = selected.has(product.id);
+                return (
+                  <li key={product.id}>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 hover:bg-muted/50">
+                      <Checkbox
+                        className="mt-0.5"
+                        checked={isChecked}
+                        onCheckedChange={() => toggleProduct(product.id)}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {product.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {product.status.toLowerCase()} ·{" "}
+                          {product.variantCount} variant
+                          {product.variantCount === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </ScrollArea>
+        </>
+      )}
+
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+
+      <DialogFooter className={footerClassName}>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={importing}
+          onClick={() => onOpenChange(false)}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          disabled={importing || selected.size === 0 || loading}
+          onClick={() => void onImport()}
+        >
+          {importing
+            ? "Importing…"
+            : `Import ${selected.size || ""} product${selected.size === 1 ? "" : "s"}`.trim()}
+        </Button>
+      </DialogFooter>
+    </div>
+  );
+
+  if (embedded) {
+    if (!open) return null;
+    return <div className="mx-auto w-full max-w-lg space-y-4">{body}</div>;
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[min(90vh,720px)] overflow-hidden sm:max-w-lg">
@@ -229,160 +404,7 @@ export function ImportShopifyDialog({
             Connect your store with OAuth, then choose which products to import.
           </DialogDescription>
         </DialogHeader>
-
-        {!shopConfigured ? (
-          <p className="text-sm text-muted-foreground">
-            Shopify is not configured for this environment. Add{" "}
-            <span className="font-mono text-xs">SHOPIFY_API_KEY</span>,{" "}
-            <span className="font-mono text-xs">SHOPIFY_API_SECRET</span>, and{" "}
-            <span className="font-mono text-xs">NEXT_PUBLIC_APP_URL</span>.
-          </p>
-        ) : !activeShop ? (
-          <div className="space-y-3">
-            {shopifyConnections.length > 0 ? (
-              <div className="space-y-2">
-                <Label>Connected stores</Label>
-                <ul className="space-y-1">
-                  {shopifyConnections.map((connection) => (
-                    <li key={connection.id}>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full justify-start font-mono text-xs"
-                        onClick={() => {
-                          void loadRemoteProducts(connection.shopDomain);
-                        }}
-                      >
-                        {connection.shopDomain}
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            <div className="space-y-2">
-              <Label htmlFor="shop-domain">
-                {shopifyConnections.length > 0
-                  ? "Connect another store"
-                  : "Store domain"}
-              </Label>
-              <Input
-                id="shop-domain"
-                placeholder="my-store.myshopify.com"
-                value={shopInput}
-                onChange={(event) => setShopInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    startInstall();
-                  }
-                }}
-              />
-              <p className="text-xs text-muted-foreground">
-                You will be redirected to Shopify to install the Product Agent
-                app.
-              </p>
-            </div>
-            {error ? <p className="text-xs text-destructive">{error}</p> : null}
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="button" onClick={startInstall} disabled={loading}>
-                Connect Shopify
-              </Button>
-            </DialogFooter>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-              <span className="truncate font-mono">{activeShop}</span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="shrink-0"
-                onClick={() => {
-                  setActiveShop(null);
-                  setProducts([]);
-                  setSelected(new Set());
-                }}
-              >
-                Change store
-              </Button>
-            </div>
-
-            {loading ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                Loading products…
-              </p>
-            ) : products.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No products found in this store.
-              </p>
-            ) : (
-              <>
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={allSelected}
-                    onCheckedChange={(checked) => toggleAll(Boolean(checked))}
-                  />
-                  Select all ({products.length})
-                </label>
-                <ScrollArea className="h-64 rounded-md border border-border">
-                  <ul className="divide-y divide-border p-1">
-                    {products.map((product) => {
-                      const isChecked = selected.has(product.id);
-                      return (
-                        <li key={product.id}>
-                          <label className="flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 hover:bg-muted/50">
-                            <Checkbox
-                              className="mt-0.5"
-                              checked={isChecked}
-                              onCheckedChange={() => toggleProduct(product.id)}
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium">
-                                {product.title}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {product.status.toLowerCase()} ·{" "}
-                                {product.variantCount} variant
-                                {product.variantCount === 1 ? "" : "s"}
-                              </p>
-                            </div>
-                          </label>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </ScrollArea>
-              </>
-            )}
-
-            {error ? <p className="text-xs text-destructive">{error}</p> : null}
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={importing}
-                onClick={() => onOpenChange(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                disabled={importing || selected.size === 0 || loading}
-                onClick={() => void onImport()}
-              >
-                {importing
-                  ? "Importing…"
-                  : `Import ${selected.size || ""} product${selected.size === 1 ? "" : "s"}`.trim()}
-              </Button>
-            </DialogFooter>
-          </div>
-        )}
+        {body}
       </DialogContent>
     </Dialog>
   );

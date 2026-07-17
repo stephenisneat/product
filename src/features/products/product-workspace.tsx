@@ -15,6 +15,44 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatMoney } from "@/lib/format";
+import {
+  productSummaryLine,
+  productTypeLabel,
+} from "@/lib/products/product-type";
+
+function productMetaItems(product: Product): string[] {
+  const items = [productSummaryLine(product)];
+
+  if (product.type === "ecommerce") {
+    items.push(product.metadata.fulfillmentKind);
+    if (product.sku) items.push(`SKU ${product.sku}`);
+    if (product.variants && product.variants.length > 0) {
+      items.push(
+        `${product.variants.length} variant${product.variants.length === 1 ? "" : "s"}`,
+      );
+    }
+    if (product.collections && product.collections.length > 0) {
+      items.push(product.collections.map((c) => c.title).join(" · "));
+    }
+  } else if (product.type === "mobile_app") {
+    if (product.metadata.bundleId) items.push(product.metadata.bundleId);
+  } else if (product.type === "website") {
+    if (product.metadata.siteKind) items.push(product.metadata.siteKind);
+  } else if (product.type === "brick_and_mortar") {
+    items.push(product.metadata.addressLine1);
+    if (product.metadata.hours) items.push(product.metadata.hours);
+  } else if (product.type === "event") {
+    if (product.metadata.capacity) {
+      items.push(`Capacity ${product.metadata.capacity}`);
+    }
+  } else if (product.type === "election") {
+    items.push(product.metadata.candidateName);
+    if (product.metadata.party) items.push(product.metadata.party);
+  }
+
+  items.push(product.channels.join(" · ") || "No channels");
+  return items.filter(Boolean);
+}
 
 export function ProductWorkspace({
   product,
@@ -30,6 +68,7 @@ export function ProductWorkspace({
   performance: PerformancePoint[];
 }) {
   const proposed = artifacts.filter((a) => a.status === "proposed");
+  const isEcommerce = product.type === "ecommerce";
 
   return (
     <PageCanvas
@@ -63,6 +102,9 @@ export function ProductWorkspace({
                 {product.title}
               </h1>
               <Badge variant="outline" className="text-[10px] uppercase">
+                {productTypeLabel(product.type)}
+              </Badge>
+              <Badge variant="outline" className="text-[10px] uppercase">
                 {product.status}
               </Badge>
             </div>
@@ -70,18 +112,9 @@ export function ProductWorkspace({
               {product.description}
             </p>
             <div className="mt-2 flex flex-wrap gap-3 font-mono text-[11px] text-muted-foreground">
-              <span>{formatMoney(product.price, product.currency)}</span>
-              {product.sku ? <span>SKU {product.sku}</span> : null}
-              {product.variants && product.variants.length > 0 ? (
-                <span>
-                  {product.variants.length} variant
-                  {product.variants.length === 1 ? "" : "s"}
-                </span>
-              ) : null}
-              {product.collections && product.collections.length > 0 ? (
-                <span>{product.collections.map((c) => c.title).join(" · ")}</span>
-              ) : null}
-              <span>{product.channels.join(" · ") || "No channels"}</span>
+              {productMetaItems(product).map((item, index) => (
+                <span key={`${index}-${item}`}>{item}</span>
+              ))}
             </div>
           </div>
         </div>
@@ -129,32 +162,34 @@ export function ProductWorkspace({
                 <p className="text-sm text-muted-foreground">{intelligence?.tone ?? "—"}</p>
               </div>
             </section>
-            <section>
-              <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Variants
-              </h2>
-              {!product.variants || product.variants.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No variants.</p>
-              ) : (
-                <ul className="divide-y divide-border rounded-md border border-border">
-                  {product.variants.map((variant) => (
-                    <li
-                      key={variant.id}
-                      className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm"
-                    >
-                      <span className="font-medium">{variant.title}</span>
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {formatMoney(variant.price, variant.currency)}
-                        {variant.sku ? ` · ${variant.sku}` : ""}
-                        {variant.inventory
-                          ? ` · qty ${variant.inventory.quantity}`
-                          : ""}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+            {isEcommerce ? (
+              <section>
+                <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Variants
+                </h2>
+                {!product.variants || product.variants.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No variants.</p>
+                ) : (
+                  <ul className="divide-y divide-border rounded-md border border-border">
+                    {product.variants.map((variant) => (
+                      <li
+                        key={variant.id}
+                        className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm"
+                      >
+                        <span className="font-medium">{variant.title}</span>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {formatMoney(variant.price, variant.currency)}
+                          {variant.sku ? ` · ${variant.sku}` : ""}
+                          {variant.inventory
+                            ? ` · qty ${variant.inventory.quantity}`
+                            : ""}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            ) : null}
             <section>
               <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Open proposals

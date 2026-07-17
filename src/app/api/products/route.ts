@@ -1,10 +1,83 @@
 import { NextResponse } from "next/server";
-import type { Product } from "@/domain";
+import type { CreateProductInput, Product } from "@/domain";
 import { createProductInputSchema } from "@/domain";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { createProductId } from "@/lib/products/slugify";
 import { getProductRepository } from "@/repositories";
+
+function toProduct(
+  input: CreateProductInput,
+  workspaceId: string,
+): Product {
+  const now = new Date().toISOString();
+  const shared = {
+    id: input.id ?? createProductId(),
+    title: input.title,
+    handle: input.handle,
+    description: input.description,
+    status: input.status,
+    images: input.images,
+    imageAvgColors: input.imageAvgColors,
+    channels: [] as string[],
+    createdAt: now,
+    updatedAt: now,
+    workspaceId,
+  };
+
+  switch (input.type) {
+    case "ecommerce":
+      return {
+        ...shared,
+        type: "ecommerce",
+        metadata: input.metadata,
+        price: input.price,
+        currency: input.currency,
+        sku: input.sku || undefined,
+        category: input.category || undefined,
+      };
+    case "mobile_app":
+      return {
+        ...shared,
+        type: "mobile_app",
+        metadata: input.metadata,
+        price: 0,
+        currency: "USD",
+      };
+    case "website":
+      return {
+        ...shared,
+        type: "website",
+        metadata: input.metadata,
+        price: 0,
+        currency: "USD",
+      };
+    case "brick_and_mortar":
+      return {
+        ...shared,
+        type: "brick_and_mortar",
+        metadata: input.metadata,
+        price: 0,
+        currency: "USD",
+      };
+    case "event":
+      return {
+        ...shared,
+        type: "event",
+        metadata: input.metadata,
+        price: 0,
+        currency: "USD",
+      };
+    case "election":
+      return {
+        ...shared,
+        type: "election",
+        metadata: input.metadata,
+        price: 0,
+        currency: "USD",
+      };
+  }
+}
 
 export async function POST(req: Request) {
   const user = await getCurrentUser();
@@ -25,25 +98,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const now = new Date().toISOString();
-  const input = parsed.data;
-  const product: Product = {
-    id: input.id ?? createProductId(),
-    title: input.title,
-    handle: input.handle,
-    description: input.description,
-    status: input.status,
-    price: input.price,
-    currency: input.currency,
-    images: input.images,
-    imageAvgColors: input.imageAvgColors,
-    channels: [],
-    sku: input.sku || undefined,
-    category: input.category || undefined,
-    createdAt: now,
-    updatedAt: now,
-    workspaceId: active.workspace.id,
-  };
+  const product = toProduct(parsed.data, active.workspace.id);
 
   try {
     const products = await getProductRepository();

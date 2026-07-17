@@ -9,6 +9,7 @@ import {
   ChartNoAxesCombinedIcon,
   LightbulbIcon,
   PaletteIcon,
+  PlusIcon,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,11 +37,19 @@ const catalogPages = [
   },
 ] as const;
 
+const toolbarOnlyPages = [
+  {
+    href: "/products/new",
+    label: "Add products",
+    icon: PlusIcon,
+  },
+] as const;
+
 function pageForPath(pathname: string): {
   label: string;
   icon: LucideIcon;
 } | null {
-  const match = catalogPages.find(
+  const match = [...catalogPages, ...toolbarOnlyPages].find(
     ({ href }) => pathname === href || pathname.startsWith(`${href}/`),
   );
   return match ? { label: match.label, icon: match.icon } : null;
@@ -65,13 +74,14 @@ export function CatalogNav({ children }: { children?: ReactNode }) {
   );
 }
 
-export function CatalogToolbar() {
+export function CatalogToolbar({ title }: { title?: string } = {}) {
   const pathname = usePathname();
   const page = pageForPath(pathname);
 
-  if (!page) return null;
+  if (!page && !title) return null;
 
-  const Icon = page.icon;
+  const Icon = page?.icon;
+  const label = title ?? page?.label;
 
   return (
     <div className="relative flex w-full items-center">
@@ -84,10 +94,12 @@ export function CatalogToolbar() {
         <ArrowLeftIcon className="size-3.5" />
         Back
       </Button>
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <Icon className="size-4 text-muted-foreground" />
-          <span>{page.label}</span>
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-20">
+        <div className="flex max-w-full items-center gap-2 text-sm font-medium">
+          {Icon && !title ? (
+            <Icon className="size-4 shrink-0 text-muted-foreground" />
+          ) : null}
+          <span className="truncate">{label}</span>
         </div>
       </div>
     </div>

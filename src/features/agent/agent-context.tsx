@@ -29,7 +29,9 @@ const AgentContext = createContext<AgentContextValue | null>(null);
 
 function productIdFromPathname(pathname: string): string | null {
   const match = pathname.match(/^\/products\/([^/]+)\/?$/);
-  return match?.[1] ?? null;
+  const id = match?.[1] ?? null;
+  if (!id || id === "new") return null;
+  return id;
 }
 
 export function AgentContextProvider({ children }: { children: ReactNode }) {
