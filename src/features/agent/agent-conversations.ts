@@ -6,6 +6,9 @@ export type AgentConversation = {
   messages: UIMessage[];
   createdAt: string;
   updatedAt: string;
+  pinned?: boolean;
+  /** When true, title was set by the user and should not be auto-derived from messages. */
+  titleCustom?: boolean;
 };
 
 type ConversationStore = {
@@ -21,6 +24,16 @@ function newId() {
   return `chat_${crypto.randomUUID().slice(0, 10)}`;
 }
 
+function normalizeConversation(
+  conversation: AgentConversation,
+): AgentConversation {
+  return {
+    ...conversation,
+    pinned: conversation.pinned === true,
+    titleCustom: conversation.titleCustom === true,
+  };
+}
+
 export function createEmptyConversation(): AgentConversation {
   const now = new Date().toISOString();
   return {
@@ -29,6 +42,8 @@ export function createEmptyConversation(): AgentConversation {
     messages: [],
     createdAt: now,
     updatedAt: now,
+    pinned: false,
+    titleCustom: false,
   };
 }
 
@@ -84,11 +99,13 @@ export function loadConversationStore(userId: string): ConversationStore {
       return store;
     }
 
-    if (!parsed.conversations.some((c) => c.id === parsed.activeId)) {
-      parsed.activeId = parsed.conversations[0]!.id;
+    const conversations = parsed.conversations.map(normalizeConversation);
+
+    if (!conversations.some((c) => c.id === parsed.activeId)) {
+      parsed.activeId = conversations[0]!.id;
     }
 
-    return parsed;
+    return { activeId: parsed.activeId, conversations };
   } catch {
     const empty = createEmptyConversation();
     return { activeId: empty.id, conversations: [empty] };
@@ -104,17 +121,21 @@ export function upsertConversation(
   store: ConversationStore,
   conversation: AgentConversation,
 ): ConversationStore {
-  const index = store.conversations.findIndex((c) => c.id === conversation.id);
+  const normalized = normalizeConversation(conversation);
+  const index = store.conversations.findIndex((c) => c.id === normalized.id);
   const conversations =
     index === -1
-      ? [conversation, ...store.conversations]
-      : store.conversations.map((c, i) => (i === index ? conversation : c));
+      ? [normalized, ...store.conversations]
+      : store.conversations.map((c, i) => (i === index ? normalized : c));
 
   return {
-    activeId: conversation.id,
-    conversations: conversations.sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-    ),
+    activeId: normalized.id,
+    conversations: conversations.sort((a, b) => {
+      if (Boolean(a.pinned) !== Boolean(b.pinned)) {
+        return a.pinned ? -1 : 1;
+      }
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    }),
   };
 }
 
