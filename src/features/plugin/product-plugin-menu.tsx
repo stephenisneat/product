@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckIcon, CodeXmlIcon, CopyIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, CodeXmlIcon, CopyIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +37,7 @@ export function ProductPluginMenu() {
       >
         <CodeXmlIcon data-icon="inline-start" />
         Plugin
+        <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-aria-expanded/button:rotate-180" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 p-0">
         <div className="space-y-2 p-3">

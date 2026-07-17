@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
+  ChevronDownIcon,
   ChevronRightIcon,
   CircleAlertIcon,
   CreditCardIcon,
@@ -154,6 +155,7 @@ function WalletPopoverShell({
         render={<Button type="button" variant="outline" size="sm" />}
       >
         {trigger}
+        <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-aria-expanded/button:rotate-180" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[320px] p-0">
         {children}

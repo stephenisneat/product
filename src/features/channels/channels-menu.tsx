@@ -1,6 +1,6 @@
 "use client";
 
-import { Link2Icon } from "lucide-react";
+import { ChevronDownIcon, Link2Icon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +33,7 @@ export function ChannelsMenu() {
         >
           {connectedCount}
         </Badge>
+        <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-aria-expanded/button:rotate-180" />
       </PopoverTrigger>
       <PopoverContent align="start" className="min-w-56 p-2">
         <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">

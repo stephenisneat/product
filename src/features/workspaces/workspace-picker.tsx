@@ -173,7 +173,7 @@ export function WorkspacePicker({
             {plan === "pro" ? "Pro" : "Free"}
           </Badge>
           {variant === "header" ? (
-            <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
+            <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-aria-expanded/button:rotate-180" />
           ) : (
             <ChevronsUpDownIcon data-icon="inline-end" />
           )}
