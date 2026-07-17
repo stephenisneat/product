@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   Building2Icon,
   CalendarDaysIcon,
-  ChevronDownIcon,
   GlobeIcon,
   PlusIcon,
   ShoppingBagIcon,
@@ -15,11 +14,13 @@ import {
 import type { ProductType } from "@/domain";
 import { Button } from "@/components/ui/button";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { CreateProductButton } from "@/features/products/create-product-dialog";
 import { ImportShopifyDialog } from "@/features/products/import-shopify-dialog";
 import { PRODUCT_TYPE_OPTIONS } from "@/lib/products/product-type";
@@ -41,8 +42,8 @@ const TYPE_ICONS: Record<ProductType, typeof ShoppingBagIcon> = {
   election: VoteIcon,
 };
 
-const menuItemClass =
-  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50";
+const optionCardClass =
+  "flex h-full min-h-0 flex-col items-start gap-3 rounded-xl border border-border bg-background p-4 text-left outline-none transition-colors hover:border-foreground/20 hover:bg-accent/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50";
 
 export function CreateProductMenu({
   variant = "default",
@@ -68,76 +69,105 @@ export function CreateProductMenu({
 
   return (
     <>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger
           render={
             <Button variant={variant} size={size} className={className} />
           }
         >
           <PlusIcon data-icon="inline-start" />
           {label}
-          <ChevronDownIcon data-icon="inline-end" className="opacity-70" />
-        </PopoverTrigger>
-        <PopoverContent align="end" className="min-w-64 p-2">
-          <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
-            Create
-          </p>
-          <div className="space-y-0.5">
-            {PRODUCT_TYPE_OPTIONS.map((option) => {
-              const Icon = TYPE_ICONS[option.value];
-              return (
+        </DialogTrigger>
+        <DialogContent className="inset-10 flex h-auto max-h-none w-auto max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden p-6 sm:inset-16 sm:max-w-none lg:inset-24">
+          <DialogHeader className="shrink-0">
+            <DialogTitle>Add products</DialogTitle>
+            <DialogDescription>
+              Create a new product or import from a connected store.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto">
+            <section className="flex min-h-0 flex-1 flex-col gap-3">
+              <h3 className="shrink-0 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Create
+              </h3>
+              <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 lg:grid-cols-3">
+                {PRODUCT_TYPE_OPTIONS.map((option) => {
+                  const Icon = TYPE_ICONS[option.value];
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={optionCardClass}
+                      onClick={() => openType(option.value)}
+                    >
+                      <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-foreground">
+                        <Icon className="size-4" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium">
+                          {option.label}
+                        </span>
+                        <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                          {option.description}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="flex min-h-0 flex-1 flex-col gap-3">
+              <h3 className="shrink-0 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Import
+              </h3>
+              <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 lg:grid-cols-3">
                 <button
-                  key={option.value}
                   type="button"
-                  className={menuItemClass}
-                  onClick={() => openType(option.value)}
+                  className={optionCardClass}
+                  onClick={() => {
+                    setOpen(false);
+                    setShopifyOpen(true);
+                  }}
                 >
-                  <Icon className="size-4 shrink-0" />
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-foreground">
+                    <StoreIcon className="size-4" />
+                  </span>
                   <span className="min-w-0">
-                    <span className="block">{option.label}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {option.description}
+                    <span className="block text-sm font-medium">
+                      Import from Shopify
+                    </span>
+                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                      Sync products from your Shopify store
                     </span>
                   </span>
                 </button>
-              );
-            })}
+                {COMING_SOON.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    disabled
+                    className={cn(optionCardClass, "opacity-50")}
+                  >
+                    <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-foreground">
+                      <StoreIcon className="size-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium">
+                        Import from {name}
+                      </span>
+                      <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                        Coming soon
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
           </div>
-          <Separator className="my-2" />
-          <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
-            Import
-          </p>
-          <div className="space-y-0.5">
-            <button
-              type="button"
-              className={menuItemClass}
-              onClick={() => {
-                setOpen(false);
-                setShopifyOpen(true);
-              }}
-            >
-              <StoreIcon className="size-4" />
-              Import from Shopify
-            </button>
-          </div>
-          <Separator className="my-2" />
-          <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
-            Coming soon
-          </p>
-          <div className="space-y-0.5">
-            {COMING_SOON.map((name) => (
-              <button
-                key={name}
-                type="button"
-                disabled
-                className={cn(menuItemClass, "opacity-50")}
-              >
-                Import from {name}
-              </button>
-            ))}
-          </div>
-        </PopoverContent>
-      </Popover>
+        </DialogContent>
+      </Dialog>
 
       <CreateProductButton
         productType={productType}
