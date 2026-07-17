@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { PageCanvas } from "@/components/layout/page-canvas";
-import { CatalogNav } from "@/features/products/catalog-toolbar";
+import { InsightsToolbar } from "@/features/insights/insights-toolbar";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 
@@ -16,7 +16,9 @@ export default async function InsightsPage() {
   }
 
   return (
-    <PageCanvas header={<CatalogNav />}>
+    <PageCanvas
+      header={<InsightsToolbar plan={active.workspace.plan ?? "free"} />}
+    >
       <div className="mx-auto w-full max-w-3xl px-4 py-6">
         <p className="mb-6 text-sm text-muted-foreground">
           Product and marketing insights for {active.workspace.name}.
