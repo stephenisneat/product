@@ -48,8 +48,10 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 
 export function InsightsToolbar({
   plan = "free",
+  workspaceId,
 }: {
   plan?: WorkspacePlan;
+  workspaceId: string;
 }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortKey>("newest");
@@ -58,7 +60,7 @@ export function InsightsToolbar({
 
   return (
     <div className="flex w-full flex-wrap items-center gap-2">
-      <CatalogNav />
+      <CatalogNav workspaceId={workspaceId} />
       <div className="ml-auto flex flex-wrap items-center gap-2">
         <Popover>
           <PopoverTrigger

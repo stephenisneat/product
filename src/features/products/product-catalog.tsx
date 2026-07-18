@@ -103,7 +103,13 @@ function sortProducts(products: Product[], sort: SortKey) {
 const addProductsButtonClass =
   "border-0 bg-[#288DFF] bg-clip-border text-white shadow-[0_0_0_1px_#288DFF,0_1px_2px_0_rgba(14,18,27,0.24),inset_0_1px_0_0_rgba(255,255,255,0.12)] hover:bg-[#1f7ff5] hover:text-white focus-visible:border-transparent focus-visible:ring-0 aria-expanded:bg-[#288DFF] aria-expanded:text-white dark:bg-[#288DFF] dark:text-white dark:hover:bg-[#1f7ff5]";
 
-export function ProductCatalog({ products }: { products: Product[] }) {
+export function ProductCatalog({
+  products,
+  workspaceId,
+}: {
+  products: Product[];
+  workspaceId: string;
+}) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortKey>("newest");
@@ -114,7 +120,7 @@ export function ProductCatalog({ products }: { products: Product[] }) {
       <PageCanvas
         header={
           <div className="flex w-full flex-wrap items-center gap-2">
-            <CatalogNav />
+            <CatalogNav workspaceId={workspaceId} />
             <div className="ml-auto">
               <Button
                 render={<Link href="/products/new" />}
@@ -160,7 +166,7 @@ export function ProductCatalog({ products }: { products: Product[] }) {
     <PageCanvas
       header={
         <div className="flex w-full flex-wrap items-center gap-2">
-          <CatalogNav />
+          <CatalogNav workspaceId={workspaceId} />
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <Popover>
               <PopoverTrigger

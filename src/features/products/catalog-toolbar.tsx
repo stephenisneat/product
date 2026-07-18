@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "@/components/layout/nav-link";
 import { Button } from "@/components/ui/button";
+import { getLastVisualizerPath } from "@/features/visualizer/visualization-store";
 
 const catalogPages = [
   {
@@ -68,15 +69,44 @@ function isCatalogNavActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function CatalogNav({ children }: { children?: ReactNode }) {
+function readVisualizerHref(workspaceId: string | null | undefined): string {
+  if (!workspaceId || typeof window === "undefined") return "/visualizer";
+  return getLastVisualizerPath(workspaceId);
+}
+
+export function CatalogNav({
+  children,
+  workspaceId,
+}: {
+  children?: ReactNode;
+  workspaceId?: string | null;
+}) {
   const pathname = usePathname();
+  const [visualizerHref, setVisualizerHref] = useState(() =>
+    readVisualizerHref(workspaceId),
+  );
+
+  useEffect(() => {
+    if (!workspaceId) {
+      return;
+    }
+    function refresh() {
+      setVisualizerHref(getLastVisualizerPath(workspaceId!));
+    }
+    window.addEventListener("visualizations-changed", refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener("visualizations-changed", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, [workspaceId]);
 
   return (
     <nav className="flex h-12 items-stretch" aria-label="Catalog">
       {catalogPages.map(({ href, label, icon }) => (
         <NavLink
           key={href}
-          href={href}
+          href={href === "/visualizer" ? visualizerHref : href}
           label={label}
           icon={icon}
           isActive={isCatalogNavActive(pathname, href)}

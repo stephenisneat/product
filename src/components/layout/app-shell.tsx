@@ -55,7 +55,7 @@ function AppShellFrame({
         </main>
         {hideChatSidebar ? null : (
           <aside className="relative hidden min-h-0 w-[360px] shrink-0 overflow-visible lg:block xl:w-[400px]">
-            <AgentComposer user={user} />
+            <AgentComposer user={user} workspaceId={activeWorkspaceId} />
           </aside>
         )}
       </div>

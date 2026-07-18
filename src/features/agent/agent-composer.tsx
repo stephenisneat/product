@@ -56,8 +56,61 @@ import {
   type AgentConversation,
 } from "@/features/agent/agent-conversations";
 import { AgentMessageMarkdown } from "@/features/agent/agent-message-markdown";
+import {
+  openVisualizationTab,
+  upsertVisualization,
+} from "@/features/visualizer/visualization-store";
+import type { Visualization } from "@/domain";
 import { useWalletOptional } from "@/features/wallet/wallet-context";
 import { cn } from "@/lib/utils";
+
+function extractCreateVisualizationResults(messages: UIMessage[]): Array<{
+  toolCallId: string;
+  visualization: Visualization;
+  href: string;
+}> {
+  const found: Array<{
+    toolCallId: string;
+    visualization: Visualization;
+    href: string;
+  }> = [];
+
+  for (const message of messages) {
+    if (message.role !== "assistant" || !Array.isArray(message.parts)) continue;
+    for (const part of message.parts) {
+      const p = part as {
+        type?: string;
+        toolName?: string;
+        toolCallId?: string;
+        state?: string;
+        output?: {
+          ok?: boolean;
+          href?: string;
+          visualization?: Visualization;
+        };
+      };
+      const isCreateViz =
+        p.type === "tool-create_visualization" ||
+        (p.type === "dynamic-tool" && p.toolName === "create_visualization");
+      if (!isCreateViz || p.state !== "output-available") continue;
+      const output = p.output;
+      if (
+        !p.toolCallId ||
+        !output?.ok ||
+        !output.visualization ||
+        typeof output.href !== "string"
+      ) {
+        continue;
+      }
+      found.push({
+        toolCallId: p.toolCallId,
+        visualization: output.visualization,
+        href: output.href,
+      });
+    }
+  }
+  return found;
+}
 
 const menuItemClass =
   "flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50";
@@ -265,7 +318,13 @@ function LoadOlderSentinel({
   );
 }
 
-export function AgentComposer({ user }: { user: AppUser }) {
+export function AgentComposer({
+  user,
+  workspaceId,
+}: {
+  user: AppUser;
+  workspaceId?: string | null;
+}) {
   const router = useRouter();
   const { route } = useAgentContext();
   const walletCtx = useWalletOptional();
@@ -284,6 +343,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
   const [visibleCount, setVisibleCount] = useState(MESSAGE_PAGE_SIZE);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const historySearchRef = useRef<HTMLInputElement>(null);
+  const handledVizToolCallIds = useRef(new Set<string>());
 
   const activeTitle =
     conversations.find((c) => c.id === activeId)?.title?.trim() || "New chat";
@@ -376,9 +436,29 @@ export function AgentComposer({ user }: { user: AppUser }) {
     busy &&
     (messages.length === 0 || messages[messages.length - 1]?.role === "user");
 
+  const prevChatStatus = useRef(status);
+
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  useEffect(() => {
+    const wasBusy =
+      prevChatStatus.current === "submitted" ||
+      prevChatStatus.current === "streaming";
+    prevChatStatus.current = status;
+    if (!workspaceId || !wasBusy || status !== "ready") return;
+
+    const results = extractCreateVisualizationResults(messages);
+    for (const result of results) {
+      if (handledVizToolCallIds.current.has(result.toolCallId)) continue;
+      handledVizToolCallIds.current.add(result.toolCallId);
+      upsertVisualization(workspaceId, result.visualization);
+      openVisualizationTab(workspaceId, result.visualization.id);
+      window.dispatchEvent(new Event("visualizations-changed"));
+      router.push(result.href);
+    }
+  }, [messages, router, status, workspaceId]);
 
   const hasOlderMessages = messages.length > visibleCount;
   const visibleMessages = hasOlderMessages

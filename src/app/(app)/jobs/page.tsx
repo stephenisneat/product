@@ -98,7 +98,7 @@ export default async function JobsPage() {
   }
 
   return (
-    <PageCanvas header={<CatalogNav />}>
+    <PageCanvas header={<CatalogNav workspaceId={active.workspace.id} />}>
       <div className="mx-auto w-full max-w-3xl px-4 py-6">
         <div className="mb-6">
           <h1 className="font-heading text-xl font-semibold tracking-tight">

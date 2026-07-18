@@ -445,6 +445,94 @@ export const performancePointSchema = z.object({
 
 export type PerformancePoint = z.infer<typeof performancePointSchema>;
 
+export const visualizationKindSchema = z.enum([
+  "sankey",
+  "timeseries",
+  "comparison",
+  "bar",
+]);
+export type VisualizationKind = z.infer<typeof visualizationKindSchema>;
+
+export const sankeyNodeSchema = z.object({
+  name: z.string(),
+});
+export const sankeyLinkSchema = z.object({
+  source: z.string(),
+  target: z.string(),
+  value: z.number(),
+});
+export const sankeyDataSchema = z.object({
+  nodes: z.array(sankeyNodeSchema),
+  links: z.array(sankeyLinkSchema),
+});
+export type SankeyData = z.infer<typeof sankeyDataSchema>;
+
+export const timeseriesSeriesSchema = z.object({
+  name: z.string(),
+  points: z.array(
+    z.object({
+      date: z.string(),
+      value: z.number(),
+    }),
+  ),
+});
+export const timeseriesDataSchema = z.object({
+  metric: z.string(),
+  series: z.array(timeseriesSeriesSchema),
+});
+export type TimeseriesData = z.infer<typeof timeseriesDataSchema>;
+
+export const comparisonDataSchema = z.object({
+  metric: z.string(),
+  series: z.array(
+    z.object({
+      name: z.string(),
+      points: z.array(
+        z.object({
+          date: z.string(),
+          value: z.number(),
+        }),
+      ),
+    }),
+  ),
+});
+export type ComparisonData = z.infer<typeof comparisonDataSchema>;
+
+export const barDataSchema = z.object({
+  metric: z.string(),
+  categories: z.array(z.string()),
+  series: z.array(
+    z.object({
+      name: z.string(),
+      values: z.array(z.number()),
+    }),
+  ),
+});
+export type BarData = z.infer<typeof barDataSchema>;
+
+export const visualizationDataSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("sankey"), data: sankeyDataSchema }),
+  z.object({ kind: z.literal("timeseries"), data: timeseriesDataSchema }),
+  z.object({ kind: z.literal("comparison"), data: comparisonDataSchema }),
+  z.object({ kind: z.literal("bar"), data: barDataSchema }),
+]);
+
+export const visualizationSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  kind: visualizationKindSchema,
+  prompt: z.string().optional(),
+  data: z.union([
+    sankeyDataSchema,
+    timeseriesDataSchema,
+    comparisonDataSchema,
+    barDataSchema,
+  ]),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type Visualization = z.infer<typeof visualizationSchema>;
+
 export const appUserSchema = z.object({
   id: z.string(),
   email: z.string().email(),
