@@ -296,8 +296,10 @@ export function AgentComposer({ user }: { user: AppUser }) {
   }, [activeId]);
 
   useEffect(() => {
+    // Hydrate chat history from localStorage for this user session.
     const store = loadConversationStore(user.id);
     const active = getActiveConversation(store);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate-from-storage
     setConversations(store.conversations);
     setActiveId(active.id);
     setSeedMessages(active.messages);
@@ -398,6 +400,8 @@ export function AgentComposer({ user }: { user: AppUser }) {
     const derivedTitle = titleFromMessages(messages);
     const now = new Date().toISOString();
 
+    // Persist the active conversation whenever the chat stream updates.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync-chat-to-storage
     setConversations((prev) => {
       const existing = prev.find((c) => c.id === activeId);
       const unchanged = messagesEqual(existing?.messages, messages);
