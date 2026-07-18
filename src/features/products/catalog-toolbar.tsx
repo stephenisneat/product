@@ -72,7 +72,7 @@ export function CatalogNav({ children }: { children?: ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-wrap items-center gap-2" aria-label="Catalog">
+    <nav className="flex h-12 items-stretch" aria-label="Catalog">
       {catalogPages.map(({ href, label, icon }) => (
         <NavLink
           key={href}
