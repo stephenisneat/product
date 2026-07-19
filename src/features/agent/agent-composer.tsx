@@ -146,6 +146,32 @@ function extractCreativeIdsFromMessage(message: UIMessage): string[] {
   return ids;
 }
 
+function extractCreativeToolErrors(message: UIMessage): string[] {
+  if (message.role !== "assistant" || !Array.isArray(message.parts)) return [];
+  const errors: string[] = [];
+
+  for (const part of message.parts) {
+    const p = part as {
+      type?: string;
+      toolName?: string;
+      state?: string;
+      output?: { ok?: boolean; error?: string; message?: string };
+    };
+    const isCreativeTool =
+      p.type === "tool-create_video_creative" ||
+      p.type === "tool-resubmit_creative" ||
+      (p.type === "dynamic-tool" &&
+        (p.toolName === "create_video_creative" ||
+          p.toolName === "resubmit_creative"));
+    if (!isCreativeTool || p.state !== "output-available") continue;
+    if (p.output?.ok === false) {
+      const msg = p.output.error ?? p.output.message;
+      if (typeof msg === "string" && msg.trim()) errors.push(msg);
+    }
+  }
+  return errors;
+}
+
 const menuItemClass =
   "flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50";
 
@@ -958,6 +984,9 @@ export function AgentComposer({
                       const creativeIds = isUser
                         ? []
                         : extractCreativeIdsFromMessage(message);
+                      const creativeErrors = isUser
+                        ? []
+                        : extractCreativeToolErrors(message);
                       return (
                         <MessageScrollerItem
                           key={message.id}
@@ -988,6 +1017,14 @@ export function AgentComposer({
                                   ) : (
                                     ""
                                   )}
+                                  {creativeErrors.map((err) => (
+                                    <p
+                                      key={err}
+                                      className="mt-2 rounded-md border border-destructive/30 bg-destructive/5 px-2.5 py-2 text-[12px] text-destructive"
+                                    >
+                                      {err}
+                                    </p>
+                                  ))}
                                   {creativeIds.map((id) => (
                                     <CreativeCardFromId
                                       key={id}
