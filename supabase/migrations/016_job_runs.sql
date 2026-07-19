@@ -3,7 +3,7 @@
 create table if not exists public.job_runs (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces (id) on delete cascade,
-  product_id uuid references public.products (id) on delete set null,
+  product_id text references public.products (id) on delete set null,
   type text not null check (type in ('create_campaign')),
   status text not null default 'pending' check (
     status in ('pending', 'running', 'succeeded', 'failed', 'canceled')

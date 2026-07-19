@@ -641,7 +641,92 @@ export const memberUsageSchema = z.object({
 });
 export type MemberUsage = z.infer<typeof memberUsageSchema>;
 
-export const jobRunTypeSchema = z.enum(["create_campaign"]);
+export const creativeKindSchema = z.enum(["video_ad"]);
+export type CreativeKind = z.infer<typeof creativeKindSchema>;
+
+export const creativeStageSchema = z.enum([
+  "screenplay",
+  "storyboard",
+  "video",
+]);
+export type CreativeStage = z.infer<typeof creativeStageSchema>;
+
+export const creativeStatusSchema = z.enum([
+  "generating",
+  "awaiting_review",
+  "revising",
+  "rejected",
+  "ready",
+]);
+export type CreativeStatus = z.infer<typeof creativeStatusSchema>;
+
+export const screenplaySceneSchema = z.object({
+  id: z.string(),
+  heading: z.string(),
+  action: z.string(),
+  dialogue: z.string().default(""),
+  durationSec: z.number().positive(),
+});
+export type ScreenplayScene = z.infer<typeof screenplaySceneSchema>;
+
+export const screenplayPayloadSchema = z.object({
+  logline: z.string(),
+  script: z.string(),
+  scenes: z.array(screenplaySceneSchema),
+  aspectRatio: z.string().default("9:16"),
+  targetDurationSec: z.number().positive().default(15),
+});
+export type ScreenplayPayload = z.infer<typeof screenplayPayloadSchema>;
+
+export const storyboardFrameSchema = z.object({
+  sceneId: z.string(),
+  shotDescription: z.string(),
+  camera: z.string(),
+  imageUrl: z.string().url(),
+});
+export type StoryboardFrame = z.infer<typeof storyboardFrameSchema>;
+
+export const storyboardPayloadSchema = z.object({
+  styleBrief: z.string(),
+  frames: z.array(storyboardFrameSchema),
+});
+export type StoryboardPayload = z.infer<typeof storyboardPayloadSchema>;
+
+export const videoPayloadSchema = z.object({
+  url: z.string().url(),
+  thumbnailUrl: z.string().url(),
+  durationSec: z.number().positive(),
+  aspectRatio: z.string().default("9:16"),
+});
+export type VideoPayload = z.infer<typeof videoPayloadSchema>;
+
+export const creativeSchema = z.object({
+  id: z.string().uuid(),
+  workspaceId: z.string().uuid(),
+  productId: z.string(),
+  campaignId: z.string().nullable().optional(),
+  kind: creativeKindSchema,
+  title: z.string(),
+  brief: z.string(),
+  stage: creativeStageSchema,
+  status: creativeStatusSchema,
+  screenplay: screenplayPayloadSchema.nullable(),
+  storyboard: storyboardPayloadSchema.nullable(),
+  video: videoPayloadSchema.nullable(),
+  revisionFeedback: z.string().nullable(),
+  activeJobId: z.string().uuid().nullable(),
+  createdBy: z.string(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type Creative = z.infer<typeof creativeSchema>;
+
+export const jobRunTypeSchema = z.enum([
+  "create_campaign",
+  "generate_creative_screenplay",
+  "generate_creative_storyboard",
+  "generate_creative_video",
+]);
 export type JobRunType = z.infer<typeof jobRunTypeSchema>;
 
 export const jobRunStatusSchema = z.enum([
@@ -664,6 +749,15 @@ export const createCampaignJobInputSchema = z.object({
 });
 export type CreateCampaignJobInput = z.infer<
   typeof createCampaignJobInputSchema
+>;
+
+export const generateCreativeStageJobInputSchema = z.object({
+  creativeId: z.string().uuid(),
+  productId: z.string(),
+  stage: creativeStageSchema,
+});
+export type GenerateCreativeStageJobInput = z.infer<
+  typeof generateCreativeStageJobInputSchema
 >;
 
 export const jobRunSchema = z.object({

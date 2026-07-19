@@ -23,6 +23,8 @@ type AgentContextValue = {
   activeProduct: ActiveProduct | null;
   setActiveProduct: (product: ActiveProduct | null) => void;
   route: AgentRouteContext;
+  composePrefill: string | null;
+  setComposePrefill: (text: string | null) => void;
 };
 
 const AgentContext = createContext<AgentContextValue | null>(null);
@@ -37,6 +39,7 @@ function productIdFromPathname(pathname: string): string | null {
 export function AgentContextProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [activeProduct, setActiveProduct] = useState<ActiveProduct | null>(null);
+  const [composePrefill, setComposePrefill] = useState<string | null>(null);
   const pathProductId = productIdFromPathname(pathname);
 
   const route = useMemo<AgentRouteContext>(() => {
@@ -56,8 +59,10 @@ export function AgentContextProvider({ children }: { children: ReactNode }) {
       activeProduct,
       setActiveProduct,
       route,
+      composePrefill,
+      setComposePrefill,
     }),
-    [activeProduct, route],
+    [activeProduct, route, composePrefill],
   );
 
   return <AgentContext.Provider value={value}>{children}</AgentContext.Provider>;

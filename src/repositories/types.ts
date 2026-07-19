@@ -5,6 +5,9 @@ import type {
   CanonicalProduct,
   CommerceConnection,
   CommerceProvider,
+  Creative,
+  CreativeStage,
+  CreativeStatus,
   JobRun,
   JobRunStatus,
   JobRunTrigger,
@@ -12,6 +15,9 @@ import type {
   PerformancePoint,
   Product,
   ProductIntelligence,
+  ScreenplayPayload,
+  StoryboardPayload,
+  VideoPayload,
   Workspace,
   WorkspaceInvite,
   WorkspaceInviteRole,
@@ -86,6 +92,45 @@ export interface ArtifactRepository {
   getById(id: string): Promise<Artifact | null>;
   create(artifact: Artifact): Promise<Artifact>;
   update(artifact: Artifact): Promise<Artifact>;
+}
+
+export type CreativeCreateInput = {
+  id?: string;
+  workspaceId: string;
+  productId: string;
+  campaignId?: string | null;
+  kind?: Creative["kind"];
+  title: string;
+  brief: string;
+  stage?: CreativeStage;
+  status?: CreativeStatus;
+  createdBy: string;
+  activeJobId?: string | null;
+};
+
+export type CreativeUpdateInput = {
+  title?: string;
+  brief?: string;
+  campaignId?: string | null;
+  stage?: CreativeStage;
+  status?: CreativeStatus;
+  screenplay?: ScreenplayPayload | null;
+  storyboard?: StoryboardPayload | null;
+  video?: VideoPayload | null;
+  revisionFeedback?: string | null;
+  activeJobId?: string | null;
+};
+
+export interface CreativeRepository {
+  listByWorkspace(
+    workspaceId: string,
+    opts?: { limit?: number; offset?: number },
+  ): Promise<Creative[]>;
+  listByProduct(productId: string): Promise<Creative[]>;
+  countByCampaign(campaignId: string): Promise<number>;
+  getById(id: string): Promise<Creative | null>;
+  create(input: CreativeCreateInput): Promise<Creative>;
+  update(id: string, patch: CreativeUpdateInput): Promise<Creative>;
 }
 
 export interface WorkspaceRepository {

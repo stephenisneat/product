@@ -23,7 +23,11 @@ import {
   PlanEntitlementError,
   assertCanCreateCreative,
 } from "@/lib/billing/gates";
-import { enqueueCreateCampaignJob } from "@/lib/jobs/enqueue";
+import {
+  enqueueCreateCampaignJob,
+  resubmitCreativeStage,
+  startVideoCreative,
+} from "@/lib/jobs/enqueue";
 import { hasServiceRole } from "@/lib/supabase/service";
 import { assertWalletAllowsAi, chargeAiUsage } from "@/lib/wallet/gate";
 import {
@@ -63,10 +67,12 @@ function buildProductSystemPrompt(
   intelligence: ProductIntelligence | null,
 ): string {
   return `You are Product Agent, an AI marketing collaborator for commerce products.
-You help develop positioning, ad copy, campaign concepts, and listing updates.
-Always prefer calling propose_artifact when you have a concrete proposal ready for review.
+You help develop positioning, ad copy, campaign concepts, listing updates, and video ad creatives.
+Always prefer calling propose_artifact when you have a concrete text proposal ready for review.
 When the user wants to create a campaign (not just a concept proposal), call run_job with type create_campaign.
 Keep propose_artifact for reviewable copy, positioning, and campaign concepts; use run_job to actually create a draft campaign.
+When the user describes a video ad idea, call create_video_creative with a short title and the brief (their idea). That starts screenplay → storyboard → video with human Accept/Reject/Revise gates.
+When the user is revising an existing video creative (they mention a creative id or are iterating on feedback), call resubmit_creative with that creativeId — do not create a new creative.
 When proposing ad_copy creatives for a campaign, include that campaign's id as campaignId.
 When the user asks about performance, funnels, comparisons (e.g. Q1 vs Q2), trends, or wants a chart/visualization, call create_visualization with an appropriate kind (sankey, timeseries, comparison, or bar) and a clear title.
 Never invent inventory or prices that contradict the product context.
@@ -105,6 +111,8 @@ Help prioritize work, compare products, and propose marketing artifacts for spec
 When proposing an artifact, always call propose_artifact with the target productId from the catalog.
 When the user wants to create a campaign for a product, call run_job with type create_campaign and that productId.
 Keep propose_artifact for reviewable copy and concepts; use run_job to create a draft campaign.
+When the user describes a video ad idea, call create_video_creative with productId from the catalog, a short title, and the brief. That starts screenplay → storyboard → video with human Accept/Reject/Revise gates.
+When the user is revising an existing video creative, call resubmit_creative with that creativeId — do not create a new creative.
 When the user asks about performance, funnels, comparisons (e.g. Q1 vs Q2), trends, or wants a chart/visualization, call create_visualization with an appropriate kind (sankey, timeseries, comparison, or bar) and a clear title.
 Never invent inventory or prices that contradict the catalog.
 The user may navigate between pages during a conversation. Treat this workspace context as the current page for this turn.
@@ -557,6 +565,96 @@ export async function POST(req: Request) {
             }
           },
         }),
+        create_video_creative: tool({
+          description:
+            "Start a video ad creative pipeline (screenplay → storyboard → video) for the current product. Returns a creativeId; the user reviews each stage with Accept / Reject / Revise.",
+          inputSchema: z.object({
+            title: z.string().trim().min(1).max(120),
+            brief: z.string().trim().min(1).max(4000),
+            campaignId: z.string().optional(),
+          }),
+          execute: async (input) => {
+            if (!hasServiceRole()) {
+              return {
+                ok: false,
+                error: "Jobs service is not configured.",
+              };
+            }
+            try {
+              const { creative, job } = await startVideoCreative({
+                workspaceId: active.workspace.id,
+                productId,
+                campaignId: input.campaignId ?? null,
+                title: input.title,
+                brief: input.brief,
+                createdBy: user.id,
+                trigger: "agent",
+                plan,
+              });
+              return {
+                ok: true,
+                creativeId: creative.id,
+                jobId: job.id,
+                href: `/creatives/${creative.id}`,
+                message: `Started video creative "${creative.title}". Review it in chat or on /creatives/${creative.id}.`,
+              };
+            } catch (err) {
+              if (err instanceof PlanEntitlementError) {
+                return { ok: false, error: err.message, code: err.code };
+              }
+              return {
+                ok: false,
+                error:
+                  err instanceof Error
+                    ? err.message
+                    : "Failed to start video creative.",
+              };
+            }
+          },
+        }),
+        resubmit_creative: tool({
+          description:
+            "Re-run generation for an existing video creative's current stage after the user requested revisions. Pass creativeId and optional feedback or an updated brief.",
+          inputSchema: z.object({
+            creativeId: z.string().uuid(),
+            feedback: z.string().trim().max(2000).optional(),
+            brief: z.string().trim().max(4000).optional(),
+          }),
+          execute: async (input) => {
+            if (!hasServiceRole()) {
+              return {
+                ok: false,
+                error: "Jobs service is not configured.",
+              };
+            }
+            try {
+              const { creative, job } = await resubmitCreativeStage({
+                workspaceId: active.workspace.id,
+                creativeId: input.creativeId,
+                createdBy: user.id,
+                trigger: "agent",
+                brief: input.brief,
+                feedback: input.feedback,
+              });
+              return {
+                ok: true,
+                creativeId: creative.id,
+                jobId: job.id,
+                stage: creative.stage,
+                href: `/creatives/${creative.id}`,
+                message: `Resubmitted ${creative.stage} generation for "${creative.title}".`,
+              };
+            } catch (err) {
+              return {
+                ok: false,
+                error:
+                  err instanceof Error
+                    ? err.message
+                    : "Failed to resubmit creative.",
+              };
+            }
+          },
+        }),
         create_visualization: createVisualizationTool,
       },
     });
@@ -690,6 +788,103 @@ export async function POST(req: Request) {
               ok: false,
               error:
                 err instanceof Error ? err.message : "Failed to start job.",
+            };
+          }
+        },
+      }),
+      create_video_creative: tool({
+        description:
+          "Start a video ad creative pipeline (screenplay → storyboard → video) for a product in the catalog. Returns a creativeId for Accept / Reject / Revise review.",
+        inputSchema: z.object({
+          productId: z.string(),
+          title: z.string().trim().min(1).max(120),
+          brief: z.string().trim().min(1).max(4000),
+          campaignId: z.string().optional(),
+        }),
+        execute: async (input) => {
+          if (!ownedIds.has(input.productId)) {
+            return {
+              ok: false,
+              message: "productId is not in this workspace catalog.",
+            };
+          }
+          if (!hasServiceRole()) {
+            return {
+              ok: false,
+              error: "Jobs service is not configured.",
+            };
+          }
+          try {
+            const { creative, job } = await startVideoCreative({
+              workspaceId: activeWorkspace.workspace.id,
+              productId: input.productId,
+              campaignId: input.campaignId ?? null,
+              title: input.title,
+              brief: input.brief,
+              createdBy: user.id,
+              trigger: "agent",
+              plan,
+            });
+            return {
+              ok: true,
+              creativeId: creative.id,
+              jobId: job.id,
+              href: `/creatives/${creative.id}`,
+              message: `Started video creative "${creative.title}". Review it in chat or on /creatives/${creative.id}.`,
+            };
+          } catch (err) {
+            if (err instanceof PlanEntitlementError) {
+              return { ok: false, error: err.message, code: err.code };
+            }
+            return {
+              ok: false,
+              error:
+                err instanceof Error
+                  ? err.message
+                  : "Failed to start video creative.",
+            };
+          }
+        },
+      }),
+      resubmit_creative: tool({
+        description:
+          "Re-run generation for an existing video creative's current stage after revision feedback. Pass creativeId and optional feedback or brief.",
+        inputSchema: z.object({
+          creativeId: z.string().uuid(),
+          feedback: z.string().trim().max(2000).optional(),
+          brief: z.string().trim().max(4000).optional(),
+        }),
+        execute: async (input) => {
+          if (!hasServiceRole()) {
+            return {
+              ok: false,
+              error: "Jobs service is not configured.",
+            };
+          }
+          try {
+            const { creative, job } = await resubmitCreativeStage({
+              workspaceId: activeWorkspace.workspace.id,
+              creativeId: input.creativeId,
+              createdBy: user.id,
+              trigger: "agent",
+              brief: input.brief,
+              feedback: input.feedback,
+            });
+            return {
+              ok: true,
+              creativeId: creative.id,
+              jobId: job.id,
+              stage: creative.stage,
+              href: `/creatives/${creative.id}`,
+              message: `Resubmitted ${creative.stage} generation for "${creative.title}".`,
+            };
+          } catch (err) {
+            return {
+              ok: false,
+              error:
+                err instanceof Error
+                  ? err.message
+                  : "Failed to resubmit creative.",
             };
           }
         },

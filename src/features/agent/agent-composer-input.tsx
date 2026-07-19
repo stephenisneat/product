@@ -9,6 +9,7 @@ import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import {
   $createParagraphNode,
+  $createTextNode,
   $getRoot,
   COMMAND_PRIORITY_HIGH,
   KEY_ENTER_COMMAND,
@@ -36,6 +37,7 @@ import {
 import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAgentContext } from "@/features/agent/agent-context";
 
 /** Matches `text-[13px] leading-5` on the contenteditable. */
 const EDITOR_FONT = '13px Geist, "Geist Sans", ui-sans-serif, system-ui, sans-serif';
@@ -73,7 +75,20 @@ function MentionsMenu({
 const MentionsMenuItem = forwardRef<
   HTMLLIElement,
   BeautifulMentionsMenuItemProps
->(function MentionsMenuItem({ selected, item, ...props }, ref) {
+>(function MentionsMenuItem(
+  {
+    selected,
+    item,
+    itemValue: _itemValue,
+    label: _label,
+    // Mention search data is spread onto the item; keep it off the DOM node.
+    value: _value,
+    type: _type,
+    id: _id,
+    ...props
+  },
+  ref,
+) {
   const type =
     typeof item.data?.type === "string" ? item.data.type : "mention";
 
@@ -140,6 +155,30 @@ function EditorResetPlugin({
       root.append($createParagraphNode());
     });
   }, [editor, resetSignal]);
+
+  return null;
+}
+
+function PrefillPlugin({
+  prefill,
+  onConsumed,
+}: {
+  prefill: string | null;
+  onConsumed: () => void;
+}) {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    if (!prefill) return;
+    editor.update(() => {
+      const root = $getRoot();
+      root.clear();
+      const paragraph = $createParagraphNode();
+      paragraph.append($createTextNode(prefill));
+      root.append(paragraph);
+    });
+    onConsumed();
+  }, [editor, onConsumed, prefill]);
 
   return null;
 }
@@ -245,6 +284,7 @@ export function AgentComposerInput({
   productId?: string;
   onSubmit: (payload: { text: string; files: File[] }) => void | Promise<void>;
 }) {
+  const { composePrefill, setComposePrefill } = useAgentContext();
   const [text, setText] = useState("");
   const [multiline, setMultiline] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
@@ -419,6 +459,10 @@ export function AgentComposerInput({
             <HistoryPlugin />
             <EnterSubmitPlugin onSubmit={handleSubmit} disabled={!canSend} />
             <EditorResetPlugin resetSignal={resetSignal} />
+            <PrefillPlugin
+              prefill={composePrefill}
+              onConsumed={() => setComposePrefill(null)}
+            />
             <EditablePlugin editable={!disabled} />
             <BeautifulMentionsPlugin
               triggers={["@"]}

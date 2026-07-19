@@ -1,11 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { SupabaseCreativeRepository } from "./creatives";
 import { SupabaseJobRepository } from "./jobs";
 import { SupabaseArtifactRepository, SupabaseProductRepository } from "./supabase";
 import { SupabaseWalletRepository } from "./wallet";
 import { SupabaseWorkspaceRepository } from "./workspaces";
 import type {
   ArtifactRepository,
+  CreativeRepository,
   JobRepository,
   ProductRepository,
   WorkspaceRepository,
@@ -24,6 +26,16 @@ export function getProductWriteRepository(): ProductRepository {
 export async function getArtifactRepository(): Promise<ArtifactRepository> {
   const client = await createClient();
   return new SupabaseArtifactRepository(client);
+}
+
+export async function getCreativeRepository(): Promise<CreativeRepository> {
+  const client = await createClient();
+  return new SupabaseCreativeRepository(client);
+}
+
+/** Service-role creative writes for background jobs. */
+export function getCreativeWriteRepository(): CreativeRepository {
+  return new SupabaseCreativeRepository(createServiceClient());
 }
 
 export async function getWorkspaceRepository(): Promise<WorkspaceRepository> {
@@ -55,6 +67,7 @@ export function getWalletWriteRepository(): SupabaseWalletRepository {
 
 export type {
   ArtifactRepository,
+  CreativeRepository,
   JobRepository,
   ProductRepository,
   WorkspaceRepository,
