@@ -10,7 +10,7 @@ import {
   FileTextIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { WalletSummary } from "@/domain";
+import type { MemberUsage, WalletSummary } from "@/domain";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -23,6 +23,7 @@ import {
   AutoReloadDialog,
   EditLimitDialog,
 } from "@/features/wallet/wallet-dialogs";
+import { MemberUsageList } from "@/features/wallet/member-usage-list";
 import { UpgradeButton } from "@/features/billing/upgrade-button";
 import { formatCents, formatCentsFloorDollars } from "@/features/wallet/money";
 import { cn } from "@/lib/utils";
@@ -260,10 +261,14 @@ function UsageLimitMenu({
   wallet,
   loading,
   onChangeLimit,
+  memberUsage,
+  currentUserId,
 }: {
   wallet: WalletSummary | null;
   loading: boolean;
   onChangeLimit: () => void;
+  memberUsage: MemberUsage[];
+  currentUserId: string | null;
 }) {
   return (
     <WalletPopoverShell
@@ -284,42 +289,60 @@ function UsageLimitMenu({
       {!wallet ? (
         <WalletUnavailable loading={loading} />
       ) : (
-        <section className="space-y-3 p-3">
-          <div>
-            <p className="text-sm font-medium">Monthly usage limit</p>
-            <p className="text-xs text-muted-foreground">
-              Platform AI events for this billing period.
+        <div>
+          <section className="space-y-3 p-3">
+            <div>
+              <p className="text-sm font-medium">Monthly usage limit</p>
+              <p className="text-xs text-muted-foreground">
+                Platform AI events for this billing period.
+              </p>
+            </div>
+            <ProgressBar
+              value={wallet.usageMtdCents}
+              max={wallet.usageLimitCents}
+            />
+            <p className="font-heading text-lg font-semibold tracking-tight">
+              {formatCents(wallet.usageMtdCents)}
+              <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+                used this month
+                {wallet.usageLimitCents != null
+                  ? ` of ${formatCents(wallet.usageLimitCents)}`
+                  : ""}
+              </span>
             </p>
-          </div>
-          <ProgressBar
-            value={wallet.usageMtdCents}
-            max={wallet.usageLimitCents}
-          />
-          <p className="font-heading text-lg font-semibold tracking-tight">
-            {formatCents(wallet.usageMtdCents)}
-            <span className="ml-1.5 text-sm font-normal text-muted-foreground">
-              used this month
-              {wallet.usageLimitCents != null
-                ? ` of ${formatCents(wallet.usageLimitCents)}`
-                : ""}
-            </span>
-          </p>
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[11px] text-muted-foreground">
-              Resets on {wallet.resetsOn}
-            </p>
-            {wallet.canManage ? (
-              <Button
-                type="button"
-                size="xs"
-                variant="outline"
-                onClick={onChangeLimit}
-              >
-                Change limit
-              </Button>
-            ) : null}
-          </div>
-        </section>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] text-muted-foreground">
+                Resets on {wallet.resetsOn}
+              </p>
+              {wallet.canManage ? (
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="outline"
+                  onClick={onChangeLimit}
+                >
+                  Change limit
+                </Button>
+              ) : null}
+            </div>
+          </section>
+
+          <Separator />
+
+          <section className="space-y-3 p-3">
+            <div>
+              <p className="text-sm font-medium">Usage by member</p>
+              <p className="text-xs text-muted-foreground">
+                How much each person has used this month.
+              </p>
+            </div>
+            <MemberUsageList
+              members={memberUsage}
+              currentUserId={currentUserId}
+              totalUsageCents={wallet.usageMtdCents}
+            />
+          </section>
+        </div>
       )}
     </WalletPopoverShell>
   );
@@ -457,7 +480,15 @@ function CreditBalanceMenu({
 
 /** Three toolbar popovers: ad spend, usage, and credit balance. */
 export function WalletMenu() {
-  const { wallet, plan, loading, setWallet, setOpenBuyCredits } = useWallet();
+  const {
+    wallet,
+    memberUsage,
+    currentUserId,
+    plan,
+    loading,
+    setWallet,
+    setOpenBuyCredits,
+  } = useWallet();
   const [spendOpen, setSpendOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
   const [autoReloadOpen, setAutoReloadOpen] = useState(false);
@@ -499,6 +530,8 @@ export function WalletMenu() {
         wallet={wallet}
         loading={loading}
         onChangeLimit={() => setUsageOpen(true)}
+        memberUsage={memberUsage}
+        currentUserId={currentUserId}
       />
       <CreditBalanceMenu
         wallet={wallet}

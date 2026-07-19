@@ -329,6 +329,47 @@ export class SupabaseWalletRepository {
     if (error) throw error;
     return ((data ?? []) as DbTransaction[]).map(mapTransaction);
   }
+
+  /**
+   * Sum AI usage charges for the current MTD period, grouped by `created_by`.
+   * Amounts are absolute (ledger rows store negative cents for debits).
+   */
+  async sumAiUsageByMember(
+    workspaceId: string,
+    mtdPeriodStart: string,
+  ): Promise<Map<string, { usageCents: number; actionCount: number }>> {
+    const since = `${mtdPeriodStart}T00:00:00.000Z`;
+    const { data, error } = await this.client
+      .from("wallet_transactions")
+      .select("created_by, amount_cents, metadata")
+      .eq("workspace_id", workspaceId)
+      .eq("type", "ai_usage")
+      .gte("created_at", since);
+    if (error) throw error;
+
+    const byUser = new Map<string, { usageCents: number; actionCount: number }>();
+    for (const row of (data ?? []) as Array<{
+      created_by: string | null;
+      amount_cents: number;
+      metadata: Record<string, unknown> | null;
+    }>) {
+      if (!row.created_by) continue;
+      const prev = byUser.get(row.created_by) ?? {
+        usageCents: 0,
+        actionCount: 0,
+      };
+      const meta = row.metadata ?? {};
+      const actions =
+        typeof meta.action_count === "number" && meta.action_count > 0
+          ? Math.floor(meta.action_count)
+          : 1;
+      byUser.set(row.created_by, {
+        usageCents: prev.usageCents + Math.abs(Number(row.amount_cents)),
+        actionCount: prev.actionCount + actions,
+      });
+    }
+    return byUser;
+  }
 }
 
 function monthStartUtc(): string {

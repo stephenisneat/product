@@ -559,7 +559,6 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   billingAlerts: true,
   marketing: false,
 };
-
 export const walletTransactionTypeSchema = z.enum([
   "credit_purchase",
   "auto_reload",
@@ -631,6 +630,16 @@ export const walletSummarySchema = z.object({
   canManage: z.boolean(),
 });
 export type WalletSummary = z.infer<typeof walletSummarySchema>;
+
+/** Per-member AI usage for the current workspace billing period. */
+export const memberUsageSchema = z.object({
+  userId: z.string(),
+  name: z.string().nullable(),
+  email: z.string().nullable(),
+  usageCents: z.number().int().nonnegative(),
+  actionCount: z.number().int().nonnegative(),
+});
+export type MemberUsage = z.infer<typeof memberUsageSchema>;
 
 export const jobRunTypeSchema = z.enum(["create_campaign"]);
 export type JobRunType = z.infer<typeof jobRunTypeSchema>;
