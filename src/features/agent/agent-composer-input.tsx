@@ -75,7 +75,20 @@ function MentionsMenu({
 const MentionsMenuItem = forwardRef<
   HTMLLIElement,
   BeautifulMentionsMenuItemProps
->(function MentionsMenuItem({ selected, item, ...props }, ref) {
+>(function MentionsMenuItem(
+  {
+    selected,
+    item,
+    itemValue: _itemValue,
+    label: _label,
+    // Mention search data is spread onto the item; keep it off the DOM node.
+    value: _value,
+    type: _type,
+    id: _id,
+    ...props
+  },
+  ref,
+) {
   const type =
     typeof item.data?.type === "string" ? item.data.type : "mention";
 
