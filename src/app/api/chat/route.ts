@@ -1,6 +1,7 @@
 import {
   convertToModelMessages,
   createUIMessageStreamResponse,
+  gateway,
   streamText,
   tool,
   toUIMessageStream,
@@ -14,6 +15,7 @@ import type {
   WorkspacePlan,
 } from "@/domain";
 import { visualizationKindSchema } from "@/domain";
+import { resolveChatModel } from "@/lib/ai/models";
 import { hasAiGateway } from "@/lib/mode";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
@@ -23,11 +25,7 @@ import {
 } from "@/lib/billing/gates";
 import { enqueueCreateCampaignJob } from "@/lib/jobs/enqueue";
 import { hasServiceRole } from "@/lib/supabase/service";
-import {
-  assertWalletAllowsAi,
-  chargeAiUsage,
-  CHAT_MODEL,
-} from "@/lib/wallet/gate";
+import { assertWalletAllowsAi, chargeAiUsage } from "@/lib/wallet/gate";
 import {
   buildCreateVisualizationResult,
   inferVisualizationFromPrompt,
@@ -426,11 +424,15 @@ export async function POST(req: Request) {
   const body = (await req.json()) as {
     messages?: UIMessage[];
     productId?: string;
+    model?: string;
   };
 
   const productId = body.productId;
   const productsRepo = await getProductRepository();
   const messages = body.messages ?? [];
+  const { modelId: chatModel, model: gatewayModel } = await resolveChatModel(
+    body.model,
+  );
 
   if (productId) {
     const product = await productsRepo.getProduct(productId);
@@ -458,16 +460,23 @@ export async function POST(req: Request) {
 
     const plan = active.workspace.plan ?? "free";
     const result = streamText({
-      model: CHAT_MODEL,
+      model: gateway(chatModel),
       system: buildProductSystemPrompt(product, intelligence),
       messages: await convertToModelMessages(messages),
+      providerOptions: {
+        gateway: {
+          user: user.id,
+          tags: ["feature:chat", "scope:product", `model:${chatModel}`],
+        },
+      },
       onFinish: async ({ usage }) => {
         await chargeAiUsage({
           workspaceId: active.workspace.id,
           userId: user.id,
           inputTokens: usage.inputTokens ?? 0,
           outputTokens: usage.outputTokens ?? 0,
-          model: CHAT_MODEL,
+          model: chatModel,
+          tokenPricing: gatewayModel?.pricing,
         });
       },
       tools: {
@@ -574,16 +583,23 @@ export async function POST(req: Request) {
 
   const plan = activeWorkspace.workspace.plan ?? "free";
   const result = streamText({
-    model: CHAT_MODEL,
+    model: gateway(chatModel),
     system: buildWorkspaceSystemPrompt(catalog),
     messages: await convertToModelMessages(messages),
+    providerOptions: {
+      gateway: {
+        user: user.id,
+        tags: ["feature:chat", "scope:workspace", `model:${chatModel}`],
+      },
+    },
     onFinish: async ({ usage }) => {
       await chargeAiUsage({
         workspaceId: activeWorkspace.workspace.id,
         userId: user.id,
         inputTokens: usage.inputTokens ?? 0,
         outputTokens: usage.outputTokens ?? 0,
-        model: CHAT_MODEL,
+        model: chatModel,
+        tokenPricing: gatewayModel?.pricing,
       });
     },
     tools: {

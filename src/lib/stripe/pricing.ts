@@ -1,7 +1,9 @@
+import type { GatewayModelPricing } from "@/lib/ai/models";
+
 /** Markup applied on top of raw provider cost when billing the wallet. */
 export const AI_MARKUP = 1.5;
 
-/** USD per 1M tokens. Adjust when models change. */
+/** USD per 1M tokens. Fallback when Gateway pricing is unavailable. */
 export const MODEL_PRICING_PER_MILLION: Record<
   string,
   { input: number; output: number }
@@ -33,7 +35,15 @@ export function providerCostUsd(input: {
   model: string;
   inputTokens: number;
   outputTokens: number;
+  /** Per-token USD rates from AI Gateway (preferred when available). */
+  tokenPricing?: GatewayModelPricing | null;
 }): number {
+  if (input.tokenPricing) {
+    return (
+      input.inputTokens * input.tokenPricing.input +
+      input.outputTokens * input.tokenPricing.output
+    );
+  }
   const pricing = getModelPricing(input.model);
   const inputCost = (input.inputTokens / 1_000_000) * pricing.input;
   const outputCost = (input.outputTokens / 1_000_000) * pricing.output;
@@ -46,10 +56,17 @@ export function billedCostCents(input: {
   inputTokens: number;
   outputTokens: number;
   markup?: number;
+  tokenPricing?: GatewayModelPricing | null;
 }): number {
   const tokens = input.inputTokens + input.outputTokens;
   if (tokens <= 0) return 0;
-  const usd = providerCostUsd(input) * (input.markup ?? AI_MARKUP);
+  const usd =
+    providerCostUsd({
+      model: input.model,
+      inputTokens: input.inputTokens,
+      outputTokens: input.outputTokens,
+      tokenPricing: input.tokenPricing,
+    }) * (input.markup ?? AI_MARKUP);
   const cents = Math.ceil(usd * 100);
   return Math.max(1, cents);
 }

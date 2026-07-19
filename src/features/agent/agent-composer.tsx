@@ -56,6 +56,12 @@ import {
   type AgentConversation,
 } from "@/features/agent/agent-conversations";
 import { AgentMessageMarkdown } from "@/features/agent/agent-message-markdown";
+import { AgentModelSelect } from "@/features/agent/agent-model-select";
+import {
+  loadPreferredChatModel,
+  savePreferredChatModel,
+} from "@/features/agent/agent-model-preference";
+import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 import {
   openVisualizationTab,
   upsertVisualization,
@@ -342,8 +348,10 @@ export function AgentComposer({
   const [seedMessages, setSeedMessages] = useState<UIMessage[]>([]);
   const [visibleCount, setVisibleCount] = useState(MESSAGE_PAGE_SIZE);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [chatModel, setChatModel] = useState(DEFAULT_CHAT_MODEL);
   const historySearchRef = useRef<HTMLInputElement>(null);
   const handledVizToolCallIds = useRef(new Set<string>());
+  const chatModelRef = useRef(chatModel);
 
   const activeTitle =
     conversations.find((c) => c.id === activeId)?.title?.trim() || "New chat";
@@ -354,6 +362,24 @@ export function AgentComposer({
   useEffect(() => {
     activeIdRef.current = activeId;
   }, [activeId]);
+
+  useEffect(() => {
+    chatModelRef.current = chatModel;
+  }, [chatModel]);
+
+  useEffect(() => {
+    // Hydrate preferred model from localStorage for this user session.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate-model-pref
+    setChatModel(loadPreferredChatModel(user.id));
+  }, [user.id]);
+
+  const handleChatModelChange = useCallback(
+    (modelId: string) => {
+      setChatModel(modelId);
+      savePreferredChatModel(user.id, modelId);
+    },
+    [user.id],
+  );
 
   useEffect(() => {
     // Hydrate chat history from localStorage for this user session.
@@ -397,6 +423,7 @@ export function AgentComposer({
           body: {
             id,
             messages,
+            model: chatModelRef.current,
             ...(productId ? { productId } : {}),
           },
         }),
@@ -962,7 +989,10 @@ export function AgentComposer({
             </MessageScrollerProvider>
           )}
 
-          <div onClick={(e) => e.stopPropagation()}>
+          <div
+            className="border-t border-border"
+            onClick={(e) => e.stopPropagation()}
+          >
             <AgentComposerInput
               busy={busy}
               productId={productId}
@@ -975,6 +1005,13 @@ export function AgentComposer({
                     : `Propose Meta ad copy for ${productTitle ?? "this product"}…`
               }
             />
+            <div className="flex items-center px-2 pb-2">
+              <AgentModelSelect
+                value={chatModel}
+                onChange={handleChatModelChange}
+                disabled={busy}
+              />
+            </div>
           </div>
         </div>
       </div>

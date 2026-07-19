@@ -327,7 +327,7 @@ export function AgentComposerInput({
   };
 
   return (
-    <form onSubmit={onFormSubmit} className="border-t border-border p-3">
+    <form onSubmit={onFormSubmit} className="p-3 pb-1.5">
       {files.length > 0 ? (
         <ul className="mb-2 flex flex-wrap gap-1.5">
           {files.map((file, index) => (
