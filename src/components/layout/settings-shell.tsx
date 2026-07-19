@@ -1,12 +1,14 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
 import type { AppUser } from "@/domain";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Button } from "@/components/ui/button";
 import { UpgradeProvider } from "@/features/billing/upgrade-context";
+import { getSettingsReturnPath } from "@/features/settings/return-path";
 import { SettingsNav } from "@/features/settings/settings-nav";
 
 export function SettingsShell({
@@ -16,6 +18,12 @@ export function SettingsShell({
   user: AppUser;
   children: ReactNode;
 }) {
+  const [returnHref, setReturnHref] = useState("/");
+
+  useEffect(() => {
+    setReturnHref(getSettingsReturnPath("/"));
+  }, []);
+
   return (
     <UpgradeProvider>
       <div className="flex h-svh w-full overflow-hidden bg-canvas">
@@ -30,7 +38,7 @@ export function SettingsShell({
           </div>
           <div className="flex shrink-0 flex-col gap-2 border-t border-border p-3">
             <Button
-              render={<Link href="/" />}
+              render={<Link href={returnHref} />}
               variant="ghost"
               size="sm"
               className="w-full justify-start"
