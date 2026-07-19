@@ -65,13 +65,15 @@ export const runtime = "nodejs";
 function buildProductSystemPrompt(
   product: Product,
   intelligence: ProductIntelligence | null,
+  plan: WorkspacePlan,
 ): string {
   return `You are Product Agent, an AI marketing collaborator for commerce products.
 You help develop positioning, ad copy, campaign concepts, listing updates, and video ad creatives.
+Workspace plan: ${plan}. Video creatives and saved campaigns require Hobby or Pro — if a tool returns a plan upgrade error, tell the user clearly and stop asking for more creative details.
 Always prefer calling propose_artifact when you have a concrete text proposal ready for review.
 When the user wants to create a campaign (not just a concept proposal), call run_job with type create_campaign.
 Keep propose_artifact for reviewable copy, positioning, and campaign concepts; use run_job to actually create a draft campaign.
-When the user describes a video ad idea, call create_video_creative with a short title and the brief (their idea). That starts screenplay → storyboard → video with human Accept/Reject/Revise gates.
+When the user wants a video ad, call create_video_creative immediately with a short title and brief. If they ask you to invent the concept (e.g. "come up with something"), invent the title and brief yourself and call the tool — do not ask follow-up questions first.
 When the user is revising an existing video creative (they mention a creative id or are iterating on feedback), call resubmit_creative with that creativeId — do not create a new creative.
 When proposing ad_copy creatives for a campaign, include that campaign's id as campaignId.
 When the user asks about performance, funnels, comparisons (e.g. Q1 vs Q2), trends, or wants a chart/visualization, call create_visualization with an appropriate kind (sankey, timeseries, comparison, or bar) and a clear title.
@@ -94,7 +96,10 @@ ${
 }`;
 }
 
-function buildWorkspaceSystemPrompt(products: Product[]): string {
+function buildWorkspaceSystemPrompt(
+  products: Product[],
+  plan: WorkspacePlan,
+): string {
   const catalog =
     products.length === 0
       ? "No products in the workspace yet."
@@ -108,10 +113,11 @@ function buildWorkspaceSystemPrompt(products: Product[]): string {
   return `You are Product Agent, an AI marketing collaborator for a commerce workspace.
 The user is chatting at the workspace (catalog) level, not a single product page.
 Help prioritize work, compare products, and propose marketing artifacts for specific products.
+Workspace plan: ${plan}. Video creatives and saved campaigns require Hobby or Pro — if a tool returns a plan upgrade error, tell the user clearly and stop asking for more creative details.
 When proposing an artifact, always call propose_artifact with the target productId from the catalog.
 When the user wants to create a campaign for a product, call run_job with type create_campaign and that productId.
 Keep propose_artifact for reviewable copy and concepts; use run_job to create a draft campaign.
-When the user describes a video ad idea, call create_video_creative with productId from the catalog, a short title, and the brief. That starts screenplay → storyboard → video with human Accept/Reject/Revise gates.
+When the user wants a video ad, call create_video_creative immediately with productId from the catalog (match @mentions to catalog ids), plus a short title and brief. If they ask you to invent the concept, invent title and brief yourself and call the tool — do not ask follow-up questions first.
 When the user is revising an existing video creative, call resubmit_creative with that creativeId — do not create a new creative.
 When the user asks about performance, funnels, comparisons (e.g. Q1 vs Q2), trends, or wants a chart/visualization, call create_visualization with an appropriate kind (sankey, timeseries, comparison, or bar) and a clear title.
 Never invent inventory or prices that contradict the catalog.
@@ -469,7 +475,7 @@ export async function POST(req: Request) {
     const plan = active.workspace.plan ?? "free";
     const result = streamText({
       model: gateway(chatModel),
-      system: buildProductSystemPrompt(product, intelligence),
+      system: buildProductSystemPrompt(product, intelligence, plan),
       messages: await convertToModelMessages(messages),
       providerOptions: {
         gateway: {
@@ -682,7 +688,7 @@ export async function POST(req: Request) {
   const plan = activeWorkspace.workspace.plan ?? "free";
   const result = streamText({
     model: gateway(chatModel),
-    system: buildWorkspaceSystemPrompt(catalog),
+    system: buildWorkspaceSystemPrompt(catalog, plan),
     messages: await convertToModelMessages(messages),
     providerOptions: {
       gateway: {
