@@ -21,23 +21,20 @@ const kindLabel: Record<string, string> = {
   bar: "Bar",
 };
 
-function readRecents(workspaceId: string): Visualization[] {
-  if (typeof window === "undefined") return [];
-  return listRecents(workspaceId);
-}
-
 export function NewVisualizationScreen({
   workspaceId,
 }: {
   workspaceId: string;
 }) {
   const router = useRouter();
-  const [recents, setRecents] = useState(() => readRecents(workspaceId));
+  // SSR-safe default; localStorage is read after mount to avoid hydration mismatch.
+  const [recents, setRecents] = useState<Visualization[]>([]);
 
   useEffect(() => {
     function refresh() {
       setRecents(listRecents(workspaceId));
     }
+    refresh();
     window.addEventListener("visualizations-changed", refresh);
     window.addEventListener("storage", refresh);
     return () => {

@@ -14,11 +14,6 @@ import {
 } from "@/features/visualizer/visualization-store";
 import { cn } from "@/lib/utils";
 
-function readStore(workspaceId: string): VisualizationStore | null {
-  if (typeof window === "undefined") return null;
-  return loadVisualizationStore(workspaceId);
-}
-
 export function VisualizationTabs({
   workspaceId,
 }: {
@@ -26,13 +21,15 @@ export function VisualizationTabs({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [store, setStore] = useState(() => readStore(workspaceId));
+  // SSR-safe default; localStorage is read after mount to avoid hydration mismatch.
+  const [store, setStore] = useState<VisualizationStore | null>(null);
 
   const refresh = useCallback(() => {
     setStore(loadVisualizationStore(workspaceId));
   }, [workspaceId]);
 
   useEffect(() => {
+    refresh();
     function onStorage(e: StorageEvent) {
       if (e.key === `visualizations:${workspaceId}`) refresh();
     }

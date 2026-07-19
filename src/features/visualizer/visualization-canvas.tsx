@@ -30,14 +30,6 @@ function ChartForVisualization({ viz }: { viz: Visualization }) {
   }
 }
 
-function readVisualization(
-  workspaceId: string,
-  visualizationId: string,
-): Visualization | null {
-  if (typeof window === "undefined") return null;
-  return getVisualization(workspaceId, visualizationId);
-}
-
 export function VisualizationCanvas({
   workspaceId,
   visualizationId,
@@ -45,9 +37,8 @@ export function VisualizationCanvas({
   workspaceId: string;
   visualizationId: string;
 }) {
-  const [viz, setViz] = useState<Visualization | null>(() =>
-    readVisualization(workspaceId, visualizationId),
-  );
+  // SSR-safe default; localStorage is read after mount to avoid hydration mismatch.
+  const [viz, setViz] = useState<Visualization | null>(null);
 
   useEffect(() => {
     const found = getVisualization(workspaceId, visualizationId);

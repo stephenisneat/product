@@ -69,11 +69,6 @@ function isCatalogNavActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function readVisualizerHref(workspaceId: string | null | undefined): string {
-  if (!workspaceId || typeof window === "undefined") return "/visualizer";
-  return getLastVisualizerPath(workspaceId);
-}
-
 export function CatalogNav({
   children,
   workspaceId,
@@ -82,17 +77,19 @@ export function CatalogNav({
   workspaceId?: string | null;
 }) {
   const pathname = usePathname();
-  const [visualizerHref, setVisualizerHref] = useState(() =>
-    readVisualizerHref(workspaceId),
-  );
+  // Always start with the SSR-safe default; localStorage is only available
+  // after mount, so reading it in useState causes a hydration mismatch.
+  const [visualizerHref, setVisualizerHref] = useState("/visualizer");
 
   useEffect(() => {
     if (!workspaceId) {
+      setVisualizerHref("/visualizer");
       return;
     }
     function refresh() {
       setVisualizerHref(getLastVisualizerPath(workspaceId!));
     }
+    refresh();
     window.addEventListener("visualizations-changed", refresh);
     window.addEventListener("storage", refresh);
     return () => {
