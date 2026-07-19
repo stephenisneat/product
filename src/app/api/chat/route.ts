@@ -1,6 +1,7 @@
 import {
   convertToModelMessages,
   createUIMessageStreamResponse,
+  gateway,
   streamText,
   tool,
   toUIMessageStream,
@@ -13,6 +14,8 @@ import type {
   ProductIntelligence,
   WorkspacePlan,
 } from "@/domain";
+import { visualizationKindSchema } from "@/domain";
+import { resolveChatModel } from "@/lib/ai/models";
 import { hasAiGateway } from "@/lib/mode";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
@@ -22,12 +25,36 @@ import {
 } from "@/lib/billing/gates";
 import { enqueueCreateCampaignJob } from "@/lib/jobs/enqueue";
 import { hasServiceRole } from "@/lib/supabase/service";
+import { assertWalletAllowsAi, chargeAiUsage } from "@/lib/wallet/gate";
 import {
-  assertWalletAllowsAi,
-  chargeAiUsage,
-  CHAT_MODEL,
-} from "@/lib/wallet/gate";
+  buildCreateVisualizationResult,
+  inferVisualizationFromPrompt,
+} from "@/features/visualizer/create-visualization";
 import { getArtifactRepository, getProductRepository } from "@/repositories";
+
+const createVisualizationToolSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  kind: visualizationKindSchema,
+  prompt: z.string().trim().max(500).optional(),
+  periodA: z.string().trim().max(40).optional(),
+  periodB: z.string().trim().max(40).optional(),
+});
+
+const createVisualizationTool = tool({
+  description:
+    "Create a chart visualization and open it as a new visualizer tab. Use for performance questions, funnel/flow questions, campaign comparisons (e.g. Q1 vs Q2), or when the user asks to chart or visualize data. Prefer comparison for period-over-period, sankey for funnels/flows, timeseries for trends, bar for channel or category breakdowns.",
+  inputSchema: createVisualizationToolSchema,
+  execute: async (input) => {
+    const result = buildCreateVisualizationResult({
+      title: input.title,
+      kind: input.kind,
+      prompt: input.prompt,
+      periodA: input.periodA,
+      periodB: input.periodB,
+    });
+    return result;
+  },
+});
 
 export const runtime = "nodejs";
 
@@ -41,6 +68,7 @@ Always prefer calling propose_artifact when you have a concrete proposal ready f
 When the user wants to create a campaign (not just a concept proposal), call run_job with type create_campaign.
 Keep propose_artifact for reviewable copy, positioning, and campaign concepts; use run_job to actually create a draft campaign.
 When proposing ad_copy creatives for a campaign, include that campaign's id as campaignId.
+When the user asks about performance, funnels, comparisons (e.g. Q1 vs Q2), trends, or wants a chart/visualization, call create_visualization with an appropriate kind (sankey, timeseries, comparison, or bar) and a clear title.
 Never invent inventory or prices that contradict the product context.
 The user may navigate between pages during a conversation. Treat the product below as the current page context for this turn.
 
@@ -77,6 +105,7 @@ Help prioritize work, compare products, and propose marketing artifacts for spec
 When proposing an artifact, always call propose_artifact with the target productId from the catalog.
 When the user wants to create a campaign for a product, call run_job with type create_campaign and that productId.
 Keep propose_artifact for reviewable copy and concepts; use run_job to create a draft campaign.
+When the user asks about performance, funnels, comparisons (e.g. Q1 vs Q2), trends, or wants a chart/visualization, call create_visualization with an appropriate kind (sankey, timeseries, comparison, or bar) and a clear title.
 Never invent inventory or prices that contradict the catalog.
 The user may navigate between pages during a conversation. Treat this workspace context as the current page for this turn.
 
@@ -123,21 +152,111 @@ async function createArtifactFromProposal(input: {
   return artifacts.create(artifact);
 }
 
+function lastUserText(messages: UIMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const message = messages[i];
+    if (!message || message.role !== "user") continue;
+    if (!Array.isArray(message.parts)) continue;
+    return message.parts
+      .filter(
+        (p): p is { type: "text"; text: string } =>
+          p.type === "text" && typeof (p as { text?: string }).text === "string",
+      )
+      .map((p) => p.text)
+      .join("");
+  }
+  return "";
+}
+
+function writeVisualizationToolEvents(
+  write: (chunk: string) => void,
+  prompt: string,
+): { title: string; href: string } | null {
+  const inferred = inferVisualizationFromPrompt(prompt);
+  if (!inferred) return null;
+
+  const result = buildCreateVisualizationResult({
+    title: inferred.title,
+    kind: inferred.kind,
+    prompt,
+    periodA: inferred.periodA,
+    periodB: inferred.periodB,
+  });
+  const toolCallId = `call_${crypto.randomUUID().slice(0, 8)}`;
+  const input = {
+    title: inferred.title,
+    kind: inferred.kind,
+    prompt,
+    periodA: inferred.periodA,
+    periodB: inferred.periodB,
+  };
+
+  write(
+    `data: ${JSON.stringify({
+      type: "tool-input-start",
+      toolCallId,
+      toolName: "create_visualization",
+    })}\n\n`,
+  );
+  write(
+    `data: ${JSON.stringify({
+      type: "tool-input-available",
+      toolCallId,
+      toolName: "create_visualization",
+      input,
+    })}\n\n`,
+  );
+  write(
+    `data: ${JSON.stringify({
+      type: "tool-output-available",
+      toolCallId,
+      output: result,
+    })}\n\n`,
+  );
+
+  return { title: result.visualization.title, href: result.href };
+}
+
 function offlineProductStreamResponse(
   product: Product,
   userId: string,
   plan: WorkspacePlan,
+  messages: UIMessage[] = [],
 ): Response {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
       const write = (chunk: string) => controller.enqueue(encoder.encode(chunk));
+      const userPrompt = lastUserText(messages);
+
+      write(`data: ${JSON.stringify({ type: "start" })}\n\n`);
+
+      const viz = writeVisualizationToolEvents(write, userPrompt);
+      if (viz) {
+        const messageId = `msg_${crypto.randomUUID().slice(0, 8)}`;
+        const text = `Created a visualization for that question: "${viz.title}". Opening it in the visualizer.`;
+        write(
+          `data: ${JSON.stringify({ type: "text-start", id: messageId })}\n\n`,
+        );
+        for (const word of text.split(/(\s+)/)) {
+          write(
+            `data: ${JSON.stringify({ type: "text-delta", id: messageId, delta: word })}\n\n`,
+          );
+          await new Promise((r) => setTimeout(r, 12));
+        }
+        write(
+          `data: ${JSON.stringify({ type: "text-end", id: messageId })}\n\n`,
+        );
+        write(`data: ${JSON.stringify({ type: "finish" })}\n\n`);
+        write("data: [DONE]\n\n");
+        controller.close();
+        return;
+      }
 
       const text =
         `Reviewing ${product.title}. I'll draft positioning and Meta ad copy as structured artifacts for your approval.\n\n` +
         `Creating two proposals now…`;
 
-      write(`data: ${JSON.stringify({ type: "start" })}\n\n`);
       const messageId = `msg_${crypto.randomUUID().slice(0, 8)}`;
       write(
         `data: ${JSON.stringify({ type: "text-start", id: messageId })}\n\n`,
@@ -216,11 +335,40 @@ function offlineProductStreamResponse(
   });
 }
 
-function offlineWorkspaceStreamResponse(products: Product[]): Response {
+function offlineWorkspaceStreamResponse(
+  products: Product[],
+  messages: UIMessage[] = [],
+): Response {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
       const write = (chunk: string) => controller.enqueue(encoder.encode(chunk));
+      const userPrompt = lastUserText(messages);
+
+      write(`data: ${JSON.stringify({ type: "start" })}\n\n`);
+
+      const viz = writeVisualizationToolEvents(write, userPrompt);
+      if (viz) {
+        const messageId = `msg_${crypto.randomUUID().slice(0, 8)}`;
+        const text = `Created a visualization for that question: "${viz.title}". Opening it in the visualizer.`;
+        write(
+          `data: ${JSON.stringify({ type: "text-start", id: messageId })}\n\n`,
+        );
+        for (const word of text.split(/(\s+)/)) {
+          write(
+            `data: ${JSON.stringify({ type: "text-delta", id: messageId, delta: word })}\n\n`,
+          );
+          await new Promise((r) => setTimeout(r, 12));
+        }
+        write(
+          `data: ${JSON.stringify({ type: "text-end", id: messageId })}\n\n`,
+        );
+        write(`data: ${JSON.stringify({ type: "finish" })}\n\n`);
+        write("data: [DONE]\n\n");
+        controller.close();
+        return;
+      }
+
       const count = products.length;
       const sample = products
         .slice(0, 3)
@@ -231,7 +379,6 @@ function offlineWorkspaceStreamResponse(products: Product[]): Response {
           ? "Your workspace has no products yet. Add a product from the catalog, then ask me to develop positioning or ad copy."
           : `Workspace view: ${count} product${count === 1 ? "" : "s"}${sample ? ` (e.g. ${sample})` : ""}. Open a product for focused proposals, or tell me which product to work on and what you need.`;
 
-      write(`data: ${JSON.stringify({ type: "start" })}\n\n`);
       const messageId = `msg_${crypto.randomUUID().slice(0, 8)}`;
       write(
         `data: ${JSON.stringify({ type: "text-start", id: messageId })}\n\n`,
@@ -277,11 +424,15 @@ export async function POST(req: Request) {
   const body = (await req.json()) as {
     messages?: UIMessage[];
     productId?: string;
+    model?: string;
   };
 
   const productId = body.productId;
   const productsRepo = await getProductRepository();
   const messages = body.messages ?? [];
+  const { modelId: chatModel, model: gatewayModel } = await resolveChatModel(
+    body.model,
+  );
 
   if (productId) {
     const product = await productsRepo.getProduct(productId);
@@ -300,6 +451,7 @@ export async function POST(req: Request) {
         product,
         user.id,
         active.workspace.plan ?? "free",
+        messages,
       );
     }
 
@@ -308,16 +460,23 @@ export async function POST(req: Request) {
 
     const plan = active.workspace.plan ?? "free";
     const result = streamText({
-      model: CHAT_MODEL,
+      model: gateway(chatModel),
       system: buildProductSystemPrompt(product, intelligence),
       messages: await convertToModelMessages(messages),
+      providerOptions: {
+        gateway: {
+          user: user.id,
+          tags: ["feature:chat", "scope:product", `model:${chatModel}`],
+        },
+      },
       onFinish: async ({ usage }) => {
         await chargeAiUsage({
           workspaceId: active.workspace.id,
           userId: user.id,
           inputTokens: usage.inputTokens ?? 0,
           outputTokens: usage.outputTokens ?? 0,
-          model: CHAT_MODEL,
+          model: chatModel,
+          tokenPricing: gatewayModel?.pricing,
         });
       },
       tools: {
@@ -398,6 +557,7 @@ export async function POST(req: Request) {
             }
           },
         }),
+        create_visualization: createVisualizationTool,
       },
     });
 
@@ -415,7 +575,7 @@ export async function POST(req: Request) {
   const ownedIds = new Set(catalog.map((p) => p.id));
 
   if (!hasAiGateway()) {
-    return offlineWorkspaceStreamResponse(catalog);
+    return offlineWorkspaceStreamResponse(catalog, messages);
   }
 
   const gate = await assertWalletAllowsAi(activeWorkspace.workspace.id);
@@ -423,16 +583,23 @@ export async function POST(req: Request) {
 
   const plan = activeWorkspace.workspace.plan ?? "free";
   const result = streamText({
-    model: CHAT_MODEL,
+    model: gateway(chatModel),
     system: buildWorkspaceSystemPrompt(catalog),
     messages: await convertToModelMessages(messages),
+    providerOptions: {
+      gateway: {
+        user: user.id,
+        tags: ["feature:chat", "scope:workspace", `model:${chatModel}`],
+      },
+    },
     onFinish: async ({ usage }) => {
       await chargeAiUsage({
         workspaceId: activeWorkspace.workspace.id,
         userId: user.id,
         inputTokens: usage.inputTokens ?? 0,
         outputTokens: usage.outputTokens ?? 0,
-        model: CHAT_MODEL,
+        model: chatModel,
+        tokenPricing: gatewayModel?.pricing,
       });
     },
     tools: {
@@ -527,6 +694,7 @@ export async function POST(req: Request) {
           }
         },
       }),
+      create_visualization: createVisualizationTool,
     },
   });
 

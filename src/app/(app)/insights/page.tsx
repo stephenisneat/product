@@ -23,7 +23,7 @@ export default async function InsightsPage() {
 
   return (
     <PageCanvas
-      header={<InsightsToolbar plan={plan} />}
+      header={<InsightsToolbar plan={plan} workspaceId={active.workspace.id} />}
     >
       <div className="mx-auto w-full max-w-3xl px-4 py-6">
         <p className="mb-6 text-sm text-muted-foreground">

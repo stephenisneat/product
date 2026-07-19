@@ -56,8 +56,67 @@ import {
   type AgentConversation,
 } from "@/features/agent/agent-conversations";
 import { AgentMessageMarkdown } from "@/features/agent/agent-message-markdown";
+import { AgentModelSelect } from "@/features/agent/agent-model-select";
+import {
+  loadPreferredChatModel,
+  savePreferredChatModel,
+} from "@/features/agent/agent-model-preference";
+import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
+import {
+  openVisualizationTab,
+  upsertVisualization,
+} from "@/features/visualizer/visualization-store";
+import type { Visualization } from "@/domain";
 import { useWalletOptional } from "@/features/wallet/wallet-context";
 import { cn } from "@/lib/utils";
+
+function extractCreateVisualizationResults(messages: UIMessage[]): Array<{
+  toolCallId: string;
+  visualization: Visualization;
+  href: string;
+}> {
+  const found: Array<{
+    toolCallId: string;
+    visualization: Visualization;
+    href: string;
+  }> = [];
+
+  for (const message of messages) {
+    if (message.role !== "assistant" || !Array.isArray(message.parts)) continue;
+    for (const part of message.parts) {
+      const p = part as {
+        type?: string;
+        toolName?: string;
+        toolCallId?: string;
+        state?: string;
+        output?: {
+          ok?: boolean;
+          href?: string;
+          visualization?: Visualization;
+        };
+      };
+      const isCreateViz =
+        p.type === "tool-create_visualization" ||
+        (p.type === "dynamic-tool" && p.toolName === "create_visualization");
+      if (!isCreateViz || p.state !== "output-available") continue;
+      const output = p.output;
+      if (
+        !p.toolCallId ||
+        !output?.ok ||
+        !output.visualization ||
+        typeof output.href !== "string"
+      ) {
+        continue;
+      }
+      found.push({
+        toolCallId: p.toolCallId,
+        visualization: output.visualization,
+        href: output.href,
+      });
+    }
+  }
+  return found;
+}
 
 const menuItemClass =
   "flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50";
@@ -265,7 +324,13 @@ function LoadOlderSentinel({
   );
 }
 
-export function AgentComposer({ user }: { user: AppUser }) {
+export function AgentComposer({
+  user,
+  workspaceId,
+}: {
+  user: AppUser;
+  workspaceId?: string | null;
+}) {
   const router = useRouter();
   const { route } = useAgentContext();
   const walletCtx = useWalletOptional();
@@ -283,7 +348,10 @@ export function AgentComposer({ user }: { user: AppUser }) {
   const [seedMessages, setSeedMessages] = useState<UIMessage[]>([]);
   const [visibleCount, setVisibleCount] = useState(MESSAGE_PAGE_SIZE);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [chatModel, setChatModel] = useState(DEFAULT_CHAT_MODEL);
   const historySearchRef = useRef<HTMLInputElement>(null);
+  const handledVizToolCallIds = useRef(new Set<string>());
+  const chatModelRef = useRef(chatModel);
 
   const activeTitle =
     conversations.find((c) => c.id === activeId)?.title?.trim() || "New chat";
@@ -294,6 +362,24 @@ export function AgentComposer({ user }: { user: AppUser }) {
   useEffect(() => {
     activeIdRef.current = activeId;
   }, [activeId]);
+
+  useEffect(() => {
+    chatModelRef.current = chatModel;
+  }, [chatModel]);
+
+  useEffect(() => {
+    // Hydrate preferred model from localStorage for this user session.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate-model-pref
+    setChatModel(loadPreferredChatModel(user.id));
+  }, [user.id]);
+
+  const handleChatModelChange = useCallback(
+    (modelId: string) => {
+      setChatModel(modelId);
+      savePreferredChatModel(user.id, modelId);
+    },
+    [user.id],
+  );
 
   useEffect(() => {
     // Hydrate chat history from localStorage for this user session.
@@ -337,6 +423,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
           body: {
             id,
             messages,
+            model: chatModelRef.current,
             ...(productId ? { productId } : {}),
           },
         }),
@@ -376,9 +463,29 @@ export function AgentComposer({ user }: { user: AppUser }) {
     busy &&
     (messages.length === 0 || messages[messages.length - 1]?.role === "user");
 
+  const prevChatStatus = useRef(status);
+
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  useEffect(() => {
+    const wasBusy =
+      prevChatStatus.current === "submitted" ||
+      prevChatStatus.current === "streaming";
+    prevChatStatus.current = status;
+    if (!workspaceId || !wasBusy || status !== "ready") return;
+
+    const results = extractCreateVisualizationResults(messages);
+    for (const result of results) {
+      if (handledVizToolCallIds.current.has(result.toolCallId)) continue;
+      handledVizToolCallIds.current.add(result.toolCallId);
+      upsertVisualization(workspaceId, result.visualization);
+      openVisualizationTab(workspaceId, result.visualization.id);
+      window.dispatchEvent(new Event("visualizations-changed"));
+      router.push(result.href);
+    }
+  }, [messages, router, status, workspaceId]);
 
   const hasOlderMessages = messages.length > visibleCount;
   const visibleMessages = hasOlderMessages
@@ -663,7 +770,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
           !historyOpen && "pointer-events-none",
         )}
       >
-        <div className="flex h-14 shrink-0 items-center gap-1 px-2">
+        <div className="flex h-12 shrink-0 items-center gap-1 px-2">
           {historySearchOpen ? (
             <>
               <Search
@@ -739,7 +846,7 @@ export function AgentComposer({ user }: { user: AppUser }) {
           if (historyOpen) setHistoryOpenSafe(false);
         }}
       >
-        <div className="relative flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
+        <div className="relative flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
           <Button
             type="button"
             variant="ghost"
@@ -828,22 +935,19 @@ export function AgentComposer({ user }: { user: AppUser }) {
                         >
                           <Message align={isUser ? "end" : "start"}>
                             <MessageContent>
-                              <Bubble
-                                variant={isUser ? "default" : "muted"}
-                                align={isUser ? "end" : "start"}
-                                className="max-w-[92%]"
-                              >
-                                <BubbleContent
-                                  className={cn(
-                                    "text-[13px] leading-relaxed",
-                                    isUser
-                                      ? "whitespace-pre-wrap px-3"
-                                      : "px-2",
-                                  )}
+                              {isUser ? (
+                                <Bubble
+                                  variant="default"
+                                  align="end"
+                                  className="max-w-[92%]"
                                 >
-                                  {isUser ? (
-                                    text || ""
-                                  ) : text || isStreamingMessage ? (
+                                  <BubbleContent className="whitespace-pre-wrap px-3 text-[13px] leading-relaxed">
+                                    {text || ""}
+                                  </BubbleContent>
+                                </Bubble>
+                              ) : (
+                                <div className="max-w-[92%] text-[13px] leading-relaxed">
+                                  {text || isStreamingMessage ? (
                                     <AgentMessageMarkdown
                                       text={text || "…"}
                                       isAnimating={isStreamingMessage}
@@ -853,8 +957,8 @@ export function AgentComposer({ user }: { user: AppUser }) {
                                   ) : (
                                     ""
                                   )}
-                                </BubbleContent>
-                              </Bubble>
+                                </div>
+                              )}
                             </MessageContent>
                           </Message>
                         </MessageScrollerItem>
@@ -885,7 +989,10 @@ export function AgentComposer({ user }: { user: AppUser }) {
             </MessageScrollerProvider>
           )}
 
-          <div onClick={(e) => e.stopPropagation()}>
+          <div
+            className="border-t border-border"
+            onClick={(e) => e.stopPropagation()}
+          >
             <AgentComposerInput
               busy={busy}
               productId={productId}
@@ -898,6 +1005,13 @@ export function AgentComposer({ user }: { user: AppUser }) {
                     : `Propose Meta ad copy for ${productTitle ?? "this product"}…`
               }
             />
+            <div className="flex items-center px-2 pb-2">
+              <AgentModelSelect
+                value={chatModel}
+                onChange={handleChatModelChange}
+                disabled={busy}
+              />
+            </div>
           </div>
         </div>
       </div>

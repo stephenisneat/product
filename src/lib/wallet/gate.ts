@@ -1,5 +1,9 @@
 import type { WorkspacePlan, WorkspaceWallet } from "@/domain";
 import {
+  DEFAULT_CHAT_MODEL,
+  type GatewayModelPricing,
+} from "@/lib/ai/models";
+import {
   getEntitlements,
   includedUsageCentsForSeats,
 } from "@/lib/billing/entitlements";
@@ -13,8 +17,8 @@ import {
 } from "@/repositories";
 import { getWorkspaceWriteRepository } from "@/repositories/workspace-write";
 
-/** AI Gateway model id (`provider/model`). */
-const CHAT_MODEL = "openai/gpt-4.1-mini";
+/** AI Gateway model id (`provider/model`). Alias of DEFAULT_CHAT_MODEL. */
+const CHAT_MODEL = DEFAULT_CHAT_MODEL;
 
 /**
  * Credit-balance / usage-limit gates for AI.
@@ -102,6 +106,8 @@ export async function chargeAiUsage(input: {
   inputTokens: number;
   outputTokens: number;
   model?: string;
+  /** Per-token USD rates from AI Gateway for accurate model billing. */
+  tokenPricing?: GatewayModelPricing | null;
 }): Promise<void> {
   if (!isWalletAiGateEnabled()) return;
 
@@ -113,6 +119,7 @@ export async function chargeAiUsage(input: {
     inputTokens: input.inputTokens,
     outputTokens: input.outputTokens,
     markup: ents.aiMarkup,
+    tokenPricing: input.tokenPricing,
   });
   if (cents <= 0) return;
 
@@ -135,6 +142,12 @@ export async function chargeAiUsage(input: {
         seats,
         baseAllotmentCents: includedUsageCentsForSeats(plan, seats),
         rolloverCents: wallet.includedRolloverCents,
+        ...(input.tokenPricing
+          ? {
+              tokenPricingInput: input.tokenPricing.input,
+              tokenPricingOutput: input.tokenPricing.output,
+            }
+          : {}),
       },
       createdBy: input.userId,
       actionCount: 1,
@@ -150,4 +163,4 @@ export async function chargeAiUsage(input: {
   }
 }
 
-export { CHAT_MODEL };
+export { CHAT_MODEL, DEFAULT_CHAT_MODEL };

@@ -43,7 +43,7 @@ export function ChangeEmailForm({ currentEmail }: { currentEmail: string }) {
       {
         emailRedirectTo: authCallbackUrl(
           window.location.origin,
-          "/settings/account?emailUpdated=1",
+          "/settings/profile?emailUpdated=1",
         ),
 
       },

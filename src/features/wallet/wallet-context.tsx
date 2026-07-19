@@ -9,10 +9,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { WalletSummary, WorkspacePlan } from "@/domain";
+import type { MemberUsage, WalletSummary, WorkspacePlan } from "@/domain";
 
 type WalletContextValue = {
   wallet: WalletSummary | null;
+  memberUsage: MemberUsage[];
+  currentUserId: string | null;
   plan: WorkspacePlan;
   loading: boolean;
   error: string | null;
@@ -30,6 +32,8 @@ const WalletContext = createContext<WalletContextValue | null>(null);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [wallet, setWalletState] = useState<WalletSummary | null>(null);
+  const [memberUsage, setMemberUsage] = useState<MemberUsage[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [plan, setPlan] = useState<WorkspacePlan>("free");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,9 +59,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }
       const data = (await res.json()) as {
         wallet: WalletSummary;
+        memberUsage?: MemberUsage[];
+        currentUserId?: string;
         plan?: WorkspacePlan;
       };
       setWallet(data.wallet);
+      setMemberUsage(data.memberUsage ?? []);
+      setCurrentUserId(data.currentUserId ?? null);
       if (data.plan) setPlan(data.plan);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load wallet");
@@ -83,6 +91,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       wallet,
+      memberUsage,
+      currentUserId,
       plan,
       loading,
       error,
@@ -96,6 +106,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }),
     [
       wallet,
+      memberUsage,
+      currentUserId,
       plan,
       loading,
       error,

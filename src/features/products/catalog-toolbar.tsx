@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "@/components/layout/nav-link";
 import { Button } from "@/components/ui/button";
+import { getLastVisualizerPath } from "@/features/visualizer/visualization-store";
 
 const catalogPages = [
   {
@@ -68,15 +69,41 @@ function isCatalogNavActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function CatalogNav({ children }: { children?: ReactNode }) {
+export function CatalogNav({
+  children,
+  workspaceId,
+}: {
+  children?: ReactNode;
+  workspaceId?: string | null;
+}) {
   const pathname = usePathname();
+  // Always start with the SSR-safe default; localStorage is only available
+  // after mount, so reading it in useState causes a hydration mismatch.
+  const [visualizerHref, setVisualizerHref] = useState("/visualizer");
+
+  useEffect(() => {
+    if (!workspaceId) {
+      setVisualizerHref("/visualizer");
+      return;
+    }
+    function refresh() {
+      setVisualizerHref(getLastVisualizerPath(workspaceId!));
+    }
+    refresh();
+    window.addEventListener("visualizations-changed", refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener("visualizations-changed", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, [workspaceId]);
 
   return (
-    <nav className="flex flex-wrap items-center gap-2" aria-label="Catalog">
+    <nav className="flex h-12 items-stretch" aria-label="Catalog">
       {catalogPages.map(({ href, label, icon }) => (
         <NavLink
           key={href}
-          href={href}
+          href={href === "/visualizer" ? visualizerHref : href}
           label={label}
           icon={icon}
           isActive={isCatalogNavActive(pathname, href)}

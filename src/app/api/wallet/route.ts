@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { WalletSummary } from "@/domain";
+import type { MemberUsage, WalletSummary } from "@/domain";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
   canManageMembers,
@@ -15,6 +15,7 @@ import {
   effectiveIncludedAllotmentCents,
   getWalletBlockedReason,
   getWalletWriteRepository,
+  getWorkspaceRepository,
   nextMonthResetIso,
 } from "@/repositories";
 
@@ -52,6 +53,42 @@ export async function GET() {
     const ents = getEntitlements(plan);
     const included = effectiveIncludedAllotmentCents(wallet, plan, seats);
 
+    const [usageByUser, workspaceRepo] = await Promise.all([
+      repo.sumAiUsageByMember(active.workspace.id, wallet.mtdPeriodStart),
+      getWorkspaceRepository(),
+    ]);
+    const members = await workspaceRepo.listMembers(active.workspace.id);
+
+    const memberUsage: MemberUsage[] = members
+      .map((member) => {
+        const usage = usageByUser.get(member.userId);
+        return {
+          userId: member.userId,
+          name: member.name ?? null,
+          email: member.email ?? null,
+          usageCents: usage?.usageCents ?? 0,
+          actionCount: usage?.actionCount ?? 0,
+        };
+      })
+      .sort((a, b) => {
+        if (b.usageCents !== a.usageCents) return b.usageCents - a.usageCents;
+        const aLabel = (a.name ?? a.email ?? "").toLowerCase();
+        const bLabel = (b.name ?? b.email ?? "").toLowerCase();
+        return aLabel.localeCompare(bLabel);
+      });
+
+    // Include usage from users who left the workspace but still have ledger rows.
+    for (const [userId, usage] of usageByUser) {
+      if (memberUsage.some((m) => m.userId === userId)) continue;
+      memberUsage.push({
+        userId,
+        name: null,
+        email: null,
+        usageCents: usage.usageCents,
+        actionCount: usage.actionCount,
+      });
+    }
+
     const summary: WalletSummary = {
       balanceCents: wallet.balanceCents,
       currency: wallet.currency,
@@ -74,6 +111,8 @@ export async function GET() {
 
     return NextResponse.json({
       wallet: summary,
+      memberUsage,
+      currentUserId: user.id,
       plan,
       seats,
       billingInterval: active.workspace.billingInterval ?? null,

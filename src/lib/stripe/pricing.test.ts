@@ -70,6 +70,18 @@ describe("AI pricing", () => {
     });
     expect(cents).toBe(100);
   });
+
+  it("uses Gateway per-token pricing when provided", () => {
+    // $0.40 / 1M input, $1.60 / 1M output — same as gpt-4.1-mini table
+    const cents = billedCostCents({
+      model: "openai/gpt-5.4",
+      inputTokens: 1_000_000,
+      outputTokens: 1_000_000,
+      markup: 1.0,
+      tokenPricing: { input: 0.0000004, output: 0.0000016 },
+    });
+    expect(cents).toBe(200);
+  });
 });
 
 describe("wallet helpers", () => {

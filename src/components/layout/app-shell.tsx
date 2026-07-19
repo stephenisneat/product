@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import type { AppUser, WorkspaceRole } from "@/domain";
 import { AppHeader } from "@/components/layout/app-header";
@@ -9,6 +10,7 @@ import { AgentContextProvider } from "@/features/agent/agent-context";
 import { WalletProvider, useWallet } from "@/features/wallet/wallet-context";
 import { BuyCreditsDialog } from "@/features/wallet/wallet-dialogs";
 import { UpgradeProvider } from "@/features/billing/upgrade-context";
+import { rememberSettingsReturnPath } from "@/features/settings/return-path";
 import type { WorkspaceWithRole } from "@/repositories/types";
 
 function WalletBuyCreditsHost() {
@@ -37,9 +39,12 @@ function AppShellFrame({
   children: ReactNode;
 }) {
   const pathname = usePathname();
-  const hideChatSidebar =
-    pathname === "/wallet/transactions" ||
-    pathname.startsWith("/wallet/transactions/");
+
+  useEffect(() => {
+    rememberSettingsReturnPath(
+      `${window.location.pathname}${window.location.search}`,
+    );
+  }, [pathname]);
 
   return (
     <div className="flex h-svh flex-col overflow-hidden bg-black">
@@ -53,11 +58,9 @@ function AppShellFrame({
         <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-canvas">
           {children}
         </main>
-        {hideChatSidebar ? null : (
-          <aside className="relative hidden min-h-0 w-[360px] shrink-0 overflow-visible lg:block xl:w-[400px]">
-            <AgentComposer user={user} />
-          </aside>
-        )}
+        <aside className="relative hidden min-h-0 w-[360px] shrink-0 overflow-visible lg:block xl:w-[400px]">
+          <AgentComposer user={user} workspaceId={activeWorkspaceId} />
+        </aside>
       </div>
       <WalletBuyCreditsHost />
     </div>

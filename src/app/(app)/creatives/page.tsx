@@ -26,7 +26,7 @@ export default async function CreativesPage() {
         : `Up to ${ents.maxCreativesPerCampaign} creatives per campaign on ${ents.name}`;
 
   return (
-    <PageCanvas header={<CatalogNav />}>
+    <PageCanvas header={<CatalogNav workspaceId={active.workspace.id} />}>
       <div className="mx-auto w-full max-w-3xl px-4 py-6">
         <p className="mb-6 text-sm text-muted-foreground">
           Creative assets and variants for {active.workspace.name}.{" "}

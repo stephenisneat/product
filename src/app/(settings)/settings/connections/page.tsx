@@ -1,0 +1,66 @@
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth/session";
+import { getActiveWorkspace } from "@/lib/auth/workspace";
+
+const SECTIONS = [
+  {
+    title: "Channels",
+    description:
+      "Connect ad and social channels like Google, Meta, TikTok, and Pinterest.",
+  },
+  {
+    title: "Commerce & APIs",
+    description:
+      "Link Shopify and other commerce platforms to sync products and catalog data.",
+  },
+  {
+    title: "MCP",
+    description:
+      "Manage Model Context Protocol servers available to this workspace.",
+  },
+  {
+    title: "Webhooks",
+    description:
+      "Configure outbound webhooks for events in this workspace.",
+  },
+] as const;
+
+export default async function ConnectionsSettingsPage() {
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect("/login?next=/settings/connections");
+  }
+
+  const active = await getActiveWorkspace();
+  if (!active) {
+    redirect("/");
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-2xl px-6 py-8">
+      <div className="mb-8">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">
+          Connections
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Channels, APIs, MCP servers, and webhooks for {active.workspace.name}.
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        {SECTIONS.map((section) => (
+          <section
+            key={section.title}
+            className="rounded-lg border border-dashed border-border px-4 py-5"
+          >
+            <h2 className="text-sm font-medium">{section.title}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {section.description}
+            </p>
+            <p className="mt-3 text-xs text-muted-foreground">Coming soon</p>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
