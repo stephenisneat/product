@@ -743,7 +743,7 @@ export function AgentComposer({
           !historyOpen && "pointer-events-none",
         )}
       >
-        <div className="flex h-14 shrink-0 items-center gap-1 px-2">
+        <div className="flex h-12 shrink-0 items-center gap-1 px-2">
           {historySearchOpen ? (
             <>
               <Search
@@ -819,7 +819,7 @@ export function AgentComposer({
           if (historyOpen) setHistoryOpenSafe(false);
         }}
       >
-        <div className="relative flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
+        <div className="relative flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
           <Button
             type="button"
             variant="ghost"
@@ -908,22 +908,19 @@ export function AgentComposer({
                         >
                           <Message align={isUser ? "end" : "start"}>
                             <MessageContent>
-                              <Bubble
-                                variant={isUser ? "default" : "muted"}
-                                align={isUser ? "end" : "start"}
-                                className="max-w-[92%]"
-                              >
-                                <BubbleContent
-                                  className={cn(
-                                    "text-[13px] leading-relaxed",
-                                    isUser
-                                      ? "whitespace-pre-wrap px-3"
-                                      : "px-2",
-                                  )}
+                              {isUser ? (
+                                <Bubble
+                                  variant="default"
+                                  align="end"
+                                  className="max-w-[92%]"
                                 >
-                                  {isUser ? (
-                                    text || ""
-                                  ) : text || isStreamingMessage ? (
+                                  <BubbleContent className="whitespace-pre-wrap px-3 text-[13px] leading-relaxed">
+                                    {text || ""}
+                                  </BubbleContent>
+                                </Bubble>
+                              ) : (
+                                <div className="max-w-[92%] text-[13px] leading-relaxed">
+                                  {text || isStreamingMessage ? (
                                     <AgentMessageMarkdown
                                       text={text || "…"}
                                       isAnimating={isStreamingMessage}
@@ -933,8 +930,8 @@ export function AgentComposer({
                                   ) : (
                                     ""
                                   )}
-                                </BubbleContent>
-                              </Bubble>
+                                </div>
+                              )}
                             </MessageContent>
                           </Message>
                         </MessageScrollerItem>
