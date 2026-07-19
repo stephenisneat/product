@@ -28,7 +28,7 @@ export default async function CreativesPage() {
     ents.maxCreativesPerCampaign == null
       ? "Unlimited creatives per campaign"
       : ents.maxCreativesPerCampaign === 0
-        ? "Creatives are locked on Free — upgrade to Hobby or Pro"
+        ? "Creatives are locked on Free — upgrade to Growth or Pro"
         : `Up to ${ents.maxCreativesPerCampaign} creatives per campaign on ${ents.name}`;
 
   const [creatives, products] = await Promise.all([

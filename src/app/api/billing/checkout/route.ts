@@ -20,7 +20,7 @@ import { getWalletWriteRepository, getWorkspaceRepository } from "@/repositories
 export const runtime = "nodejs";
 
 const bodySchema = z.object({
-  plan: z.enum(["hobby", "pro"]),
+  plan: z.enum(["growth", "pro"]),
   interval: z.enum(["month", "year"]).default("month"),
   seats: z.number().int().min(1).max(500).optional(),
 });

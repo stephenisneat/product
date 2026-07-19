@@ -252,7 +252,7 @@ export function ProductWorkspace({
                 <p className="text-sm font-medium">Campaigns are locked</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Free workspaces can brainstorm campaign concepts with the
-                  agent, but saving and launching campaigns requires Hobby or
+                  agent, but saving and launching campaigns requires Growth or
                   Pro.
                 </p>
                 <UpgradeButton size="sm" className="mt-4">

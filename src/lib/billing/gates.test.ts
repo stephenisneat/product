@@ -19,17 +19,17 @@ describe("plan gates", () => {
     expect(() => assertHasInsights("free")).toThrow(PlanEntitlementError);
   });
 
-  it("allows Hobby campaigns up to 10 and creatives up to 3", () => {
-    expect(() => assertCanSpendAndLaunch("hobby")).not.toThrow();
-    expect(() => assertCanCreateCampaign("hobby", 9)).not.toThrow();
-    expect(() => assertCanCreateCampaign("hobby", 10)).toThrow(
+  it("allows Growth campaigns up to 10 and creatives up to 3", () => {
+    expect(() => assertCanSpendAndLaunch("growth")).not.toThrow();
+    expect(() => assertCanCreateCampaign("growth", 9)).not.toThrow();
+    expect(() => assertCanCreateCampaign("growth", 10)).toThrow(
       /10 campaigns/,
     );
-    expect(() => assertCanCreateCreative("hobby", 2)).not.toThrow();
-    expect(() => assertCanCreateCreative("hobby", 3)).toThrow(
+    expect(() => assertCanCreateCreative("growth", 2)).not.toThrow();
+    expect(() => assertCanCreateCreative("growth", 3)).toThrow(
       /3 creatives/,
     );
-    expect(() => assertHasInsights("hobby")).toThrow(PlanEntitlementError);
+    expect(() => assertHasInsights("growth")).toThrow(PlanEntitlementError);
   });
 
   it("allows Pro unlimited campaigns, creatives, and insights", () => {

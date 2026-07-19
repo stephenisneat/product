@@ -208,7 +208,7 @@ function AdSpendLimitMenu({
           <div>
             <p className="text-sm font-medium">Ad spend locked</p>
             <p className="text-xs text-muted-foreground">
-              Adding ad spend requires Hobby or Pro.
+              Adding ad spend requires Growth or Pro.
             </p>
           </div>
           <UpgradeButton type="button" size="xs" variant="outline">

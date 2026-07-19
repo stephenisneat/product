@@ -143,20 +143,20 @@ describe("wallet helpers", () => {
     ).toBeNull();
   });
 
-  it("blocks Hobby on zero balance after allotment", () => {
+  it("blocks Growth on zero balance after allotment", () => {
     expect(
       getWalletBlockedReason(
-        { ...base, balanceCents: 0, usageMtdCents: 900 },
-        "hobby",
+        { ...base, balanceCents: 0, usageMtdCents: 2900 },
+        "growth",
       ),
     ).toBe("zero_balance");
   });
 
-  it("allows Hobby with balance after allotment", () => {
+  it("allows Growth with balance after allotment", () => {
     expect(
       getWalletBlockedReason(
-        { ...base, balanceCents: 100, usageMtdCents: 900 },
-        "hobby",
+        { ...base, balanceCents: 100, usageMtdCents: 2900 },
+        "growth",
       ),
     ).toBeNull();
   });

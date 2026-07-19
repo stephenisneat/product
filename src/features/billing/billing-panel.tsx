@@ -31,7 +31,7 @@ function planBadgeClass(plan: WorkspacePlan) {
   return "border-yellow-500/30 bg-yellow-500/40 text-yellow-800 dark:text-yellow-100 font-semibold";
 }
 
-const PLAN_ORDER: WorkspacePlan[] = ["free", "hobby", "pro"];
+const PLAN_ORDER: WorkspacePlan[] = ["free", "growth", "pro"];
 
 export function BillingPanel({
   workspace,
@@ -241,7 +241,7 @@ export function BillingPanel({
             plan === currentPlan &&
             (plan === "free" ||
               (workspace.billingInterval ?? "month") === interval);
-          const isPaid = plan === "hobby" || plan === "pro";
+          const isPaid = plan === "growth" || plan === "pro";
           const canSelect =
             isOwner && isPaid && busyPlan === null;
           const perSeat =
