@@ -51,7 +51,7 @@ export function AppHeader({
               href={
                 activeWorkspaceId
                   ? "/settings/workspace"
-                  : "/settings/account"
+                  : "/settings/profile"
               }
             />
           }

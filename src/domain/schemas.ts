@@ -541,6 +541,25 @@ export const appUserSchema = z.object({
 
 export type AppUser = z.infer<typeof appUserSchema>;
 
+export const notificationPreferencesSchema = z.object({
+  productUpdates: z.boolean(),
+  jobCompletions: z.boolean(),
+  workspaceInvites: z.boolean(),
+  billingAlerts: z.boolean(),
+  marketing: z.boolean(),
+});
+export type NotificationPreferences = z.infer<
+  typeof notificationPreferencesSchema
+>;
+
+export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  productUpdates: true,
+  jobCompletions: true,
+  workspaceInvites: true,
+  billingAlerts: true,
+  marketing: false,
+};
+
 export const walletTransactionTypeSchema = z.enum([
   "credit_purchase",
   "auto_reload",

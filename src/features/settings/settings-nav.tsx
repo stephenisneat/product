@@ -2,24 +2,50 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2Icon, CreditCardIcon, UserIcon } from "lucide-react";
+import {
+  BellIcon,
+  Building2Icon,
+  CreditCardIcon,
+  Link2Icon,
+  MonitorIcon,
+  ShieldIcon,
+  UsersIcon,
+  UserIcon,
+  WalletIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const settingsPages = [
+const settingsGroups = [
   {
-    href: "/settings/account",
-    label: "Account",
-    icon: UserIcon,
+    label: "Personal",
+    items: [
+      { href: "/settings/profile", label: "Profile", icon: UserIcon },
+      {
+        href: "/settings/notifications",
+        label: "Notifications",
+        icon: BellIcon,
+      },
+      { href: "/settings/security", label: "Security", icon: ShieldIcon },
+      {
+        href: "/settings/appearance",
+        label: "Appearance",
+        icon: MonitorIcon,
+      },
+    ],
   },
   {
-    href: "/settings/workspace",
     label: "Workspace",
-    icon: Building2Icon,
-  },
-  {
-    href: "/settings/billing",
-    label: "Billing",
-    icon: CreditCardIcon,
+    items: [
+      { href: "/settings/workspace", label: "Profile", icon: Building2Icon },
+      { href: "/settings/team", label: "Team", icon: UsersIcon },
+      { href: "/settings/billing", label: "Billing", icon: CreditCardIcon },
+      { href: "/settings/wallet", label: "Wallet", icon: WalletIcon },
+      {
+        href: "/settings/connections",
+        label: "Connections",
+        icon: Link2Icon,
+      },
+    ],
   },
 ] as const;
 
@@ -31,23 +57,30 @@ export function SettingsNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-col gap-1" aria-label="Settings">
-      {settingsPages.map(({ href, label, icon: Icon }) => {
-        const isActive = isSettingsNavActive(pathname, href);
-        return (
-          <Button
-            key={href}
-            render={<Link href={href} />}
-            variant={isActive ? "secondary" : "ghost"}
-            size="sm"
-            className="w-full justify-start"
-            aria-current={isActive ? "page" : undefined}
-          >
-            <Icon data-icon="inline-start" />
-            {label}
-          </Button>
-        );
-      })}
+    <nav className="flex flex-col gap-6" aria-label="Settings">
+      {settingsGroups.map((group) => (
+        <div key={group.label} className="flex flex-col gap-1">
+          <p className="px-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            {group.label}
+          </p>
+          {group.items.map(({ href, label, icon: Icon }) => {
+            const isActive = isSettingsNavActive(pathname, href);
+            return (
+              <Button
+                key={href}
+                render={<Link href={href} />}
+                variant={isActive ? "secondary" : "ghost"}
+                size="sm"
+                className="w-full justify-start"
+                aria-current={isActive ? "page" : undefined}
+              >
+                <Icon data-icon="inline-start" />
+                {label}
+              </Button>
+            );
+          })}
+        </div>
+      ))}
     </nav>
   );
 }

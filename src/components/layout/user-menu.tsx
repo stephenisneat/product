@@ -74,11 +74,8 @@ export function UserMenu({
           <p className="truncate text-xs text-muted-foreground">{user.email}</p>
         </div>
         <Separator className="my-2" />
-        <Link
-          href="/settings/account"
-          className={menuItemClass}
-        >
-          Account
+        <Link href="/settings/profile" className={menuItemClass}>
+          Profile
         </Link>
         <Separator className="my-2" />
         <button

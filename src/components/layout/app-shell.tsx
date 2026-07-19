@@ -39,9 +39,6 @@ function AppShellFrame({
   children: ReactNode;
 }) {
   const pathname = usePathname();
-  const hideChatSidebar =
-    pathname === "/wallet/transactions" ||
-    pathname.startsWith("/wallet/transactions/");
 
   useEffect(() => {
     rememberSettingsReturnPath(
@@ -61,11 +58,9 @@ function AppShellFrame({
         <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-canvas">
           {children}
         </main>
-        {hideChatSidebar ? null : (
-          <aside className="relative hidden min-h-0 w-[360px] shrink-0 overflow-visible lg:block xl:w-[400px]">
-            <AgentComposer user={user} workspaceId={activeWorkspaceId} />
-          </aside>
-        )}
+        <aside className="relative hidden min-h-0 w-[360px] shrink-0 overflow-visible lg:block xl:w-[400px]">
+          <AgentComposer user={user} workspaceId={activeWorkspaceId} />
+        </aside>
       </div>
       <WalletBuyCreditsHost />
     </div>

@@ -433,7 +433,7 @@ function CreditBalanceMenu({
           <Separator />
 
           <Link
-            href="/wallet/transactions"
+            href="/settings/wallet"
             className="flex items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/50"
           >
             <span className="flex size-8 items-center justify-center rounded-lg bg-emerald-600/15 text-emerald-700 dark:text-emerald-400">

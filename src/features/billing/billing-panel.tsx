@@ -346,7 +346,7 @@ export function BillingPanel({
           <button
             type="button"
             className="underline underline-offset-2 hover:text-foreground"
-            onClick={() => router.push("/wallet/transactions")}
+            onClick={() => router.push("/settings/wallet")}
           >
             View usage history
           </button>
