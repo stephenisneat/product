@@ -12,6 +12,12 @@ function typeLabel(type: JobRun["type"]): string {
   switch (type) {
     case "create_campaign":
       return "Create campaign";
+    case "generate_creative_screenplay":
+      return "Generate screenplay";
+    case "generate_creative_storyboard":
+      return "Generate storyboard";
+    case "generate_creative_video":
+      return "Generate video";
     default:
       return type;
   }
@@ -65,6 +71,11 @@ function resultSummary(job: JobRun): string {
   if (job.error) return job.error;
   if (job.result && typeof job.result.campaignId === "string") {
     return `Campaign ${job.result.campaignId.slice(0, 8)}…`;
+  }
+  if (job.result && typeof job.result.creativeId === "string") {
+    const stage =
+      typeof job.result.stage === "string" ? ` (${job.result.stage})` : "";
+    return `Creative ${job.result.creativeId.slice(0, 8)}…${stage}`;
   }
   if (job.status === "pending" || job.status === "running") return "—";
   return "—";

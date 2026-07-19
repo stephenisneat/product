@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
-import { getArtifactRepository, getProductRepository } from "@/repositories";
+import {
+  getArtifactRepository,
+  getCreativeRepository,
+  getProductRepository,
+} from "@/repositories";
 
 export const runtime = "nodejs";
 
@@ -46,6 +50,22 @@ export async function GET(req: Request) {
     : products.slice(0, 12).map((p) => p.id);
 
   const artifactsRepo = await getArtifactRepository();
+  const creativesRepo = await getCreativeRepository();
+
+  const workspaceCreatives = await creativesRepo.listByWorkspace(
+    active.workspace.id,
+    { limit: 40 },
+  );
+  for (const creative of workspaceCreatives) {
+    if (productId && creative.productId !== productId) continue;
+    if (!q || creative.title.toLowerCase().includes(q)) {
+      items.push({
+        value: creative.title,
+        id: creative.id,
+        type: "creative",
+      });
+    }
+  }
 
   await Promise.all(
     mentionProductIds.map(async (id) => {
@@ -65,6 +85,7 @@ export async function GET(req: Request) {
       }
 
       for (const artifact of artifacts) {
+        if (artifact.type !== "ad_copy") continue;
         if (!q || artifact.title.toLowerCase().includes(q)) {
           items.push({
             value: artifact.title,

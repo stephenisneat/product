@@ -61,6 +61,7 @@ import {
   loadPreferredChatModel,
   savePreferredChatModel,
 } from "@/features/agent/agent-model-preference";
+import { CreativeCardFromId } from "@/features/creatives/creative-card-from-id";
 import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 import {
   openVisualizationTab,
@@ -98,24 +99,51 @@ function extractCreateVisualizationResults(messages: UIMessage[]): Array<{
       const isCreateViz =
         p.type === "tool-create_visualization" ||
         (p.type === "dynamic-tool" && p.toolName === "create_visualization");
-      if (!isCreateViz || p.state !== "output-available") continue;
-      const output = p.output;
-      if (
-        !p.toolCallId ||
-        !output?.ok ||
-        !output.visualization ||
-        typeof output.href !== "string"
-      ) {
+      if (!isCreateViz || p.state !== "output-available" || !p.toolCallId) {
         continue;
       }
-      found.push({
-        toolCallId: p.toolCallId,
-        visualization: output.visualization,
-        href: output.href,
-      });
+      if (
+        p.output?.ok &&
+        p.output.visualization &&
+        typeof p.output.href === "string"
+      ) {
+        found.push({
+          toolCallId: p.toolCallId,
+          visualization: p.output.visualization,
+          href: p.output.href,
+        });
+      }
     }
   }
   return found;
+}
+
+function extractCreativeIdsFromMessage(message: UIMessage): string[] {
+  if (message.role !== "assistant" || !Array.isArray(message.parts)) return [];
+  const ids: string[] = [];
+  const seen = new Set<string>();
+
+  for (const part of message.parts) {
+    const p = part as {
+      type?: string;
+      toolName?: string;
+      state?: string;
+      output?: { ok?: boolean; creativeId?: string };
+    };
+    const isCreativeTool =
+      p.type === "tool-create_video_creative" ||
+      p.type === "tool-resubmit_creative" ||
+      (p.type === "dynamic-tool" &&
+        (p.toolName === "create_video_creative" ||
+          p.toolName === "resubmit_creative"));
+    if (!isCreativeTool || p.state !== "output-available") continue;
+    const id = p.output?.ok ? p.output.creativeId : undefined;
+    if (typeof id === "string" && !seen.has(id)) {
+      seen.add(id);
+      ids.push(id);
+    }
+  }
+  return ids;
 }
 
 const menuItemClass =
@@ -927,6 +955,9 @@ export function AgentComposer({
                       const text = messageText(message);
                       const isStreamingMessage =
                         streamingAssistantId === message.id;
+                      const creativeIds = isUser
+                        ? []
+                        : extractCreativeIdsFromMessage(message);
                       return (
                         <MessageScrollerItem
                           key={message.id}
@@ -957,6 +988,12 @@ export function AgentComposer({
                                   ) : (
                                     ""
                                   )}
+                                  {creativeIds.map((id) => (
+                                    <CreativeCardFromId
+                                      key={id}
+                                      creativeId={id}
+                                    />
+                                  ))}
                                 </div>
                               )}
                             </MessageContent>
@@ -1002,7 +1039,7 @@ export function AgentComposer({
                   ? "AI is paused — add credits or raise your usage limit"
                   : isWorkspace
                     ? "What should we improve across the catalog?"
-                    : `Propose Meta ad copy for ${productTitle ?? "this product"}…`
+                    : `Ask about ${productTitle ?? "this product"} — ad copy, or a video ad idea…`
               }
             />
             <div className="flex items-center px-2 pb-2">
