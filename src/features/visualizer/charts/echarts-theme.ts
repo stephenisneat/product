@@ -10,6 +10,7 @@ export const chartColors = [
 
 export function baseChartOption(): EChartsOption {
   return {
+    animation: false,
     backgroundColor: "transparent",
     textStyle: {
       color: "oklch(0.75 0 0)",
