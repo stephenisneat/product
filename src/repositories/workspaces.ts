@@ -41,6 +41,7 @@ type DbMember = {
   profiles?: {
     email: string | null;
     full_name: string | null;
+    avatar_url: string | null;
   } | null;
 };
 
@@ -81,6 +82,7 @@ function mapMember(row: DbMember): WorkspaceMember {
     createdAt: row.created_at,
     email: row.profiles?.email ?? undefined,
     name: row.profiles?.full_name ?? undefined,
+    avatarUrl: row.profiles?.avatar_url?.trim() || null,
   };
 }
 
@@ -235,7 +237,9 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
   async listMembers(workspaceId: string): Promise<WorkspaceMember[]> {
     const { data, error } = await this.client
       .from("workspace_members")
-      .select("workspace_id, user_id, role, created_at, profiles(email, full_name)")
+      .select(
+        "workspace_id, user_id, role, created_at, profiles(email, full_name, avatar_url)",
+      )
       .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: true });
     if (error) throw error;
@@ -252,7 +256,9 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
       .update({ role })
       .eq("workspace_id", workspaceId)
       .eq("user_id", userId)
-      .select("workspace_id, user_id, role, created_at, profiles(email, full_name)")
+      .select(
+        "workspace_id, user_id, role, created_at, profiles(email, full_name, avatar_url)",
+      )
       .single();
     if (error) throw error;
     return mapMember(data as unknown as DbMember);
