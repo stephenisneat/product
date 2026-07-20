@@ -409,7 +409,7 @@ export const artifactPayloadSchema = z.union([
 export const artifactSchema = z.object({
   id: z.string(),
   productId: z.string(),
-  campaignId: z.string().nullable().optional(),
+  campaignIds: z.array(z.string()).default([]),
   type: artifactTypeSchema,
   status: artifactStatusSchema,
   title: z.string(),
@@ -705,7 +705,7 @@ export const creativeSchema = z.object({
   id: z.string().uuid(),
   workspaceId: z.string().uuid(),
   productId: z.string(),
-  campaignId: z.string().nullable().optional(),
+  campaignIds: z.array(z.string()).default([]),
   kind: creativeKindSchema,
   title: z.string(),
   brief: z.string(),

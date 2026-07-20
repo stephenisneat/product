@@ -3,12 +3,14 @@ import { ArrowLeft } from "lucide-react";
 import type {
   Artifact,
   Campaign,
+  Creative,
   PerformancePoint,
   Product,
   ProductIntelligence,
   WorkspacePlan,
 } from "@/domain";
 import { ArtifactCard } from "@/features/artifacts/artifact-card";
+import { CreativeCard } from "@/features/creatives/creative-card";
 import { PerformanceChartLazy } from "@/features/reporting/performance-chart-lazy";
 import { PageCanvas } from "@/components/layout/page-canvas";
 import { ProductImage } from "@/components/product-image";
@@ -61,6 +63,7 @@ export function ProductWorkspace({
   product,
   intelligence,
   artifacts,
+  creatives = [],
   campaigns,
   performance,
   plan = "free",
@@ -68,6 +71,7 @@ export function ProductWorkspace({
   product: Product;
   intelligence: ProductIntelligence | null;
   artifacts: Artifact[];
+  creatives?: Creative[];
   campaigns: Campaign[];
   performance: PerformancePoint[];
   plan?: WorkspacePlan;
@@ -268,22 +272,55 @@ export function ProductWorkspace({
               </p>
             ) : (
               <ul className="divide-y divide-border rounded-lg border border-border">
-                {campaigns.map((campaign) => (
-                  <li key={campaign.id} className="flex items-start justify-between gap-3 p-3">
-                    <div>
-                      <p className="text-sm font-medium">{campaign.name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {campaign.objective}
-                      </p>
-                      <p className="mt-2 font-mono text-[11px] text-muted-foreground">
-                        {campaign.channels.join(" · ")}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="text-[10px] uppercase">
-                      {campaign.status}
-                    </Badge>
-                  </li>
-                ))}
+                {campaigns.map((campaign) => {
+                  const linkedCreatives = creatives.filter((c) =>
+                    c.campaignIds.includes(campaign.id),
+                  );
+                  const linkedArtifacts = artifacts.filter((a) =>
+                    a.campaignIds.includes(campaign.id),
+                  );
+                  return (
+                    <li key={campaign.id} className="space-y-3 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium">{campaign.name}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {campaign.objective}
+                          </p>
+                          <p className="mt-2 font-mono text-[11px] text-muted-foreground">
+                            {campaign.channels.join(" · ")}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] uppercase">
+                          {campaign.status}
+                        </Badge>
+                      </div>
+                      {linkedCreatives.length === 0 &&
+                      linkedArtifacts.length === 0 ? (
+                        <p className="text-[11px] text-muted-foreground">
+                          No creatives linked yet.
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {linkedCreatives.map((creative) => (
+                            <CreativeCard
+                              key={creative.id}
+                              creative={creative}
+                              compact
+                              pollWhileGenerating={false}
+                            />
+                          ))}
+                          {linkedArtifacts.map((artifact) => (
+                            <ArtifactCard
+                              key={artifact.id}
+                              artifact={artifact}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </TabsContent>

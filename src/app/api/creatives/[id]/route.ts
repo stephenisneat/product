@@ -3,6 +3,12 @@ import { z } from "zod";
 import type { Creative } from "@/domain";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
+import { PlanEntitlementError } from "@/lib/billing/gates";
+import { normalizeWorkspacePlan } from "@/lib/billing/entitlements";
+import {
+  assertCanLinkCreativesToCampaigns,
+  resolveProductCampaignIds,
+} from "@/lib/campaigns/associate";
 import { nextStageAfterAccept } from "@/lib/jobs/creative-stubs";
 import { enqueueGenerateCreativeStageJob } from "@/lib/jobs/enqueue";
 import { logServerError, unknownErrorMessage } from "@/lib/errors";
@@ -11,10 +17,22 @@ import { getCreativeRepository } from "@/repositories";
 
 export const runtime = "nodejs";
 
-const patchSchema = z.object({
-  action: z.enum(["accept", "reject", "revise"]),
-  feedback: z.string().trim().max(2000).optional(),
-});
+const patchSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("accept"),
+  }),
+  z.object({
+    action: z.literal("reject"),
+  }),
+  z.object({
+    action: z.literal("revise"),
+    feedback: z.string().trim().max(2000).optional(),
+  }),
+  z.object({
+    action: z.literal("set_campaigns"),
+    campaignIds: z.array(z.string().min(1)),
+  }),
+]);
 
 function revisePrompt(creative: Creative, feedback?: string): string {
   const notes = feedback?.trim();
@@ -75,7 +93,39 @@ export async function PATCH(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const { action, feedback } = parsed.data;
+  const { action } = parsed.data;
+
+  if (action === "set_campaigns") {
+    try {
+      const campaignIds = await resolveProductCampaignIds(
+        existing.productId,
+        parsed.data.campaignIds,
+      );
+      await assertCanLinkCreativesToCampaigns({
+        plan: normalizeWorkspacePlan(active.workspace.plan),
+        campaignIds,
+        countByCampaign: (id) => creatives.countByCampaign(id),
+        alreadyLinked: existing.campaignIds,
+      });
+      const creative = await creatives.update(id, { campaignIds });
+      return NextResponse.json({ creative });
+    } catch (err) {
+      if (err instanceof PlanEntitlementError) {
+        return NextResponse.json(
+          { error: err.message, code: err.code },
+          { status: err.status },
+        );
+      }
+      logServerError("api.creatives.set_campaigns", err, { creativeId: id });
+      return NextResponse.json(
+        { error: unknownErrorMessage(err, "Failed to update campaigns.") },
+        { status: 500 },
+      );
+    }
+  }
+
+  const feedback =
+    action === "revise" ? parsed.data.feedback : undefined;
 
   if (action === "reject") {
     if (

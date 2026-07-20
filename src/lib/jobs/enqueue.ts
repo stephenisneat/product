@@ -10,9 +10,13 @@ import type {
 } from "@/domain";
 import {
   PlanEntitlementError,
-  assertCanCreateCreative,
 } from "@/lib/billing/gates";
 import { logServerError, unknownErrorMessage } from "@/lib/errors";
+import {
+  assertCanLinkCreativesToCampaigns,
+  normalizeCampaignIds,
+  resolveProductCampaignIds,
+} from "@/lib/campaigns/associate";
 import {
   payloadFromCreateCampaignInput,
   runCreateCampaignJob,
@@ -26,7 +30,6 @@ import { hasServiceRole } from "@/lib/supabase/service";
 import {
   getCreativeWriteRepository,
   getJobWriteRepository,
-  getProductWriteRepository,
 } from "@/repositories";
 import type { createCampaignTask } from "@/trigger/create-campaign";
 import type { generateCreativeStageTask } from "@/trigger/generate-creative-stage";
@@ -48,7 +51,9 @@ export type EnqueueGenerateCreativeStageInput = {
 export type StartVideoCreativeInput = {
   workspaceId: string;
   productId: string;
+  /** @deprecated Prefer campaignIds */
   campaignId?: string | null;
+  campaignIds?: string[];
   title: string;
   brief: string;
   createdBy: string;
@@ -200,31 +205,6 @@ export async function enqueueGenerateCreativeStageJob(
   }
 }
 
-/**
- * Keep campaign_id only when it exists for this product.
- * Agents often invent campaign ids; an invalid FK would fail the insert.
- */
-async function resolveCreativeCampaignId(
-  productId: string,
-  campaignId: string | null | undefined,
-): Promise<string | null> {
-  const trimmed = campaignId?.trim() || null;
-  if (!trimmed) return null;
-
-  const products = getProductWriteRepository();
-  const campaigns = await products.listCampaigns(productId);
-  if (campaigns.some((c) => c.id === trimmed)) return trimmed;
-
-  console.warn(
-    JSON.stringify({
-      context: "startVideoCreative.invalid_campaign_id",
-      productId,
-      campaignId: trimmed,
-    }),
-  );
-  return null;
-}
-
 /** Create a video creative and enqueue screenplay generation. */
 export async function startVideoCreative(
   opts: StartVideoCreativeInput,
@@ -236,22 +216,24 @@ export async function startVideoCreative(
   }
 
   const creatives = getCreativeWriteRepository();
-  const campaignId = await resolveCreativeCampaignId(
+  const campaignIds = await resolveProductCampaignIds(
     opts.productId,
-    opts.campaignId,
+    normalizeCampaignIds({
+      campaignIds: opts.campaignIds,
+      campaignId: opts.campaignId,
+    }),
   );
 
-  if (campaignId) {
-    const count = await creatives.countByCampaign(campaignId);
-    assertCanCreateCreative(opts.plan, count);
-  } else {
-    assertCanCreateCreative(opts.plan, 0);
-  }
+  await assertCanLinkCreativesToCampaigns({
+    plan: opts.plan,
+    campaignIds,
+    countByCampaign: (id) => creatives.countByCampaign(id),
+  });
 
   const creative = await creatives.create({
     workspaceId: opts.workspaceId,
     productId: opts.productId,
-    campaignId,
+    campaignIds,
     title: opts.title,
     brief: opts.brief,
     stage: "screenplay",

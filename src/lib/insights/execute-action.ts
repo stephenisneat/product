@@ -5,10 +5,12 @@ import type {
   WorkspacePlan,
 } from "@/domain";
 import { artifactTypeSchema } from "@/domain";
+import { PlanEntitlementError } from "@/lib/billing/gates";
 import {
-  PlanEntitlementError,
-  assertCanCreateCreative,
-} from "@/lib/billing/gates";
+  assertCanLinkCreativesToCampaigns,
+  normalizeCampaignIds,
+  resolveProductCampaignIds,
+} from "@/lib/campaigns/associate";
 import { enqueueCreateCampaignJob } from "@/lib/jobs/enqueue";
 import { startVideoCreative } from "@/lib/jobs/enqueue";
 import { hasServiceRole } from "@/lib/supabase/service";
@@ -24,9 +26,18 @@ function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+function asStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const ids = value.filter(
+    (v): v is string => typeof v === "string" && v.trim().length > 0,
+  );
+  return ids.length > 0 ? ids : undefined;
+}
+
 async function createArtifactFromInsight(opts: {
   productId: string;
   campaignId?: string | null;
+  campaignIds?: string[];
   type: Artifact["type"];
   title: string;
   summary: string;
@@ -35,21 +46,27 @@ async function createArtifactFromInsight(opts: {
   plan: WorkspacePlan;
 }): Promise<Artifact> {
   const artifacts = await getArtifactRepository();
+  const campaignIds = await resolveProductCampaignIds(
+    opts.productId,
+    normalizeCampaignIds({
+      campaignIds: opts.campaignIds,
+      campaignId: opts.campaignId,
+    }),
+  );
 
   if (opts.type === "ad_copy") {
-    if (opts.campaignId) {
-      const count = await artifacts.countCreativesByCampaign(opts.campaignId);
-      assertCanCreateCreative(opts.plan, count);
-    } else {
-      assertCanCreateCreative(opts.plan, 0);
-    }
+    await assertCanLinkCreativesToCampaigns({
+      plan: opts.plan,
+      campaignIds,
+      countByCampaign: (id) => artifacts.countCreativesByCampaign(id),
+    });
   }
 
   const now = new Date().toISOString();
   const artifact: Artifact = {
     id: `art_${crypto.randomUUID().slice(0, 8)}`,
     productId: opts.productId,
-    campaignId: opts.campaignId ?? null,
+    campaignIds,
     type: opts.type,
     status: "proposed",
     title: opts.title,
@@ -120,6 +137,7 @@ export async function executeInsightAction(opts: {
     const { creative, job } = await startVideoCreative({
       workspaceId: opts.workspaceId,
       productId,
+      campaignIds: asStringArray(payload.campaignIds),
       campaignId: asString(payload.campaignId) ?? opts.insight.campaignId,
       title,
       brief,
@@ -154,6 +172,7 @@ export async function executeInsightAction(opts: {
     try {
       const artifact = await createArtifactFromInsight({
         productId,
+        campaignIds: asStringArray(payload.campaignIds),
         campaignId: asString(payload.campaignId) ?? opts.insight.campaignId,
         type: typeParsed.data,
         title,

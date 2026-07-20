@@ -27,10 +27,14 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import {
   PlanEntitlementError,
-  assertCanCreateCreative,
   assertHasInsights,
 } from "@/lib/billing/gates";
 import { normalizeWorkspacePlan } from "@/lib/billing/entitlements";
+import {
+  assertCanLinkCreativesToCampaigns,
+  normalizeCampaignIds,
+  resolveProductCampaignIds,
+} from "@/lib/campaigns/associate";
 import {
   enqueueCreateCampaignJob,
   resubmitCreativeStage,
@@ -92,9 +96,9 @@ If the workspace plan is growth or pro, creatives are allowed — treat any earl
 Always prefer calling propose_artifact when you have a concrete text proposal ready for review.
 When the user wants to create a campaign (not just a concept proposal), call run_job with type create_campaign.
 Keep propose_artifact for reviewable copy, positioning, and campaign concepts; use run_job to actually create a draft campaign.
-When the user wants a video ad, call create_video_creative immediately with a short title and brief. If they ask you to invent the concept (e.g. "come up with something"), invent the title and brief yourself and call the tool — do not ask follow-up questions first. Omit campaignId unless you have a real campaign id from a prior tool result — never invent one.
+When the user wants a video ad, call create_video_creative immediately with a short title and brief. If they ask you to invent the concept (e.g. "come up with something"), invent the title and brief yourself and call the tool — do not ask follow-up questions first. Omit campaignIds unless you have real campaign ids from a prior tool result — never invent them.
 When the user is revising an existing video creative (they mention a creative id or are iterating on feedback), call resubmit_creative with that creativeId — do not create a new creative.
-When proposing ad_copy creatives for a campaign, include that campaign's id as campaignId (real ids only; never invent).
+When proposing ad_copy creatives for campaigns, pass campaignIds with real ids only (or omit / [] for unassigned); never invent.
 Insights require Pro. When the user states a measurable objective, call create_goal (product or workspace scope). Use list_goals to see active goals. For proactive recommendations, call propose_insight; when revising an insight, call resubmit_insight.
 Keep propose_artifact for reviewable copy, positioning, and campaign concepts; use propose_insight for goal-oriented next steps the user Accepts / Rejects / Revises.
 When the user asks about performance, funnels, comparisons (e.g. Q1 vs Q2), trends, or wants a chart/visualization, call create_visualization with an appropriate kind (sankey, timeseries, comparison, or bar) and a clear title.
@@ -140,7 +144,7 @@ If the workspace plan is growth or pro, creatives are allowed — treat any earl
 When proposing an artifact, always call propose_artifact with the target productId from the catalog.
 When the user wants to create a campaign for a product, call run_job with type create_campaign and that productId.
 Keep propose_artifact for reviewable copy and concepts; use run_job to create a draft campaign.
-When the user wants a video ad, call create_video_creative immediately with productId from the catalog (match @mentions to catalog ids), plus a short title and brief. If they ask you to invent the concept, invent title and brief yourself and call the tool — do not ask follow-up questions first. Omit campaignId unless you have a real campaign id from a prior tool result — never invent one.
+When the user wants a video ad, call create_video_creative immediately with productId from the catalog (match @mentions to catalog ids), plus a short title and brief. If they ask you to invent the concept, invent title and brief yourself and call the tool — do not ask follow-up questions first. Omit campaignIds unless you have real campaign ids from a prior tool result — never invent them.
 When the user is revising an existing video creative, call resubmit_creative with that creativeId — do not create a new creative.
 Insights require Pro. When the user states a measurable objective, call create_goal. Use list_goals to inspect goals. For proactive recommendations, call propose_insight; when revising, call resubmit_insight.
 Keep propose_artifact for reviewable copy and concepts; use propose_insight for goal-oriented recommendations.
@@ -155,6 +159,7 @@ ${catalog}`;
 async function createArtifactFromProposal(input: {
   productId: string;
   campaignId?: string | null;
+  campaignIds?: string[];
   type: Artifact["type"];
   title: string;
   summary: string;
@@ -163,22 +168,27 @@ async function createArtifactFromProposal(input: {
   plan: WorkspacePlan;
 }): Promise<Artifact> {
   const artifacts = await getArtifactRepository();
+  const campaignIds = await resolveProductCampaignIds(
+    input.productId,
+    normalizeCampaignIds({
+      campaignIds: input.campaignIds,
+      campaignId: input.campaignId,
+    }),
+  );
 
   if (input.type === "ad_copy") {
-    if (input.campaignId) {
-      const count = await artifacts.countCreativesByCampaign(input.campaignId);
-      assertCanCreateCreative(input.plan, count);
-    } else {
-      // Product-level creatives still respect the plan cap (0 on Free).
-      assertCanCreateCreative(input.plan, 0);
-    }
+    await assertCanLinkCreativesToCampaigns({
+      plan: input.plan,
+      campaignIds,
+      countByCampaign: (id) => artifacts.countCreativesByCampaign(id),
+    });
   }
 
   const now = new Date().toISOString();
   const artifact: Artifact = {
     id: `art_${crypto.randomUUID().slice(0, 8)}`,
     productId: input.productId,
-    campaignId: input.campaignId ?? null,
+    campaignIds,
     type: input.type,
     status: "proposed",
     title: input.title,
@@ -521,18 +531,20 @@ export async function POST(req: Request) {
       tools: {
         propose_artifact: tool({
           description:
-            "Propose a structured marketing artifact for human review before it is applied. For ad_copy creatives tied to a campaign, pass campaignId.",
+            "Propose a structured marketing artifact for human review before it is applied. For ad_copy creatives, pass campaignIds (real ids only) or omit for unassigned.",
           inputSchema: z.object({
             type: artifactTypeSchema,
             title: z.string(),
             summary: z.string(),
             payload: z.record(z.string(), z.unknown()),
+            campaignIds: z.array(z.string()).optional(),
             campaignId: z.string().optional(),
           }),
           execute: async (input) => {
             try {
               const artifact = await createArtifactFromProposal({
                 productId,
+                campaignIds: input.campaignIds,
                 campaignId: input.campaignId,
                 type: input.type,
                 title: input.title,
@@ -598,10 +610,11 @@ export async function POST(req: Request) {
         }),
         create_video_creative: tool({
           description:
-            "Start a video ad creative pipeline (screenplay → storyboard → video) for the current product. Returns a creativeId; the user reviews each stage with Accept / Reject / Revise. Omit campaignId unless attaching to an existing campaign id from a prior tool result — never invent campaign ids.",
+            "Start a video ad creative pipeline (screenplay → storyboard → video) for the current product. Returns a creativeId; the user reviews each stage with Accept / Reject / Revise. Omit campaignIds unless attaching to existing campaign ids from a prior tool result — never invent campaign ids.",
           inputSchema: z.object({
             title: z.string().trim().min(1).max(120),
             brief: z.string().trim().min(1).max(4000),
+            campaignIds: z.array(z.string()).optional(),
             campaignId: z.string().optional(),
           }),
           execute: async (input) => {
@@ -615,6 +628,7 @@ export async function POST(req: Request) {
               const { creative, job } = await startVideoCreative({
                 workspaceId: active.workspace.id,
                 productId,
+                campaignIds: input.campaignIds,
                 campaignId: input.campaignId ?? null,
                 title: input.title,
                 brief: input.brief,
@@ -926,13 +940,14 @@ export async function POST(req: Request) {
     tools: {
       propose_artifact: tool({
         description:
-          "Propose a structured marketing artifact for a specific product in the workspace. productId must be one of the catalog ids. For ad_copy creatives tied to a campaign, pass campaignId.",
+          "Propose a structured marketing artifact for a specific product in the workspace. productId must be one of the catalog ids. For ad_copy creatives, pass campaignIds (real ids only) or omit for unassigned.",
         inputSchema: z.object({
           productId: z.string(),
           type: artifactTypeSchema,
           title: z.string(),
           summary: z.string(),
           payload: z.record(z.string(), z.unknown()),
+          campaignIds: z.array(z.string()).optional(),
           campaignId: z.string().optional(),
         }),
         execute: async (input) => {
@@ -945,6 +960,7 @@ export async function POST(req: Request) {
           try {
             const artifact = await createArtifactFromProposal({
               productId: input.productId,
+              campaignIds: input.campaignIds,
               campaignId: input.campaignId,
               type: input.type,
               title: input.title,
@@ -1017,11 +1033,12 @@ export async function POST(req: Request) {
       }),
       create_video_creative: tool({
         description:
-          "Start a video ad creative pipeline (screenplay → storyboard → video) for a product in the catalog. Returns a creativeId for Accept / Reject / Revise review. Omit campaignId unless attaching to an existing campaign id from a prior tool result — never invent campaign ids.",
+          "Start a video ad creative pipeline (screenplay → storyboard → video) for a product in the catalog. Returns a creativeId for Accept / Reject / Revise review. Omit campaignIds unless attaching to existing campaign ids from a prior tool result — never invent campaign ids.",
         inputSchema: z.object({
           productId: z.string(),
           title: z.string().trim().min(1).max(120),
           brief: z.string().trim().min(1).max(4000),
+          campaignIds: z.array(z.string()).optional(),
           campaignId: z.string().optional(),
         }),
         execute: async (input) => {
@@ -1041,6 +1058,7 @@ export async function POST(req: Request) {
             const { creative, job } = await startVideoCreative({
               workspaceId: activeWorkspace.workspace.id,
               productId: input.productId,
+              campaignIds: input.campaignIds,
               campaignId: input.campaignId ?? null,
               title: input.title,
               brief: input.brief,

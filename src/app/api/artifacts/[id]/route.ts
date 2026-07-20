@@ -2,12 +2,26 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { Artifact, ProductIntelligence } from "@/domain";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getActiveWorkspace } from "@/lib/auth/workspace";
+import { PlanEntitlementError } from "@/lib/billing/gates";
+import { normalizeWorkspacePlan } from "@/lib/billing/entitlements";
+import {
+  assertCanLinkCreativesToCampaigns,
+  resolveProductCampaignIds,
+} from "@/lib/campaigns/associate";
+import { logServerError, unknownErrorMessage } from "@/lib/errors";
 import { getArtifactRepository, getProductRepository } from "@/repositories";
 
-const patchSchema = z.object({
-  action: z.enum(["approve", "reject", "update"]),
-  payload: z.record(z.string(), z.unknown()).optional(),
-});
+const patchSchema = z.union([
+  z.object({
+    action: z.enum(["approve", "reject", "update"]),
+    payload: z.record(z.string(), z.unknown()).optional(),
+  }),
+  z.object({
+    action: z.literal("set_campaigns"),
+    campaignIds: z.array(z.string().min(1)),
+  }),
+]);
 
 export async function PATCH(
   req: Request,
@@ -28,6 +42,48 @@ export async function PATCH(
   const existing = await artifacts.getById(id);
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  if (parsed.data.action === "set_campaigns") {
+    try {
+      const active = await getActiveWorkspace();
+      if (!active) {
+        return NextResponse.json(
+          { error: "No workspace available" },
+          { status: 400 },
+        );
+      }
+
+      const campaignIds = await resolveProductCampaignIds(
+        existing.productId,
+        parsed.data.campaignIds,
+      );
+
+      if (existing.type === "ad_copy") {
+        await assertCanLinkCreativesToCampaigns({
+          plan: normalizeWorkspacePlan(active.workspace.plan),
+          campaignIds,
+          countByCampaign: (cid) => artifacts.countCreativesByCampaign(cid),
+          alreadyLinked: existing.campaignIds,
+        });
+      }
+
+      await artifacts.setCampaignIds(id, campaignIds);
+      const artifact = await artifacts.getById(id);
+      return NextResponse.json({ artifact: artifact ?? existing });
+    } catch (err) {
+      if (err instanceof PlanEntitlementError) {
+        return NextResponse.json(
+          { error: err.message, code: err.code },
+          { status: err.status },
+        );
+      }
+      logServerError("api.artifacts.set_campaigns", err, { artifactId: id });
+      return NextResponse.json(
+        { error: unknownErrorMessage(err, "Failed to update campaigns.") },
+        { status: 500 },
+      );
+    }
   }
 
   const now = new Date().toISOString();
