@@ -8,8 +8,8 @@ import { logServerError } from "@/lib/errors";
 
 export const generateCreativeStageTask = task({
   id: "generate-creative-stage",
-  // Stub pipeline is sub-second; hang until the global 300s maxDuration hid misconfig.
-  maxDuration: 60,
+  // Screenplay is quick; storyboard runs multiple image generations.
+  maxDuration: 480,
   retry: {
     maxAttempts: 3,
   },

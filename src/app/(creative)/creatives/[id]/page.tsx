@@ -1,5 +1,4 @@
 import { notFound, redirect } from "next/navigation";
-import { AgentProductSync } from "@/features/agent/agent-context";
 import { CreativeWorkspace } from "@/features/creatives/creative-workspace";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
@@ -36,18 +35,10 @@ export default async function CreativeDetailPage({
   ]);
 
   return (
-    <>
-      {product ? (
-        <AgentProductSync
-          productId={product.id}
-          productTitle={product.title}
-        />
-      ) : null}
-      <CreativeWorkspace
-        creative={creative}
-        product={product}
-        performance={performance}
-      />
-    </>
+    <CreativeWorkspace
+      creative={creative}
+      product={product}
+      performance={performance}
+    />
   );
 }

@@ -11,6 +11,10 @@ const STUB_VIDEO_URL =
 const STUB_THUMBNAIL_URL =
   "https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerEscapes.jpg";
 
+/**
+ * Deterministic fallback when AI Gateway is unavailable (tests / local misconfig).
+ * Keeps spokenKind mix and concrete action lines so UI/schema stay exercised.
+ */
 export function buildTemplateScreenplay(
   brief: string,
   productTitle?: string,
@@ -21,39 +25,54 @@ export function buildTemplateScreenplay(
   const scenes = [
     {
       id: "scene-1",
-      heading: "OPENING HOOK",
-      action: `Cold open on ${subject}. Fast cut that matches: ${idea}`,
-      dialogue: "Wait — this changes everything.",
+      heading: "EXT. CITY SIDEWALK - DAY",
+      action: `A young commuter jogs up subway stairs, phone slipping from a jacket pocket. ${subject} is not in frame yet — only the near-drop and a frustrated glance at the cracked sidewalk.`,
+      dialogue: "Every morning, same near-disaster.",
+      spokenKind: "voiceover" as const,
+      character: "",
       durationSec: 3,
     },
     {
       id: "scene-2",
-      heading: "PROBLEM",
-      action: "Show the everyday friction the audience feels before finding this product.",
-      dialogue: "You've been doing it the hard way.",
+      heading: "INT. STUDIO KITCHEN - DAY",
+      action: `Close on tired hands wrestling a tangled charger cable beside a half-eaten breakfast. Cut to a second person (MAYA, 30s) watching, then pointing at a clean ${subject} box on the counter.`,
+      dialogue: "You don't have to keep fighting that thing.",
+      spokenKind: "dialogue" as const,
+      character: "MAYA",
       durationSec: 4,
     },
     {
       id: "scene-3",
-      heading: "PRODUCT REVEAL",
-      action: `Reveal ${subject} in use. Clean, confident framing. Highlight the key benefit from the brief.`,
-      dialogue: `Meet ${subject}.`,
+      heading: "INT. STUDIO KITCHEN - CONTINUOUS",
+      action: `MAYA lifts ${subject} into frame, peels the seal, and slots it onto the counter in one fluid move. Soft window light; product label readable; no text overlays.`,
+      dialogue: `This is ${subject}. Built for the mess you actually live in.`,
+      spokenKind: "voiceover" as const,
+      character: "",
       durationSec: 5,
     },
     {
       id: "scene-4",
-      heading: "CTA",
-      action: "End card with logo, offer, and a clear call to action.",
-      dialogue: "Tap to shop now.",
+      heading: "INT. ENTRYWAY - NIGHT",
+      action: `End card: ${subject} on a console table beside keys and a plant. A hand taps the product once, then the room lights dim to a clean logo hold. Brief idea echoed: ${idea.slice(0, 80)}`,
+      dialogue: "Get yours tonight.",
+      spokenKind: "dialogue" as const,
+      character: "MAYA",
       durationSec: 3,
     },
   ];
 
   const script = scenes
-    .map(
-      (s) =>
-        `${s.heading}\n${s.action}${s.dialogue ? `\n"${s.dialogue}"` : ""}`,
-    )
+    .map((s) => {
+      const speaker =
+        s.dialogue && s.spokenKind === "dialogue"
+          ? s.character || "CHARACTER"
+          : s.dialogue
+            ? "VOICEOVER"
+            : null;
+      return `${s.heading}\n${s.action}${
+        speaker && s.dialogue ? `\n${speaker}\n"${s.dialogue}"` : ""
+      }`;
+    })
     .join("\n\n");
 
   return {

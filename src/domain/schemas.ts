@@ -664,11 +664,23 @@ export const creativeStatusSchema = z.enum([
 ]);
 export type CreativeStatus = z.infer<typeof creativeStatusSchema>;
 
+export const screenplaySpokenKindSchema = z.enum(["voiceover", "dialogue"]);
+export type ScreenplaySpokenKind = z.infer<typeof screenplaySpokenKindSchema>;
+
 export const screenplaySceneSchema = z.object({
   id: z.string(),
   heading: z.string(),
+  /** Concrete visual direction — who/what/where, never abstract marketing language. */
   action: z.string(),
+  /** Empty string = no spoken audio in this scene. */
   dialogue: z.string().default(""),
+  /**
+   * How dialogue is delivered. Ignored when dialogue is empty.
+   * Defaults to voiceover for backwards-compatible payloads.
+   */
+  spokenKind: screenplaySpokenKindSchema.default("voiceover"),
+  /** On-screen character name when spokenKind is "dialogue". */
+  character: z.string().default(""),
   durationSec: z.number().positive(),
 });
 export type ScreenplayScene = z.infer<typeof screenplaySceneSchema>;

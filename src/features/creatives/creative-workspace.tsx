@@ -583,7 +583,7 @@ export function CreativeWorkspace({
           <div className="min-h-0 flex-1 overflow-y-auto">
             <TabsContent value="screenplay" className="mt-0 h-full">
               {creative.screenplay ? (
-                <div className="min-h-full bg-[#e8e6e1] px-3 py-8 sm:px-6">
+                <div className="min-h-full bg-[#e8e6e1] px-3 py-8 dark:bg-zinc-950 sm:px-6">
                   <ScreenplayDocument screenplay={creative.screenplay} />
                 </div>
               ) : (
