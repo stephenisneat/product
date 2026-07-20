@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAgentContext } from "@/features/agent/agent-context";
+import { CampaignAssociation } from "@/features/campaigns/campaign-association";
 import { cn } from "@/lib/utils";
 
 function stageLabel(stage: Creative["stage"]): string {
@@ -222,6 +223,13 @@ export function CreativeCard({
           <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
             {creative.brief}
           </p>
+          <CampaignAssociation
+            className="mt-2"
+            productId={creative.productId}
+            campaignIds={creative.campaignIds}
+            patchUrl={`/api/creatives/${creative.id}`}
+            compact={compact}
+          />
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-1">
           <Badge variant="outline" className="text-[10px] uppercase">

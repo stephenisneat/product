@@ -6,6 +6,7 @@ import type { Artifact } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { CampaignAssociation } from "@/features/campaigns/campaign-association";
 
 export function ArtifactCard({ artifact }: { artifact: Artifact }) {
   const router = useRouter();
@@ -50,6 +51,12 @@ export function ArtifactCard({ artifact }: { artifact: Artifact }) {
         <div>
           <h3 className="text-sm font-medium">{artifact.title}</h3>
           <p className="mt-1 text-xs text-muted-foreground">{artifact.summary}</p>
+          <CampaignAssociation
+            className="mt-2"
+            productId={artifact.productId}
+            campaignIds={artifact.campaignIds}
+            patchUrl={`/api/artifacts/${artifact.id}`}
+          />
         </div>
         <div className="flex shrink-0 gap-1">
           <Badge variant="outline" className="text-[10px] uppercase">

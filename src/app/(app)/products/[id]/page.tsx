@@ -3,7 +3,7 @@ import { AgentProductSync } from "@/features/agent/agent-context";
 import { ProductWorkspace } from "@/features/products/product-workspace";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
-import { getArtifactRepository, getProductRepository } from "@/repositories";
+import { getArtifactRepository, getCreativeRepository, getProductRepository } from "@/repositories";
 
 export default async function ProductPage({
   params,
@@ -27,12 +27,14 @@ export default async function ProductPage({
     notFound();
   }
 
-  const [intelligence, campaigns, performance, artifacts] = await Promise.all([
-    products.getIntelligence(id),
-    products.listCampaigns(id),
-    products.getPerformance(id),
-    (await getArtifactRepository()).listByProduct(id),
-  ]);
+  const [intelligence, campaigns, performance, artifacts, creatives] =
+    await Promise.all([
+      products.getIntelligence(id),
+      products.listCampaigns(id),
+      products.getPerformance(id),
+      (await getArtifactRepository()).listByProduct(id),
+      (await getCreativeRepository()).listByProduct(id),
+    ]);
 
   return (
     <>
@@ -41,6 +43,7 @@ export default async function ProductPage({
         product={product}
         intelligence={intelligence}
         artifacts={artifacts}
+        creatives={creatives}
         campaigns={campaigns}
         performance={performance}
         plan={active.workspace.plan ?? "free"}

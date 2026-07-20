@@ -878,6 +878,63 @@ export class SupabaseProductRepository implements ProductRepository {
 export class SupabaseArtifactRepository implements ArtifactRepository {
   constructor(private readonly client: SupabaseClient) {}
 
+  private async campaignIdsForArtifacts(
+    artifactIds: string[],
+  ): Promise<Map<string, string[]>> {
+    const map = new Map<string, string[]>();
+    if (artifactIds.length === 0) return map;
+
+    const { data, error } = await this.client
+      .from("artifact_campaigns")
+      .select("artifact_id, campaign_id")
+      .in("artifact_id", artifactIds);
+    if (error) throw error;
+
+    for (const row of data ?? []) {
+      const artifactId = row.artifact_id as string;
+      const campaignId = row.campaign_id as string;
+      const list = map.get(artifactId) ?? [];
+      list.push(campaignId);
+      map.set(artifactId, list);
+    }
+    return map;
+  }
+
+  private async attachCampaignIds(
+    rows: Parameters<typeof mapArtifactRow>[0][],
+  ): Promise<Artifact[]> {
+    const byId = await this.campaignIdsForArtifacts(rows.map((r) => r.id));
+    return rows.map((row) =>
+      mapArtifactRow(row, byId.get(row.id) ?? []),
+    );
+  }
+
+  async setCampaignIds(
+    artifactId: string,
+    campaignIds: string[],
+  ): Promise<void> {
+    const { error: delError } = await this.client
+      .from("artifact_campaigns")
+      .delete()
+      .eq("artifact_id", artifactId);
+    if (delError) throw delError;
+
+    const unique = [
+      ...new Set(campaignIds.map((id) => id.trim()).filter(Boolean)),
+    ];
+    if (unique.length === 0) return;
+
+    const { error: insError } = await this.client
+      .from("artifact_campaigns")
+      .insert(
+        unique.map((campaign_id) => ({
+          artifact_id: artifactId,
+          campaign_id,
+        })),
+      );
+    if (insError) throw insError;
+  }
+
   async listByProduct(productId: string): Promise<Artifact[]> {
     const { data, error } = await this.client
       .from("artifacts")
@@ -885,7 +942,7 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
       .eq("product_id", productId)
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return (data ?? []).map((row) => mapArtifact(row));
+    return this.attachCampaignIds(data ?? []);
   }
 
   async listByProductIds(productIds: string[]): Promise<Artifact[]> {
@@ -896,14 +953,42 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
       .in("product_id", productIds)
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return (data ?? []).map((row) => mapArtifact(row));
+    return this.attachCampaignIds(data ?? []);
+  }
+
+  async listByCampaign(campaignId: string): Promise<Artifact[]> {
+    const { data: links, error: linkError } = await this.client
+      .from("artifact_campaigns")
+      .select("artifact_id")
+      .eq("campaign_id", campaignId);
+    if (linkError) throw linkError;
+
+    const ids = (links ?? []).map((row) => row.artifact_id as string);
+    if (ids.length === 0) return [];
+
+    const { data, error } = await this.client
+      .from("artifacts")
+      .select("*")
+      .in("id", ids)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return this.attachCampaignIds(data ?? []);
   }
 
   async countCreativesByCampaign(campaignId: string): Promise<number> {
+    const { data: links, error: linkError } = await this.client
+      .from("artifact_campaigns")
+      .select("artifact_id")
+      .eq("campaign_id", campaignId);
+    if (linkError) throw linkError;
+
+    const ids = (links ?? []).map((row) => row.artifact_id as string);
+    if (ids.length === 0) return 0;
+
     const { count, error } = await this.client
       .from("artifacts")
       .select("id", { count: "exact", head: true })
-      .eq("campaign_id", campaignId)
+      .in("id", ids)
       .eq("type", "ad_copy");
     if (error) throw error;
     return count ?? 0;
@@ -917,14 +1002,14 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
       .maybeSingle();
     if (error) throw error;
     if (!data) return null;
-    return mapArtifact(data);
+    const [artifact] = await this.attachCampaignIds([data]);
+    return artifact ?? null;
   }
 
   async create(artifact: Artifact): Promise<Artifact> {
     const { error } = await this.client.from("artifacts").insert({
       id: artifact.id,
       product_id: artifact.productId,
-      campaign_id: artifact.campaignId ?? null,
       type: artifact.type,
       status: artifact.status,
       title: artifact.title,
@@ -935,6 +1020,10 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
       updated_at: artifact.updatedAt,
     });
     if (error) throw error;
+
+    if (artifact.campaignIds.length > 0) {
+      await this.setCampaignIds(artifact.id, artifact.campaignIds);
+    }
     return artifact;
   }
 
@@ -942,7 +1031,6 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
     const { error } = await this.client
       .from("artifacts")
       .update({
-        campaign_id: artifact.campaignId ?? null,
         status: artifact.status,
         title: artifact.title,
         summary: artifact.summary,
@@ -951,27 +1039,31 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
       })
       .eq("id", artifact.id);
     if (error) throw error;
+
+    await this.setCampaignIds(artifact.id, artifact.campaignIds);
     return artifact;
   }
 }
 
-function mapArtifact(row: {
-  id: string;
-  product_id: string;
-  campaign_id?: string | null;
-  type: Artifact["type"];
-  status: Artifact["status"];
-  title: string;
-  summary: string;
-  payload: Record<string, unknown> | null;
-  created_by: string;
-  created_at: string;
-  updated_at: string;
-}): Artifact {
+function mapArtifactRow(
+  row: {
+    id: string;
+    product_id: string;
+    type: Artifact["type"];
+    status: Artifact["status"];
+    title: string;
+    summary: string;
+    payload: Record<string, unknown> | null;
+    created_by: string;
+    created_at: string;
+    updated_at: string;
+  },
+  campaignIds: string[] = [],
+): Artifact {
   return {
     id: row.id,
     productId: row.product_id,
-    campaignId: row.campaign_id ?? null,
+    campaignIds,
     type: row.type,
     status: row.status,
     title: row.title,

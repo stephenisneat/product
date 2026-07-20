@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { PlanEntitlementError } from "@/lib/billing/gates";
+import { normalizeWorkspacePlan } from "@/lib/billing/entitlements";
 import { logServerError, unknownErrorMessage } from "@/lib/errors";
 import { startVideoCreative } from "@/lib/jobs/enqueue";
 import { hasServiceRole } from "@/lib/supabase/service";
@@ -14,6 +15,7 @@ const createSchema = z.object({
   productId: z.string().min(1),
   title: z.string().trim().min(1).max(120),
   brief: z.string().trim().min(1).max(4000),
+  campaignIds: z.array(z.string().min(1)).optional(),
   campaignId: z.string().min(1).optional(),
 });
 
@@ -66,12 +68,13 @@ export async function POST(req: Request) {
     const { creative, job } = await startVideoCreative({
       workspaceId: active.workspace.id,
       productId: product.id,
+      campaignIds: parsed.data.campaignIds,
       campaignId: parsed.data.campaignId ?? null,
       title: parsed.data.title,
       brief: parsed.data.brief,
       createdBy: user.id,
       trigger: "api",
-      plan: active.workspace.plan ?? "free",
+      plan: normalizeWorkspacePlan(active.workspace.plan),
     });
     return NextResponse.json({ creative, jobId: job.id }, { status: 201 });
   } catch (err) {

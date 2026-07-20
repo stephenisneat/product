@@ -10,9 +10,13 @@ import type {
 } from "@/domain";
 import {
   PlanEntitlementError,
-  assertCanCreateCreative,
 } from "@/lib/billing/gates";
 import { logServerError, unknownErrorMessage } from "@/lib/errors";
+import {
+  assertCanLinkCreativesToCampaigns,
+  normalizeCampaignIds,
+  resolveProductCampaignIds,
+} from "@/lib/campaigns/associate";
 import {
   payloadFromCreateCampaignInput,
   runCreateCampaignJob,
@@ -47,7 +51,9 @@ export type EnqueueGenerateCreativeStageInput = {
 export type StartVideoCreativeInput = {
   workspaceId: string;
   productId: string;
+  /** @deprecated Prefer campaignIds */
   campaignId?: string | null;
+  campaignIds?: string[];
   title: string;
   brief: string;
   createdBy: string;
@@ -210,18 +216,24 @@ export async function startVideoCreative(
   }
 
   const creatives = getCreativeWriteRepository();
+  const campaignIds = await resolveProductCampaignIds(
+    opts.productId,
+    normalizeCampaignIds({
+      campaignIds: opts.campaignIds,
+      campaignId: opts.campaignId,
+    }),
+  );
 
-  if (opts.campaignId) {
-    const count = await creatives.countByCampaign(opts.campaignId);
-    assertCanCreateCreative(opts.plan, count);
-  } else {
-    assertCanCreateCreative(opts.plan, 0);
-  }
+  await assertCanLinkCreativesToCampaigns({
+    plan: opts.plan,
+    campaignIds,
+    countByCampaign: (id) => creatives.countByCampaign(id),
+  });
 
   const creative = await creatives.create({
     workspaceId: opts.workspaceId,
     productId: opts.productId,
-    campaignId: opts.campaignId ?? null,
+    campaignIds,
     title: opts.title,
     brief: opts.brief,
     stage: "screenplay",

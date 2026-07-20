@@ -90,17 +90,19 @@ export interface ProductRepository {
 export interface ArtifactRepository {
   listByProduct(productId: string): Promise<Artifact[]>;
   listByProductIds(productIds: string[]): Promise<Artifact[]>;
+  listByCampaign(campaignId: string): Promise<Artifact[]>;
   countCreativesByCampaign(campaignId: string): Promise<number>;
   getById(id: string): Promise<Artifact | null>;
   create(artifact: Artifact): Promise<Artifact>;
   update(artifact: Artifact): Promise<Artifact>;
+  setCampaignIds(artifactId: string, campaignIds: string[]): Promise<void>;
 }
 
 export type CreativeCreateInput = {
   id?: string;
   workspaceId: string;
   productId: string;
-  campaignId?: string | null;
+  campaignIds?: string[];
   kind?: Creative["kind"];
   title: string;
   brief: string;
@@ -113,7 +115,7 @@ export type CreativeCreateInput = {
 export type CreativeUpdateInput = {
   title?: string;
   brief?: string;
-  campaignId?: string | null;
+  campaignIds?: string[];
   stage?: CreativeStage;
   status?: CreativeStatus;
   screenplay?: ScreenplayPayload | null;
@@ -129,6 +131,7 @@ export interface CreativeRepository {
     opts?: { limit?: number; offset?: number },
   ): Promise<Creative[]>;
   listByProduct(productId: string): Promise<Creative[]>;
+  listByCampaign(campaignId: string): Promise<Creative[]>;
   countByCampaign(campaignId: string): Promise<number>;
   getById(id: string): Promise<Creative | null>;
   create(input: CreativeCreateInput): Promise<Creative>;

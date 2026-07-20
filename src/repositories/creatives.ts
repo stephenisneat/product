@@ -17,7 +17,6 @@ type DbCreative = {
   id: string;
   workspace_id: string;
   product_id: string;
-  campaign_id: string | null;
   kind: Creative["kind"];
   title: string;
   brief: string;
@@ -51,12 +50,15 @@ function parseVideo(value: unknown): VideoPayload | null {
   return parsed.success ? parsed.data : null;
 }
 
-export function mapCreative(row: DbCreative): Creative {
+export function mapCreative(
+  row: DbCreative,
+  campaignIds: string[] = [],
+): Creative {
   return {
     id: row.id,
     workspaceId: row.workspace_id,
     productId: row.product_id,
-    campaignId: row.campaign_id,
+    campaignIds,
     kind: row.kind,
     title: row.title,
     brief: row.brief,
@@ -77,7 +79,7 @@ export type CreativeCreateInput = {
   id?: string;
   workspaceId: string;
   productId: string;
-  campaignId?: string | null;
+  campaignIds?: string[];
   kind?: Creative["kind"];
   title: string;
   brief: string;
@@ -90,7 +92,7 @@ export type CreativeCreateInput = {
 export type CreativeUpdateInput = {
   title?: string;
   brief?: string;
-  campaignId?: string | null;
+  campaignIds?: string[];
   stage?: CreativeStage;
   status?: CreativeStatus;
   screenplay?: ScreenplayPayload | null;
@@ -102,6 +104,57 @@ export type CreativeUpdateInput = {
 
 export class SupabaseCreativeRepository {
   constructor(private readonly client: SupabaseClient) {}
+
+  private async campaignIdsForCreatives(
+    creativeIds: string[],
+  ): Promise<Map<string, string[]>> {
+    const map = new Map<string, string[]>();
+    if (creativeIds.length === 0) return map;
+
+    const { data, error } = await this.client
+      .from("creative_campaigns")
+      .select("creative_id, campaign_id")
+      .in("creative_id", creativeIds);
+    if (error) throw error;
+
+    for (const row of data ?? []) {
+      const creativeId = row.creative_id as string;
+      const campaignId = row.campaign_id as string;
+      const list = map.get(creativeId) ?? [];
+      list.push(campaignId);
+      map.set(creativeId, list);
+    }
+    return map;
+  }
+
+  private async attachCampaignIds(rows: DbCreative[]): Promise<Creative[]> {
+    const byId = await this.campaignIdsForCreatives(rows.map((r) => r.id));
+    return rows.map((row) => mapCreative(row, byId.get(row.id) ?? []));
+  }
+
+  private async replaceCampaignLinks(
+    creativeId: string,
+    campaignIds: string[],
+  ): Promise<void> {
+    const { error: delError } = await this.client
+      .from("creative_campaigns")
+      .delete()
+      .eq("creative_id", creativeId);
+    if (delError) throw delError;
+
+    const unique = [...new Set(campaignIds.map((id) => id.trim()).filter(Boolean))];
+    if (unique.length === 0) return;
+
+    const { error: insError } = await this.client
+      .from("creative_campaigns")
+      .insert(
+        unique.map((campaign_id) => ({
+          creative_id: creativeId,
+          campaign_id,
+        })),
+      );
+    if (insError) throw insError;
+  }
 
   async listByWorkspace(
     workspaceId: string,
@@ -116,7 +169,7 @@ export class SupabaseCreativeRepository {
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
     if (error) throw error;
-    return (data as DbCreative[]).map(mapCreative);
+    return this.attachCampaignIds((data ?? []) as DbCreative[]);
   }
 
   async listByProduct(productId: string): Promise<Creative[]> {
@@ -126,14 +179,42 @@ export class SupabaseCreativeRepository {
       .eq("product_id", productId)
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return (data as DbCreative[]).map(mapCreative);
+    return this.attachCampaignIds((data ?? []) as DbCreative[]);
+  }
+
+  async listByCampaign(campaignId: string): Promise<Creative[]> {
+    const { data: links, error: linkError } = await this.client
+      .from("creative_campaigns")
+      .select("creative_id")
+      .eq("campaign_id", campaignId);
+    if (linkError) throw linkError;
+
+    const ids = (links ?? []).map((row) => row.creative_id as string);
+    if (ids.length === 0) return [];
+
+    const { data, error } = await this.client
+      .from("creatives")
+      .select("*")
+      .in("id", ids)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return this.attachCampaignIds((data ?? []) as DbCreative[]);
   }
 
   async countByCampaign(campaignId: string): Promise<number> {
+    const { data: links, error: linkError } = await this.client
+      .from("creative_campaigns")
+      .select("creative_id")
+      .eq("campaign_id", campaignId);
+    if (linkError) throw linkError;
+
+    const ids = (links ?? []).map((row) => row.creative_id as string);
+    if (ids.length === 0) return 0;
+
     const { count, error } = await this.client
       .from("creatives")
       .select("id", { count: "exact", head: true })
-      .eq("campaign_id", campaignId)
+      .in("id", ids)
       .neq("status", "rejected");
     if (error) throw error;
     return count ?? 0;
@@ -146,7 +227,9 @@ export class SupabaseCreativeRepository {
       .eq("id", id)
       .maybeSingle();
     if (error) throw error;
-    return data ? mapCreative(data as DbCreative) : null;
+    if (!data) return null;
+    const [creative] = await this.attachCampaignIds([data as DbCreative]);
+    return creative ?? null;
   }
 
   async create(input: CreativeCreateInput): Promise<Creative> {
@@ -157,7 +240,6 @@ export class SupabaseCreativeRepository {
         id: input.id,
         workspace_id: input.workspaceId,
         product_id: input.productId,
-        campaign_id: input.campaignId ?? null,
         kind: input.kind ?? "video_ad",
         title: input.title,
         brief: input.brief,
@@ -171,7 +253,13 @@ export class SupabaseCreativeRepository {
       .select("*")
       .single();
     if (error) throw error;
-    return mapCreative(data as DbCreative);
+
+    const campaignIds = input.campaignIds ?? [];
+    if (campaignIds.length > 0) {
+      await this.replaceCampaignLinks(data.id as string, campaignIds);
+    }
+    const [creative] = await this.attachCampaignIds([data as DbCreative]);
+    return creative!;
   }
 
   async update(id: string, patch: CreativeUpdateInput): Promise<Creative> {
@@ -180,7 +268,6 @@ export class SupabaseCreativeRepository {
     };
     if (patch.title !== undefined) row.title = patch.title;
     if (patch.brief !== undefined) row.brief = patch.brief;
-    if (patch.campaignId !== undefined) row.campaign_id = patch.campaignId;
     if (patch.stage !== undefined) row.stage = patch.stage;
     if (patch.status !== undefined) row.status = patch.status;
     if (patch.screenplay !== undefined) row.screenplay = patch.screenplay;
@@ -200,6 +287,12 @@ export class SupabaseCreativeRepository {
       .select("*")
       .single();
     if (error) throw error;
-    return mapCreative(data as DbCreative);
+
+    if (patch.campaignIds !== undefined) {
+      await this.replaceCampaignLinks(id, patch.campaignIds);
+    }
+
+    const [creative] = await this.attachCampaignIds([data as DbCreative]);
+    return creative!;
   }
 }
