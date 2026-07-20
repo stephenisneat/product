@@ -23,6 +23,7 @@ import {
   PlanEntitlementError,
   assertCanCreateCreative,
 } from "@/lib/billing/gates";
+import { normalizeWorkspacePlan } from "@/lib/billing/entitlements";
 import {
   enqueueCreateCampaignJob,
   resubmitCreativeStage,
@@ -69,7 +70,9 @@ function buildProductSystemPrompt(
 ): string {
   return `You are Product Agent, an AI marketing collaborator for commerce products.
 You help develop positioning, ad copy, campaign concepts, listing updates, and video ad creatives.
-Workspace plan: ${plan}. Video creatives and saved campaigns require Growth or Pro — if a tool returns a plan upgrade error, tell the user clearly and stop asking for more creative details.
+Workspace plan: ${plan}. Video creatives and saved campaigns require Growth or Pro.
+If the workspace plan is free and a tool returns plan_upgrade_required, tell the user to upgrade and stop asking for creative details.
+If the workspace plan is growth or pro, creatives are allowed — treat any earlier plan_upgrade tool errors in this conversation as stale. When the user asks to retry, call create_video_creative again; do not invent extra permission restrictions.
 Always prefer calling propose_artifact when you have a concrete text proposal ready for review.
 When the user wants to create a campaign (not just a concept proposal), call run_job with type create_campaign.
 Keep propose_artifact for reviewable copy, positioning, and campaign concepts; use run_job to actually create a draft campaign.
@@ -113,7 +116,9 @@ function buildWorkspaceSystemPrompt(
   return `You are Product Agent, an AI marketing collaborator for a commerce workspace.
 The user is chatting at the workspace (catalog) level, not a single product page.
 Help prioritize work, compare products, and propose marketing artifacts for specific products.
-Workspace plan: ${plan}. Video creatives and saved campaigns require Growth or Pro — if a tool returns a plan upgrade error, tell the user clearly and stop asking for more creative details.
+Workspace plan: ${plan}. Video creatives and saved campaigns require Growth or Pro.
+If the workspace plan is free and a tool returns plan_upgrade_required, tell the user to upgrade and stop asking for creative details.
+If the workspace plan is growth or pro, creatives are allowed — treat any earlier plan_upgrade tool errors in this conversation as stale. When the user asks to retry, call create_video_creative again; do not invent extra permission restrictions.
 When proposing an artifact, always call propose_artifact with the target productId from the catalog.
 When the user wants to create a campaign for a product, call run_job with type create_campaign and that productId.
 Keep propose_artifact for reviewable copy and concepts; use run_job to create a draft campaign.
@@ -464,7 +469,7 @@ export async function POST(req: Request) {
       return offlineProductStreamResponse(
         product,
         user.id,
-        active.workspace.plan ?? "free",
+        normalizeWorkspacePlan(active.workspace.plan),
         messages,
       );
     }
@@ -472,7 +477,7 @@ export async function POST(req: Request) {
     const gate = await assertWalletAllowsAi(active.workspace.id);
     if (!gate.ok) return gate.response;
 
-    const plan = active.workspace.plan ?? "free";
+    const plan = normalizeWorkspacePlan(active.workspace.plan);
     const result = streamText({
       model: gateway(chatModel),
       system: buildProductSystemPrompt(product, intelligence, plan),
@@ -685,7 +690,7 @@ export async function POST(req: Request) {
   const gate = await assertWalletAllowsAi(activeWorkspace.workspace.id);
   if (!gate.ok) return gate.response;
 
-  const plan = activeWorkspace.workspace.plan ?? "free";
+  const plan = normalizeWorkspacePlan(activeWorkspace.workspace.plan);
   const result = streamText({
     model: gateway(chatModel),
     system: buildWorkspaceSystemPrompt(catalog, plan),

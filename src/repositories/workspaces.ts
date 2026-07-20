@@ -8,6 +8,7 @@ import type {
   WorkspacePlan,
   WorkspaceRole,
 } from "@/domain";
+import { normalizeWorkspacePlan } from "@/lib/billing/entitlements";
 import type {
   WorkspaceCreateInput,
   WorkspaceRepository,
@@ -60,7 +61,7 @@ function mapWorkspace(row: DbWorkspace): Workspace {
     id: row.id,
     name: row.name,
     avatarUrl: row.avatar_url ?? null,
-    plan: row.plan ?? "free",
+    plan: normalizeWorkspacePlan(row.plan),
     billingInterval: row.billing_interval ?? null,
     billedSeats: Math.max(1, Number(row.billed_seats ?? 1)),
     primaryDomain: row.primary_domain ?? null,

@@ -97,8 +97,22 @@ export type LegacyPlanFields = {
   includedUsageCents: number;
 };
 
-export function getEntitlements(plan: WorkspacePlan): PlanEntitlements & LegacyPlanFields {
-  const base = PLAN_ENTITLEMENTS[plan] ?? PLAN_ENTITLEMENTS.free;
+/**
+ * Coerce DB / API plan values onto the current Free / Growth / Pro ladder.
+ * Legacy `hobby` rows (pre-rename) map to Growth so entitlements never silently
+ * fall through to Free and block creatives on a paid workspace.
+ */
+export function normalizeWorkspacePlan(plan: unknown): WorkspacePlan {
+  if (plan === "hobby") return "growth";
+  if (plan === "free" || plan === "growth" || plan === "pro") return plan;
+  return "free";
+}
+
+export function getEntitlements(
+  plan: WorkspacePlan | string | null | undefined,
+): PlanEntitlements & LegacyPlanFields {
+  const normalized = normalizeWorkspacePlan(plan);
+  const base = PLAN_ENTITLEMENTS[normalized];
   return {
     ...base,
     priceCents: base.priceCentsPerSeatMonthly,
