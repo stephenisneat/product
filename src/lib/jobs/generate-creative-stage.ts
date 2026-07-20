@@ -1,5 +1,9 @@
 import type { CreativeStage, GenerateCreativeStageJobInput } from "@/domain";
-import { assertTriggerJobEnv } from "@/lib/jobs/assert-trigger-env";
+import { unknownErrorMessage } from "@/lib/errors";
+import {
+  assertTriggerJobEnv,
+  clarifyTriggerSupabaseError,
+} from "@/lib/jobs/assert-trigger-env";
 import {
   buildStubVideo,
   buildTemplateScreenplay,
@@ -167,17 +171,22 @@ export async function runGenerateCreativeStageJob(
 
     return result;
   } catch (err) {
-    if (await wasCanceled(payload.jobRunId)) {
+    if (await wasCanceled(payload.jobRunId).catch(() => false)) {
       return null;
     }
 
-    const message =
-      err instanceof Error ? err.message : "Creative generation job failed.";
-    await jobs.update(payload.jobRunId, {
-      status: "failed",
-      error: message,
-      finishedAt: new Date().toISOString(),
-    });
+    const message = clarifyTriggerSupabaseError(
+      unknownErrorMessage(err, "Creative generation job failed."),
+    );
+    try {
+      await jobs.update(payload.jobRunId, {
+        status: "failed",
+        error: message,
+        finishedAt: new Date().toISOString(),
+      });
+    } catch {
+      // Same bad Supabase env often breaks status writes too.
+    }
     try {
       // Park as paused so the user can resume after a hard failure.
       await creatives.update(payload.creativeId, {
@@ -188,18 +197,22 @@ export async function runGenerateCreativeStageJob(
       // Best-effort restore; original error already recorded on job.
     }
 
-    const finished = await jobs.getById(payload.jobRunId);
-    if (finished) {
-      const { maybeEnqueueInsightAfterJob } = await import(
-        "@/lib/jobs/enqueue-insight"
-      );
-      void maybeEnqueueInsightAfterJob({
-        workspaceId: payload.workspaceId,
-        job: finished,
-        createdBy: payload.createdBy,
-      });
+    try {
+      const finished = await jobs.getById(payload.jobRunId);
+      if (finished) {
+        const { maybeEnqueueInsightAfterJob } = await import(
+          "@/lib/jobs/enqueue-insight"
+        );
+        void maybeEnqueueInsightAfterJob({
+          workspaceId: payload.workspaceId,
+          job: finished,
+          createdBy: payload.createdBy,
+        });
+      }
+    } catch {
+      // Best-effort insight enqueue.
     }
 
-    throw err;
+    throw new Error(message, { cause: err });
   }
 }

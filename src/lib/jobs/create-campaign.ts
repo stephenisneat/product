@@ -3,7 +3,11 @@ import {
   PlanEntitlementError,
   assertCanCreateCampaign,
 } from "@/lib/billing/gates";
-import { assertTriggerJobEnv } from "@/lib/jobs/assert-trigger-env";
+import {
+  assertTriggerJobEnv,
+  clarifyTriggerSupabaseError,
+} from "@/lib/jobs/assert-trigger-env";
+import { unknownErrorMessage } from "@/lib/errors";
 import {
   getJobWriteRepository,
   getProductWriteRepository,
@@ -103,9 +107,9 @@ export async function runCreateCampaignJob(
     const message =
       err instanceof PlanEntitlementError
         ? err.message
-        : err instanceof Error
-          ? err.message
-          : "Campaign job failed.";
+        : clarifyTriggerSupabaseError(
+            unknownErrorMessage(err, "Campaign job failed."),
+          );
     await jobs.update(payload.jobRunId, {
       status: "failed",
       error: message,

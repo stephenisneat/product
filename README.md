@@ -72,11 +72,11 @@ Product images upload to the `product-assets` storage bucket created by migratio
 
 Trigger.dev **workers** do not inherit Vercel env. In the Trigger dashboard → Environment Variables (prod), also set:
 
-- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_URL` — must be the **Project URL** from Supabase → Settings → API (`https://<project-ref>.supabase.co`). Do not use localhost, `supabase.com`, or the bare project ref. A wrong value surfaces as Supabase’s `"Project not specified."`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
 - `SUPABASE_SERVICE_ROLE_KEY`
 
-Then deploy workers with `pnpm exec trigger deploy`. Stub creative jobs should finish in under a second; multi-minute runs usually mean missing worker env or the task hanging until `maxDuration`.
+Use the same values as Vercel production. Then deploy workers with `pnpm exec trigger deploy`. Stub creative jobs should finish in under a second; multi-minute runs usually mean missing worker env or the task hanging until `maxDuration`.
 
 ## Scripts
 
