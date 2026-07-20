@@ -22,10 +22,7 @@ import {
   runCreateCampaignJob,
 } from "@/lib/jobs/create-campaign";
 import { jobTypeForStage } from "@/lib/jobs/creative-stubs";
-import {
-  payloadFromGenerateCreativeStageInput,
-  runGenerateCreativeStageJob,
-} from "@/lib/jobs/generate-creative-stage";
+import { payloadFromGenerateCreativeStageInput } from "@/lib/jobs/generate-creative-stage-payload";
 import { hasServiceRole } from "@/lib/supabase/service";
 import {
   getCreativeWriteRepository,
@@ -171,9 +168,15 @@ export async function enqueueGenerateCreativeStageJob(
   );
 
   if (!hasTriggerSecret()) {
-    void runGenerateCreativeStageJob(payload).catch(() => {
-      // Status is updated inside the job runner.
-    });
+    // Dynamic import keeps Remotion/rspack out of Next.js API route modules
+    // (static imports crash Vercel with missing @rspack/binding).
+    void import("@/lib/jobs/generate-creative-stage")
+      .then(({ runGenerateCreativeStageJob }) =>
+        runGenerateCreativeStageJob(payload),
+      )
+      .catch(() => {
+        // Status is updated inside the job runner.
+      });
     return run;
   }
 
