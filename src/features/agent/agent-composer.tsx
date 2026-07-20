@@ -11,6 +11,7 @@ import {
   SquarePen,
   X,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import {
   useCallback,
   useEffect,
@@ -55,7 +56,6 @@ import {
   upsertConversation,
   type AgentConversation,
 } from "@/features/agent/agent-conversations";
-import { AgentMessageMarkdown } from "@/features/agent/agent-message-markdown";
 import { AgentModelSelect } from "@/features/agent/agent-model-select";
 import {
   loadPreferredChatModel,
@@ -70,6 +70,21 @@ import {
 import type { Visualization } from "@/domain";
 import { useWalletOptional } from "@/features/wallet/wallet-context";
 import { cn } from "@/lib/utils";
+
+const AgentMessageMarkdown = dynamic(
+  () =>
+    import("@/features/agent/agent-message-markdown").then(
+      (m) => m.AgentMessageMarkdown,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <span className="text-[13px] leading-relaxed text-muted-foreground">
+        …
+      </span>
+    ),
+  },
+);
 
 function extractCreateVisualizationResults(messages: UIMessage[]): Array<{
   toolCallId: string;

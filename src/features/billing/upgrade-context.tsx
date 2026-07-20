@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import dynamic from "next/dynamic";
 import type { Workspace, WorkspaceRole } from "@/domain";
 import {
   Dialog,
@@ -16,7 +17,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { BillingPanel } from "@/features/billing/billing-panel";
+
+const BillingPanel = dynamic(
+  () =>
+    import("@/features/billing/billing-panel").then((m) => m.BillingPanel),
+  { ssr: false },
+);
 
 type BillingContextPayload = {
   workspace: Workspace;

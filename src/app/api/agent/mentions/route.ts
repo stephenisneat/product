@@ -30,8 +30,16 @@ export async function GET(req: Request) {
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
   const productId = url.searchParams.get("productId") ?? undefined;
 
-  const productsRepo = await getProductRepository();
-  const products = await productsRepo.listProducts(active.workspace.id);
+  const [productsRepo, artifactsRepo, creativesRepo] = await Promise.all([
+    getProductRepository(),
+    getArtifactRepository(),
+    getCreativeRepository(),
+  ]);
+
+  const [products, workspaceCreatives] = await Promise.all([
+    productsRepo.listProducts(active.workspace.id),
+    creativesRepo.listByWorkspace(active.workspace.id, { limit: 40 }),
+  ]);
 
   const items: AgentMentionItem[] = [];
 
@@ -45,17 +53,6 @@ export async function GET(req: Request) {
     }
   }
 
-  const mentionProductIds = productId
-    ? [productId]
-    : products.slice(0, 12).map((p) => p.id);
-
-  const artifactsRepo = await getArtifactRepository();
-  const creativesRepo = await getCreativeRepository();
-
-  const workspaceCreatives = await creativesRepo.listByWorkspace(
-    active.workspace.id,
-    { limit: 40 },
-  );
   for (const creative of workspaceCreatives) {
     if (productId && creative.productId !== productId) continue;
     if (!q || creative.title.toLowerCase().includes(q)) {
@@ -67,35 +64,35 @@ export async function GET(req: Request) {
     }
   }
 
-  await Promise.all(
-    mentionProductIds.map(async (id) => {
-      const [campaigns, artifacts] = await Promise.all([
-        productsRepo.listCampaigns(id),
-        artifactsRepo.listByProduct(id),
-      ]);
+  const mentionProductIds = productId
+    ? [productId]
+    : products.slice(0, 12).map((p) => p.id);
 
-      for (const campaign of campaigns) {
-        if (!q || campaign.name.toLowerCase().includes(q)) {
-          items.push({
-            value: campaign.name,
-            id: campaign.id,
-            type: "campaign",
-          });
-        }
-      }
+  const [campaigns, artifacts] = await Promise.all([
+    productsRepo.listCampaignsForProducts(mentionProductIds),
+    artifactsRepo.listByProductIds(mentionProductIds),
+  ]);
 
-      for (const artifact of artifacts) {
-        if (artifact.type !== "ad_copy") continue;
-        if (!q || artifact.title.toLowerCase().includes(q)) {
-          items.push({
-            value: artifact.title,
-            id: artifact.id,
-            type: "creative",
-          });
-        }
-      }
-    }),
-  );
+  for (const campaign of campaigns) {
+    if (!q || campaign.name.toLowerCase().includes(q)) {
+      items.push({
+        value: campaign.name,
+        id: campaign.id,
+        type: "campaign",
+      });
+    }
+  }
+
+  for (const artifact of artifacts) {
+    if (artifact.type !== "ad_copy") continue;
+    if (!q || artifact.title.toLowerCase().includes(q)) {
+      items.push({
+        value: artifact.title,
+        id: artifact.id,
+        type: "creative",
+      });
+    }
+  }
 
   items.sort((a, b) => a.value.localeCompare(b.value));
 

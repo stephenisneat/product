@@ -9,7 +9,7 @@ import type {
   WorkspacePlan,
 } from "@/domain";
 import { ArtifactCard } from "@/features/artifacts/artifact-card";
-import { PerformanceChart } from "@/features/reporting/performance-chart";
+import { PerformanceChartLazy } from "@/features/reporting/performance-chart-lazy";
 import { PageCanvas } from "@/components/layout/page-canvas";
 import { ProductImage } from "@/components/product-image";
 import { Badge } from "@/components/ui/badge";
@@ -293,7 +293,7 @@ export function ProductWorkspace({
               Product-level performance (sample series). Live channel ingestion comes
               later.
             </p>
-            <PerformanceChart data={performance} />
+            <PerformanceChartLazy data={performance} />
           </TabsContent>
 
           <TabsContent value="artifacts" className="mt-4">

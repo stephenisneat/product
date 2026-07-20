@@ -6,8 +6,6 @@ import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { hasServiceRole } from "@/lib/supabase/service";
 import { getWalletWriteRepository } from "@/repositories";
 
-export const dynamic = "force-dynamic";
-
 export default async function WalletSettingsPage() {
   const user = await getCurrentUser();
   if (!user) {

@@ -68,6 +68,7 @@ export interface ProductRepository {
   getIntelligence(productId: string): Promise<ProductIntelligence | null>;
   upsertIntelligence(intelligence: ProductIntelligence): Promise<ProductIntelligence>;
   listCampaigns(productId: string): Promise<Campaign[]>;
+  listCampaignsForProducts(productIds: string[]): Promise<Campaign[]>;
   createCampaign(campaign: Campaign): Promise<Campaign>;
   updateCampaign(
     productId: string,
@@ -88,6 +89,7 @@ export interface ProductRepository {
 
 export interface ArtifactRepository {
   listByProduct(productId: string): Promise<Artifact[]>;
+  listByProductIds(productIds: string[]): Promise<Artifact[]>;
   countCreativesByCampaign(campaignId: string): Promise<number>;
   getById(id: string): Promise<Artifact | null>;
   create(artifact: Artifact): Promise<Artifact>;

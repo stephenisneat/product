@@ -6,8 +6,6 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { getJobRepository, getProductRepository } from "@/repositories";
 
-export const dynamic = "force-dynamic";
-
 function typeLabel(type: JobRun["type"]): string {
   switch (type) {
     case "create_campaign":
@@ -101,8 +99,11 @@ export default async function JobsPage() {
       getJobRepository(),
       getProductRepository(),
     ]);
-    jobs = await jobsRepo.listByWorkspace(active.workspace.id, { limit: 100 });
-    const products = await productsRepo.listProducts(active.workspace.id);
+    const [jobList, products] = await Promise.all([
+      jobsRepo.listByWorkspace(active.workspace.id, { limit: 100 }),
+      productsRepo.listProducts(active.workspace.id),
+    ]);
+    jobs = jobList;
     productTitles = new Map(products.map((p) => [p.id, p.title]));
   } catch (err) {
     loadError = err instanceof Error ? err.message : "Failed to load jobs";

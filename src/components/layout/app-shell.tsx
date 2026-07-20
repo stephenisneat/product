@@ -2,20 +2,44 @@
 
 import type { ReactNode } from "react";
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import type { AppUser, WorkspaceRole } from "@/domain";
 import { AppHeader } from "@/components/layout/app-header";
-import { AgentComposer } from "@/features/agent/agent-composer";
 import { AgentContextProvider } from "@/features/agent/agent-context";
 import { WalletProvider, useWallet } from "@/features/wallet/wallet-context";
-import { BuyCreditsDialog } from "@/features/wallet/wallet-dialogs";
 import { UpgradeProvider } from "@/features/billing/upgrade-context";
 import { rememberSettingsReturnPath } from "@/features/settings/return-path";
 import type { WorkspaceWithRole } from "@/repositories/types";
 
+const AgentComposer = dynamic(
+  () =>
+    import("@/features/agent/agent-composer").then((m) => m.AgentComposer),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full flex-col rounded-xl border border-border bg-canvas">
+        <div className="flex h-12 items-center gap-2 border-b border-border px-3">
+          <div className="h-4 w-24 animate-pulse rounded bg-muted/50" />
+        </div>
+        <div className="flex-1" />
+        <div className="border-t border-border p-3">
+          <div className="h-20 animate-pulse rounded-lg bg-muted/30" />
+        </div>
+      </div>
+    ),
+  },
+);
+
+const BuyCreditsDialog = dynamic(
+  () =>
+    import("@/features/wallet/wallet-dialogs").then((m) => m.BuyCreditsDialog),
+  { ssr: false },
+);
+
 function WalletBuyCreditsHost() {
   const { wallet, openBuyCredits, setOpenBuyCredits } = useWallet();
-  if (!wallet) return null;
+  if (!wallet || !openBuyCredits) return null;
   return (
     <BuyCreditsDialog
       open={openBuyCredits}

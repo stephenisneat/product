@@ -1,15 +1,11 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PageCanvas } from "@/components/layout/page-canvas";
-import { Badge } from "@/components/ui/badge";
-import { CreativeCard } from "@/features/creatives/creative-card";
+import { CreativesList } from "@/features/creatives/creatives-list";
 import { CatalogNav } from "@/features/products/catalog-toolbar";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { getEntitlements } from "@/lib/billing/entitlements";
 import { getCreativeRepository, getProductRepository } from "@/repositories";
-
-export const dynamic = "force-dynamic";
 
 export default async function CreativesPage() {
   const user = await getCurrentUser();
@@ -40,7 +36,9 @@ export default async function CreativesPage() {
     ),
   ]);
 
-  const productTitleById = new Map(products.map((p) => [p.id, p.title]));
+  const productTitleById = Object.fromEntries(
+    products.map((p) => [p.id, p.title]),
+  );
 
   return (
     <PageCanvas header={<CatalogNav workspaceId={active.workspace.id} />}>
@@ -56,24 +54,11 @@ export default async function CreativesPage() {
             screenplay → storyboard → video.
           </div>
         ) : (
-          <ul className="space-y-3">
-            {creatives.map((creative) => (
-              <li key={creative.id}>
-                <div className="mb-1.5 flex items-center gap-2 px-0.5">
-                  <Link
-                    href={`/creatives/${creative.id}`}
-                    className="text-xs font-medium hover:underline"
-                  >
-                    Open detail
-                  </Link>
-                  <Badge variant="outline" className="text-[10px]">
-                    {productTitleById.get(creative.productId) ?? "Product"}
-                  </Badge>
-                </div>
-                <CreativeCard creative={creative} />
-              </li>
-            ))}
-          </ul>
+          <CreativesList
+            key={creatives.map((c) => `${c.id}:${c.status}`).join("|")}
+            initialCreatives={creatives}
+            productTitleById={productTitleById}
+          />
         )}
       </div>
     </PageCanvas>
