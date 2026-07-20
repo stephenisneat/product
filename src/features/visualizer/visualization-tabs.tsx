@@ -2,10 +2,17 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { PlusIcon, XIcon } from "lucide-react";
+import {
+  BarChart3Icon,
+  ChartLineIcon,
+  ChartNoAxesCombinedIcon,
+  GitBranchIcon,
+  PlusIcon,
+  XIcon,
+  type LucideIcon,
+} from "lucide-react";
 import { useCallback, useEffect, useState, type MouseEvent } from "react";
-import type { Visualization } from "@/domain";
-import { Button } from "@/components/ui/button";
+import type { Visualization, VisualizationKind } from "@/domain";
 import {
   closeVisualizationTab,
   getVisualization,
@@ -13,6 +20,13 @@ import {
   type VisualizationStore,
 } from "@/features/visualizer/visualization-store";
 import { cn } from "@/lib/utils";
+
+const kindIcon: Record<VisualizationKind, LucideIcon> = {
+  sankey: GitBranchIcon,
+  timeseries: ChartLineIcon,
+  comparison: ChartNoAxesCombinedIcon,
+  bar: BarChart3Icon,
+};
 
 export function VisualizationTabs({
   workspaceId,
@@ -69,31 +83,38 @@ export function VisualizationTabs({
   if (openTabs.length === 0) return null;
 
   return (
-    <div className="flex h-10 items-stretch gap-0.5 overflow-x-auto border-b border-border bg-canvas/80 px-2">
+    <div className="flex h-10 items-stretch overflow-x-auto bg-canvas w-full">
       {openTabs.map((tab) => {
         const href = `/visualizer/${tab.id}`;
         const active = pathname === href;
+        const Icon = kindIcon[tab.kind];
         return (
           <div
             key={tab.id}
             className={cn(
-              "group relative flex max-w-[200px] items-center gap-1 rounded-t-md border border-b-0 px-2 text-sm",
+              "group relative flex max-w-[200px] items-center gap-1 px-2 text-xs font-medium border-r border-b border-border pt-1 cursor-pointer",
               active
-                ? "border-border bg-background text-foreground"
-                : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                ? "bg-neutral-900 text-foreground border-b-neutral-900"
+                : "bg-canvas hover:bg-neutral-700/20 text-muted-foreground",
             )}
           >
             <Link
               href={href}
-              className="min-w-0 flex-1 truncate py-1.5"
+              className="flex min-w-0 flex-1 items-center gap-1.5 truncate py-1.5"
               title={tab.title}
             >
-              {tab.title}
+              <Icon className="size-3.5 shrink-0 opacity-70" />
+              <span className="truncate">{tab.title}</span>
             </Link>
             <button
               type="button"
               aria-label={`Close ${tab.title}`}
-              className="rounded p-0.5 opacity-60 hover:bg-muted hover:opacity-100"
+              className={cn(
+                "rounded p-0.5 hover:bg-neutral-700/20 hover:opacity-100",
+                active
+                  ? "opacity-60"
+                  : "opacity-0 group-hover:opacity-60 focus-visible:opacity-60",
+              )}
               onClick={(e) => handleClose(e, tab.id)}
             >
               <XIcon className="size-3.5" />
@@ -101,16 +122,19 @@ export function VisualizationTabs({
           </div>
         );
       })}
-      <Button
-        type="button"
-        variant={isNewActive ? "secondary" : "ghost"}
-        size="icon-sm"
-        className="my-1 shrink-0"
-        aria-label="New visualization"
+      <div
         onClick={() => router.push("/visualizer")}
+        className={cn(
+          "cursor-pointer h-10 w-10 shrink-0 border-t-0 border-l-0 border-r border-b border-border rounded-none flex items-center justify-center",
+          isNewActive
+            ? "bg-neutral-900 border-b-neutral-900"
+            : "bg-canvas hover:bg-neutral-700/20 text-muted-foreground",
+        )}
       >
-        <PlusIcon />
-      </Button>
+        <PlusIcon className="size-3.5" />
+      </div>
+
+      <div className="h-full w-full border-b border-border" />
     </div>
   );
 }
