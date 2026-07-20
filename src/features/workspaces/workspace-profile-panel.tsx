@@ -1,12 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import type { Workspace, WorkspacePlan, WorkspaceRole } from "@/domain";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { AvatarCropDialog } from "@/features/avatars/avatar-crop-dialog";
+import { useAvatarCropPicker } from "@/features/avatars/use-avatar-crop-picker";
 import { WorkspaceAvatar } from "@/features/workspaces/workspace-avatar";
 import { UpgradeButton } from "@/features/billing/upgrade-button";
 import { planDisplayName } from "@/lib/billing/entitlements";
@@ -15,10 +17,7 @@ import {
   parseWorkEmailDomain,
   workEmailDomainFromAddress,
 } from "@/lib/workspaces/domain";
-import {
-  uploadWorkspaceAvatar,
-  validateWorkspaceAvatarFile,
-} from "@/lib/workspaces/upload-avatar";
+import { uploadWorkspaceAvatar } from "@/lib/workspaces/upload-avatar";
 
 export function WorkspaceProfilePanel({
   workspace: initialWorkspace,
@@ -31,10 +30,19 @@ export function WorkspaceProfilePanel({
 }) {
   const router = useRouter();
   const fileInputId = useId();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const canRename = role === "owner" || role === "admin";
   const canManage = role === "owner" || role === "admin";
   const isOwner = role === "owner";
+  const {
+    fileInputRef,
+    cropSrc,
+    cropOpen,
+    pickError,
+    setPickError,
+    openPicker,
+    onFileSelected,
+    onCropOpenChange,
+  } = useAvatarCropPicker();
 
   const [workspace, setWorkspace] = useState(initialWorkspace);
   const [name, setName] = useState(initialWorkspace.name);
@@ -141,13 +149,13 @@ export function WorkspaceProfilePanel({
     );
   }
 
-  async function onAvatarSelected(file: File | null) {
-    if (!canManage || !file) return;
+  async function onAvatarCropped(file: File) {
+    if (!canManage) return;
     setBusy(true);
     setError(null);
     setMessage(null);
+    setPickError(null);
     try {
-      validateWorkspaceAvatarFile(file);
       const avatarUrl = await uploadWorkspaceAvatar(workspace.id, file);
       setBusy(false);
       await patchWorkspace({ avatarUrl }, "Avatar updated.");
@@ -162,6 +170,8 @@ export function WorkspaceProfilePanel({
     await patchWorkspace({ clearAvatar: true }, "Avatar removed.");
   }
 
+  const displayError = error ?? pickError;
+
   return (
     <div className="space-y-10">
       {message ? (
@@ -169,7 +179,9 @@ export function WorkspaceProfilePanel({
           {message}
         </p>
       ) : null}
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {displayError ? (
+        <p className="text-sm text-destructive">{displayError}</p>
+      ) : null}
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium">Avatar</h2>
@@ -187,7 +199,7 @@ export function WorkspaceProfilePanel({
                 variant="outline"
                 size="sm"
                 disabled={busy}
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => openPicker()}
               >
                 Upload
               </Button>
@@ -211,7 +223,7 @@ export function WorkspaceProfilePanel({
                 onChange={(e) => {
                   const file = e.target.files?.[0] ?? null;
                   e.target.value = "";
-                  void onAvatarSelected(file);
+                  onFileSelected(file);
                 }}
               />
             </div>
@@ -219,6 +231,7 @@ export function WorkspaceProfilePanel({
         </div>
         <p className="text-xs text-muted-foreground">
           Without a custom avatar, the primary domain favicon is used when set.
+          You’ll crop before saving.
         </p>
       </section>
 
@@ -344,6 +357,14 @@ export function WorkspaceProfilePanel({
           </div>
         </section>
       ) : null}
+
+      <AvatarCropDialog
+        open={cropOpen}
+        imageSrc={cropSrc}
+        shape="rect"
+        onOpenChange={onCropOpenChange}
+        onCropped={onAvatarCropped}
+      />
     </div>
   );
 }

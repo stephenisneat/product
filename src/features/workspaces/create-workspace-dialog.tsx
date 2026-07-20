@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import type { Workspace } from "@/domain";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,15 +15,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { AvatarCropDialog } from "@/features/avatars/avatar-crop-dialog";
+import { useAvatarCropPicker } from "@/features/avatars/use-avatar-crop-picker";
 import {
   parsePrimaryDomain,
   parseWorkEmailDomain,
   workEmailDomainFromAddress,
 } from "@/lib/workspaces/domain";
-import {
-  uploadWorkspaceAvatar,
-  validateWorkspaceAvatarFile,
-} from "@/lib/workspaces/upload-avatar";
+import { uploadWorkspaceAvatar } from "@/lib/workspaces/upload-avatar";
 import { WorkspaceAvatar } from "@/features/workspaces/workspace-avatar";
 
 export function CreateWorkspaceDialog({
@@ -37,7 +36,16 @@ export function CreateWorkspaceDialog({
 }) {
   const router = useRouter();
   const fileInputId = useId();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const {
+    fileInputRef,
+    cropSrc,
+    cropOpen,
+    pickError,
+    setPickError,
+    openPicker,
+    onFileSelected,
+    onCropOpenChange,
+  } = useAvatarCropPicker();
 
   const defaultDomain = workEmailDomainFromAddress(userEmail) ?? "";
   const [name, setName] = useState("");
@@ -59,6 +67,8 @@ export function CreateWorkspaceDialog({
     setPreviewUrl(null);
     setError(null);
     setBusy(false);
+    onCropOpenChange(false);
+    setPickError(null);
   }
 
   function handleOpenChange(next: boolean) {
@@ -66,23 +76,18 @@ export function CreateWorkspaceDialog({
     onOpenChange(next);
   }
 
-  function onPickFile(selected: File | null) {
+  function onCropped(cropped: File) {
     setError(null);
-    if (!selected) {
-      setFile(null);
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-      return;
-    }
-    try {
-      validateWorkspaceAvatarFile(selected);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Invalid image");
-      return;
-    }
+    setPickError(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setFile(selected);
-    setPreviewUrl(URL.createObjectURL(selected));
+    setFile(cropped);
+    setPreviewUrl(URL.createObjectURL(cropped));
+  }
+
+  function clearFile() {
+    setFile(null);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
   }
 
   async function submit() {
@@ -147,7 +152,9 @@ export function CreateWorkspaceDialog({
           workspace?: Workspace;
         };
         if (!patchRes.ok) {
-          throw new Error(patchBody.error || "Workspace created, but avatar upload failed");
+          throw new Error(
+            patchBody.error || "Workspace created, but avatar upload failed",
+          );
         }
         if (patchBody.workspace) workspace = patchBody.workspace;
       }
@@ -155,149 +162,169 @@ export function CreateWorkspaceDialog({
       handleOpenChange(false);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create workspace");
+      setError(
+        err instanceof Error ? err.message : "Failed to create workspace",
+      );
     } finally {
       setBusy(false);
     }
   }
 
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Create workspace</DialogTitle>
-          <DialogDescription>
-            Workspaces keep products, members, and billing separate.
-          </DialogDescription>
-        </DialogHeader>
+  const displayError = error ?? pickError;
 
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <WorkspaceAvatar
-              name={name || "W"}
-              avatarUrl={previewUrl}
-              size="default"
-              className="size-10"
-            />
-            <div className="space-y-1.5">
-              <Label htmlFor={fileInputId}>Avatar</Label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Upload
-                </Button>
-                {file ? (
+  return (
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create workspace</DialogTitle>
+            <DialogDescription>
+              Workspaces keep products, members, and billing separate.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <WorkspaceAvatar
+                name={name || "W"}
+                avatarUrl={previewUrl}
+                size="default"
+                className="size-10"
+              />
+              <div className="space-y-1.5">
+                <Label htmlFor={fileInputId}>Avatar</Label>
+                <div className="flex gap-2">
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     disabled={busy}
-                    onClick={() => onPickFile(null)}
+                    onClick={() => openPicker()}
                   >
-                    Clear
+                    Upload
                   </Button>
-                ) : null}
-              </div>
-              <input
-                id={fileInputId}
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                className="sr-only"
-                onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="workspace-name">Name</Label>
-            <Input
-              id="workspace-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Acme"
-              disabled={busy}
-              autoFocus
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="primary-domain">Primary domain</Label>
-            <Input
-              id="primary-domain"
-              value={primaryDomain}
-              onChange={(e) => setPrimaryDomain(e.target.value)}
-              placeholder="company.com"
-              disabled={busy}
-            />
-            <p className="text-xs text-muted-foreground">
-              Optional. Used by the plugin and related features.
-            </p>
-          </div>
-
-          <div className="space-y-3 rounded-lg border border-border p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="domain-join">Domain join</Label>
-                <p className="text-xs text-muted-foreground">
-                  People with a matching company email can discover and join.
-                  Personal providers like Gmail, Proton Mail, and Yahoo are not
-                  allowed.
-                </p>
-              </div>
-              <Switch
-                id="domain-join"
-                checked={domainJoinEnabled}
-                disabled={busy}
-                onCheckedChange={(checked) => {
-                  setDomainJoinEnabled(checked);
-                  if (checked && !joinDomain) setJoinDomain(defaultDomain);
-                }}
-              />
-            </div>
-            {domainJoinEnabled ? (
-              <div className="space-y-1.5">
-                <Label htmlFor="join-domain">Email domain</Label>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">@</span>
-                  <Input
-                    id="join-domain"
-                    value={joinDomain}
-                    onChange={(e) => setJoinDomain(e.target.value)}
-                    placeholder="company.com"
-                    disabled={busy}
-                  />
+                  {file ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={busy}
+                      onClick={clearFile}
+                    >
+                      Clear
+                    </Button>
+                  ) : null}
                 </div>
+                <input
+                  id={fileInputId}
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const selected = e.target.files?.[0] ?? null;
+                    e.target.value = "";
+                    onFileSelected(selected);
+                  }}
+                />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="workspace-name">Name</Label>
+              <Input
+                id="workspace-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Acme"
+                disabled={busy}
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="primary-domain">Primary domain</Label>
+              <Input
+                id="primary-domain"
+                value={primaryDomain}
+                onChange={(e) => setPrimaryDomain(e.target.value)}
+                placeholder="company.com"
+                disabled={busy}
+              />
+              <p className="text-xs text-muted-foreground">
+                Optional. Used by the plugin and related features.
+              </p>
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-border p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="domain-join">Domain join</Label>
+                  <p className="text-xs text-muted-foreground">
+                    People with a matching company email can discover and join.
+                    Personal providers like Gmail, Proton Mail, and Yahoo are
+                    not allowed.
+                  </p>
+                </div>
+                <Switch
+                  id="domain-join"
+                  checked={domainJoinEnabled}
+                  disabled={busy}
+                  onCheckedChange={(checked) => {
+                    setDomainJoinEnabled(checked);
+                    if (checked && !joinDomain) setJoinDomain(defaultDomain);
+                  }}
+                />
+              </div>
+              {domainJoinEnabled ? (
+                <div className="space-y-1.5">
+                  <Label htmlFor="join-domain">Email domain</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">@</span>
+                    <Input
+                      id="join-domain"
+                      value={joinDomain}
+                      onChange={(e) => setJoinDomain(e.target.value)}
+                      placeholder="company.com"
+                      disabled={busy}
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            {displayError ? (
+              <p className="text-sm text-destructive">{displayError}</p>
             ) : null}
           </div>
 
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => handleOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={busy || !name.trim()}
+              onClick={() => void submit()}
+            >
+              {busy ? "Creating…" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy}
-            onClick={() => handleOpenChange(false)}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            disabled={busy || !name.trim()}
-            onClick={() => void submit()}
-          >
-            {busy ? "Creating…" : "Create"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <AvatarCropDialog
+        open={cropOpen}
+        imageSrc={cropSrc}
+        shape="rect"
+        onOpenChange={onCropOpenChange}
+        onCropped={onCropped}
+      />
+    </>
   );
 }

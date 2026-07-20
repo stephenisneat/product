@@ -537,6 +537,7 @@ export const appUserSchema = z.object({
   id: z.string(),
   email: z.string().email(),
   name: z.string(),
+  avatarUrl: z.string().url().nullable().optional(),
 });
 
 export type AppUser = z.infer<typeof appUserSchema>;

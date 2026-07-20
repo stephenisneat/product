@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ChangeAvatarForm } from "@/features/auth/change-avatar-form";
 import { ChangeDisplayNameForm } from "@/features/auth/change-display-name-form";
 import { ChangeEmailForm } from "@/features/auth/change-email-form";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -34,6 +35,16 @@ export default async function ProfileSettingsPage({
       ) : null}
 
       <div className="space-y-10">
+        <section className="space-y-3">
+          <h2 className="text-sm font-medium">Avatar</h2>
+          <ChangeAvatarForm
+            userId={user.id}
+            currentName={user.name}
+            currentEmail={user.email}
+            currentAvatarUrl={user.avatarUrl}
+          />
+        </section>
+
         <section className="space-y-3">
           <h2 className="text-sm font-medium">Display name</h2>
           <ChangeDisplayNameForm currentName={user.name} />

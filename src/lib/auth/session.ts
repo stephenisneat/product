@@ -13,6 +13,10 @@ export const getCurrentUser = cache(async (): Promise<AppUser | null> => {
       return null;
     }
 
+    const metaAvatar = (
+      user.user_metadata?.avatar_url as string | undefined
+    )?.trim();
+
     return {
       id: user.id,
       email: user.email ?? "unknown@product.ag",
@@ -20,6 +24,7 @@ export const getCurrentUser = cache(async (): Promise<AppUser | null> => {
         (user.user_metadata?.full_name as string | undefined) ??
         user.email?.split("@")[0] ??
         "User",
+      avatarUrl: metaAvatar || null,
     };
   } catch {
     return null;

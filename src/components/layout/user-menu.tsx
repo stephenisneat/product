@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDownIcon } from "lucide-react";
 import type { AppUser } from "@/domain";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -56,6 +56,7 @@ export function UserMenu({
         }
       >
         <Avatar size="sm">
+          {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt="" /> : null}
           <AvatarFallback>{initialsFor(user)}</AvatarFallback>
         </Avatar>
         {showLabel ? (
