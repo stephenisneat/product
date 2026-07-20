@@ -1,7 +1,8 @@
+import { cache } from "react";
 import type { AppUser } from "@/domain";
 import { createClient } from "@/lib/supabase/server";
 
-export async function getCurrentUser(): Promise<AppUser | null> {
+export const getCurrentUser = cache(async (): Promise<AppUser | null> => {
   try {
     const supabase = await createClient();
     const {
@@ -23,7 +24,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
   } catch {
     return null;
   }
-}
+});
 
 export async function requireUser(): Promise<AppUser> {
   const user = await getCurrentUser();

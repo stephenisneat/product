@@ -19,7 +19,7 @@ export type WorkspaceRole = z.infer<typeof workspaceRoleSchema>;
 export const workspaceInviteRoleSchema = z.enum(["admin", "member"]);
 export type WorkspaceInviteRole = z.infer<typeof workspaceInviteRoleSchema>;
 
-export const workspacePlanSchema = z.enum(["free", "hobby", "pro"]);
+export const workspacePlanSchema = z.enum(["free", "growth", "pro"]);
 export type WorkspacePlan = z.infer<typeof workspacePlanSchema>;
 
 export const billingIntervalSchema = z.enum(["month", "year"]);

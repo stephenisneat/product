@@ -9,7 +9,7 @@ import type {
   WorkspacePlan,
 } from "@/domain";
 import { ArtifactCard } from "@/features/artifacts/artifact-card";
-import { PerformanceChart } from "@/features/reporting/performance-chart";
+import { PerformanceChartLazy } from "@/features/reporting/performance-chart-lazy";
 import { PageCanvas } from "@/components/layout/page-canvas";
 import { ProductImage } from "@/components/product-image";
 import { Badge } from "@/components/ui/badge";
@@ -252,7 +252,7 @@ export function ProductWorkspace({
                 <p className="text-sm font-medium">Campaigns are locked</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Free workspaces can brainstorm campaign concepts with the
-                  agent, but saving and launching campaigns requires Hobby or
+                  agent, but saving and launching campaigns requires Growth or
                   Pro.
                 </p>
                 <UpgradeButton size="sm" className="mt-4">
@@ -293,7 +293,7 @@ export function ProductWorkspace({
               Product-level performance (sample series). Live channel ingestion comes
               later.
             </p>
-            <PerformanceChart data={performance} />
+            <PerformanceChartLazy data={performance} />
           </TabsContent>
 
           <TabsContent value="artifacts" className="mt-4">

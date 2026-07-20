@@ -8,8 +8,6 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { getCreativeRepository, getProductRepository } from "@/repositories";
 
-export const dynamic = "force-dynamic";
-
 export default async function CreativeDetailPage({
   params,
 }: {
@@ -26,13 +24,15 @@ export default async function CreativeDetailPage({
   }
 
   const { id } = await params;
-  const creatives = await getCreativeRepository();
+  const [creatives, products] = await Promise.all([
+    getCreativeRepository(),
+    getProductRepository(),
+  ]);
   const creative = await creatives.getById(id);
   if (!creative || creative.workspaceId !== active.workspace.id) {
     notFound();
   }
 
-  const products = await getProductRepository();
   const product = await products.getProduct(creative.productId);
 
   return (

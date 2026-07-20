@@ -5,8 +5,8 @@ import { isPaidPlan } from "@/lib/billing/entitlements";
 type PriceKey = `${PaidPlan}_${BillingInterval}`;
 
 const ENV_KEYS: Record<PriceKey, string> = {
-  hobby_month: "STRIPE_PRICE_HOBBY",
-  hobby_year: "STRIPE_PRICE_HOBBY_ANNUAL",
+  growth_month: "STRIPE_PRICE_GROWTH",
+  growth_year: "STRIPE_PRICE_GROWTH_ANNUAL",
   pro_month: "STRIPE_PRICE_PRO",
   pro_year: "STRIPE_PRICE_PRO_ANNUAL",
 };

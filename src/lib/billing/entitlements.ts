@@ -1,9 +1,9 @@
 import type { WorkspacePlan } from "@/domain";
 
-/** Hobby / Free default markup (50% margin on provider cost). */
-export const HOBBY_AI_MARKUP = 1.5;
+/** Growth / Free default markup (50% margin on provider cost). */
+export const GROWTH_AI_MARKUP = 1.5;
 
-/** Pro markup: pass-through (1.0×) → ~1.5× tokens per dollar vs Hobby. */
+/** Pro markup: pass-through (1.0×) → ~1.5× tokens per dollar vs Growth. */
 export const PRO_AI_MARKUP = 1.0;
 
 /** Annual discount vs monthly list price (20% off). */
@@ -50,7 +50,7 @@ export const PLAN_ENTITLEMENTS: Record<WorkspacePlan, PlanEntitlements> = {
     priceCentsPerSeatMonthly: 0,
     includedUsageCentsPerSeat: 150, // $1.50
     includedActions: 100,
-    aiMarkup: HOBBY_AI_MARKUP,
+    aiMarkup: GROWTH_AI_MARKUP,
     badgeColor: "yellow",
     hasInsights: false,
     maxCampaignsPerProduct: 0,
@@ -59,13 +59,13 @@ export const PLAN_ENTITLEMENTS: Record<WorkspacePlan, PlanEntitlements> = {
     allowUsageTopOff: true,
     allowIncludedRollover: true,
   },
-  hobby: {
-    plan: "hobby",
-    name: "Hobby",
-    priceCentsPerSeatMonthly: 900, // $9 / seat / mo
-    includedUsageCentsPerSeat: 900,
+  growth: {
+    plan: "growth",
+    name: "Growth",
+    priceCentsPerSeatMonthly: 2900, // $29 / seat / mo
+    includedUsageCentsPerSeat: 2900,
     includedActions: null,
-    aiMarkup: HOBBY_AI_MARKUP,
+    aiMarkup: GROWTH_AI_MARKUP,
     badgeColor: "blue",
     hasInsights: false,
     maxCampaignsPerProduct: 10,
@@ -111,11 +111,11 @@ export function planDisplayName(plan: WorkspacePlan): string {
 }
 
 /** Paid plans offered via Stripe Checkout (subscription). */
-export const PAID_PLANS = ["hobby", "pro"] as const;
+export const PAID_PLANS = ["growth", "pro"] as const;
 export type PaidPlan = (typeof PAID_PLANS)[number];
 
 export function isPaidPlan(plan: WorkspacePlan): plan is PaidPlan {
-  return plan === "hobby" || plan === "pro";
+  return plan === "growth" || plan === "pro";
 }
 
 export function canUpgradePlan(plan: WorkspacePlan): boolean {
@@ -124,8 +124,8 @@ export function canUpgradePlan(plan: WorkspacePlan): boolean {
 
 /** Next plan on the upgrade ladder, if any. */
 export function nextUpgradePlan(plan: WorkspacePlan): PaidPlan | null {
-  if (plan === "free") return "hobby";
-  if (plan === "hobby") return "pro";
+  if (plan === "free") return "growth";
+  if (plan === "growth") return "pro";
   return null;
 }
 
@@ -220,7 +220,7 @@ export function featureBullets(
   }
 
   if (plan === "pro") {
-    bullets.push("1.0× AI rates (pass-through, ~1.5× tokens/$ vs Hobby)");
+    bullets.push("1.0× AI rates (pass-through, ~1.5× tokens/$ vs Growth)");
   }
 
   if (plan !== "free") {

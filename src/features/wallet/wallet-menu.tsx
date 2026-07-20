@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   ChevronDownIcon,
@@ -19,14 +20,22 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { useWallet } from "@/features/wallet/wallet-context";
-import {
-  AutoReloadDialog,
-  EditLimitDialog,
-} from "@/features/wallet/wallet-dialogs";
 import { MemberUsageList } from "@/features/wallet/member-usage-list";
 import { UpgradeButton } from "@/features/billing/upgrade-button";
 import { formatCents, formatCentsFloorDollars } from "@/features/wallet/money";
 import { cn } from "@/lib/utils";
+
+const EditLimitDialog = dynamic(
+  () =>
+    import("@/features/wallet/wallet-dialogs").then((m) => m.EditLimitDialog),
+  { ssr: false },
+);
+
+const AutoReloadDialog = dynamic(
+  () =>
+    import("@/features/wallet/wallet-dialogs").then((m) => m.AutoReloadDialog),
+  { ssr: false },
+);
 
 /** Remaining capacity below this is treated as "getting low". */
 const RING_LOW_PCT = 20;
@@ -208,7 +217,7 @@ function AdSpendLimitMenu({
           <div>
             <p className="text-sm font-medium">Ad spend locked</p>
             <p className="text-xs text-muted-foreground">
-              Adding ad spend requires Hobby or Pro.
+              Adding ad spend requires Growth or Pro.
             </p>
           </div>
           <UpgradeButton type="button" size="xs" variant="outline">
@@ -542,7 +551,7 @@ export function WalletMenu() {
 
       {wallet ? (
         <>
-          {!adSpendLocked ? (
+          {!adSpendLocked && spendOpen ? (
             <EditLimitDialog
               open={spendOpen}
               onOpenChange={setSpendOpen}
@@ -551,19 +560,23 @@ export function WalletMenu() {
               onSaved={setWallet}
             />
           ) : null}
-          <EditLimitDialog
-            open={usageOpen}
-            onOpenChange={setUsageOpen}
-            kind="usage"
-            wallet={wallet}
-            onSaved={setWallet}
-          />
-          <AutoReloadDialog
-            open={autoReloadOpen}
-            onOpenChange={setAutoReloadOpen}
-            wallet={wallet}
-            onSaved={setWallet}
-          />
+          {usageOpen ? (
+            <EditLimitDialog
+              open={usageOpen}
+              onOpenChange={setUsageOpen}
+              kind="usage"
+              wallet={wallet}
+              onSaved={setWallet}
+            />
+          ) : null}
+          {autoReloadOpen ? (
+            <AutoReloadDialog
+              open={autoReloadOpen}
+              onOpenChange={setAutoReloadOpen}
+              wallet={wallet}
+              onSaved={setWallet}
+            />
+          ) : null}
         </>
       ) : null}
     </>

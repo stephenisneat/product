@@ -28,14 +28,48 @@ type WalletContextValue = {
   revealBlockedBanner: () => void;
 };
 
+type WalletCachePayload = {
+  wallet: WalletSummary;
+  memberUsage: MemberUsage[];
+  currentUserId: string | null;
+  plan: WorkspacePlan;
+  fetchedAt: number;
+};
+
+const WALLET_CACHE_TTL_MS = 30_000;
+
+/** Survives AppShell remounts across settings ↔ app navigations. */
+let walletCache: WalletCachePayload | null = null;
+
+function readFreshCache(): WalletCachePayload | null {
+  if (!walletCache) return null;
+  if (Date.now() - walletCache.fetchedAt > WALLET_CACHE_TTL_MS) return null;
+  return walletCache;
+}
+
+function writeCache(payload: Omit<WalletCachePayload, "fetchedAt">) {
+  walletCache = { ...payload, fetchedAt: Date.now() };
+}
+
+function clearCache() {
+  walletCache = null;
+}
+
 const WalletContext = createContext<WalletContextValue | null>(null);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
-  const [wallet, setWalletState] = useState<WalletSummary | null>(null);
-  const [memberUsage, setMemberUsage] = useState<MemberUsage[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [plan, setPlan] = useState<WorkspacePlan>("free");
-  const [loading, setLoading] = useState(true);
+  const cached = readFreshCache();
+  const [wallet, setWalletState] = useState<WalletSummary | null>(
+    cached?.wallet ?? null,
+  );
+  const [memberUsage, setMemberUsage] = useState<MemberUsage[]>(
+    cached?.memberUsage ?? [],
+  );
+  const [currentUserId, setCurrentUserId] = useState<string | null>(
+    cached?.currentUserId ?? null,
+  );
+  const [plan, setPlan] = useState<WorkspacePlan>(cached?.plan ?? "free");
+  const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
   const [openBuyCredits, setOpenBuyCredits] = useState(false);
   const [blockedBannerDismissed, setBlockedBannerDismissed] = useState(false);
@@ -45,6 +79,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (!next?.blocked) {
       setBlockedBannerDismissed(false);
     }
+    if (!next) {
+      clearCache();
+      return;
+    }
+    writeCache({
+      wallet: next,
+      memberUsage: walletCache?.memberUsage ?? [],
+      currentUserId: walletCache?.currentUserId ?? null,
+      plan: walletCache?.plan ?? "free",
+    });
   }, []);
 
   const refresh = useCallback(async () => {
@@ -63,10 +107,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         currentUserId?: string;
         plan?: WorkspacePlan;
       };
+      const nextPlan = data.plan ?? "free";
+      const nextUsage = data.memberUsage ?? [];
+      const nextUserId = data.currentUserId ?? null;
       setWallet(data.wallet);
-      setMemberUsage(data.memberUsage ?? []);
-      setCurrentUserId(data.currentUserId ?? null);
-      if (data.plan) setPlan(data.plan);
+      setMemberUsage(nextUsage);
+      setCurrentUserId(nextUserId);
+      setPlan(nextPlan);
+      writeCache({
+        wallet: data.wallet,
+        memberUsage: nextUsage,
+        currentUserId: nextUserId,
+        plan: nextPlan,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load wallet");
     } finally {
@@ -75,6 +128,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [setWallet]);
 
   useEffect(() => {
+    if (readFreshCache()) {
+      return;
+    }
     // Initial wallet load for the active workspace session.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount
     void refresh();

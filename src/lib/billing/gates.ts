@@ -17,7 +17,7 @@ export function assertCanSpendAndLaunch(plan: WorkspacePlan): void {
   const ents = getEntitlements(plan);
   if (!ents.canSpendAndLaunch) {
     throw new PlanEntitlementError(
-      "Ad spend and campaign launch require Hobby or Pro. Upgrade to continue.",
+      "Ad spend and campaign launch require Growth or Pro. Upgrade to continue.",
       "plan_upgrade_required",
     );
   }
@@ -30,7 +30,7 @@ export function assertCanCreateCampaign(
   const ents = getEntitlements(plan);
   if (!ents.canSpendAndLaunch || ents.maxCampaignsPerProduct === 0) {
     throw new PlanEntitlementError(
-      "Saving and launching campaigns requires Hobby or Pro.",
+      "Saving and launching campaigns requires Growth or Pro.",
       "plan_upgrade_required",
     );
   }
@@ -39,7 +39,7 @@ export function assertCanCreateCampaign(
     currentCount >= ents.maxCampaignsPerProduct
   ) {
     throw new PlanEntitlementError(
-      `Hobby allows ${ents.maxCampaignsPerProduct} campaigns per product. Upgrade to Pro for unlimited.`,
+      `Growth allows ${ents.maxCampaignsPerProduct} campaigns per product. Upgrade to Pro for unlimited.`,
       "campaign_limit_reached",
     );
   }
@@ -52,7 +52,7 @@ export function assertCanCreateCreative(
   const ents = getEntitlements(plan);
   if (ents.maxCreativesPerCampaign === 0) {
     throw new PlanEntitlementError(
-      "Creatives require Hobby or Pro. Upgrade to continue.",
+      "Creatives require Growth or Pro. Upgrade to continue.",
       "plan_upgrade_required",
     );
   }
@@ -61,7 +61,7 @@ export function assertCanCreateCreative(
     currentCount >= ents.maxCreativesPerCampaign
   ) {
     throw new PlanEntitlementError(
-      `Hobby allows ${ents.maxCreativesPerCampaign} creatives per campaign. Upgrade to Pro for unlimited.`,
+      `Growth allows ${ents.maxCreativesPerCampaign} creatives per campaign. Upgrade to Pro for unlimited.`,
       "creative_limit_reached",
     );
   }

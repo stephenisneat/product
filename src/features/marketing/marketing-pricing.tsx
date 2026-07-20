@@ -25,7 +25,7 @@ function planBadgeClass(plan: WorkspacePlan) {
   return "border-yellow-500/30 bg-yellow-500/40 text-yellow-100 font-semibold";
 }
 
-const PLAN_ORDER: WorkspacePlan[] = ["free", "hobby", "pro"];
+const PLAN_ORDER: WorkspacePlan[] = ["free", "growth", "pro"];
 
 export function MarketingPricingPage() {
   return (
@@ -105,7 +105,7 @@ export function MarketingPricingPage() {
 
         <p className="mt-10 max-w-2xl text-sm text-muted-foreground">
           Pro includes pass-through AI rates (1.0×) — about 1.5× the tokens per
-          dollar versus Hobby. Unused included usage rolls over up to one month
+          dollar versus Growth. Unused included usage rolls over up to one month
           of allotment.
         </p>
       </main>

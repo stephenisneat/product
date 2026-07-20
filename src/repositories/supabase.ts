@@ -706,6 +706,25 @@ export class SupabaseProductRepository implements ProductRepository {
     }));
   }
 
+  async listCampaignsForProducts(productIds: string[]): Promise<Campaign[]> {
+    if (productIds.length === 0) return [];
+    const { data, error } = await this.client
+      .from("campaigns")
+      .select("*")
+      .in("product_id", productIds)
+      .order("updated_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      productId: row.product_id,
+      name: row.name,
+      status: row.status,
+      channels: row.channels ?? [],
+      objective: row.objective,
+      updatedAt: row.updated_at,
+    }));
+  }
+
   async createCampaign(campaign: Campaign): Promise<Campaign> {
     const { data, error } = await this.client
       .from("campaigns")
@@ -864,6 +883,17 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
       .from("artifacts")
       .select("*")
       .eq("product_id", productId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map((row) => mapArtifact(row));
+  }
+
+  async listByProductIds(productIds: string[]): Promise<Artifact[]> {
+    if (productIds.length === 0) return [];
+    const { data, error } = await this.client
+      .from("artifacts")
+      .select("*")
+      .in("product_id", productIds)
       .order("created_at", { ascending: false });
     if (error) throw error;
     return (data ?? []).map((row) => mapArtifact(row));
