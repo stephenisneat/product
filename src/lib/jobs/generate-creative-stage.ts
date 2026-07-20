@@ -1,4 +1,4 @@
-import type { CreativeStage, GenerateCreativeStageJobInput } from "@/domain";
+import type { CreativeStage } from "@/domain";
 import { unknownErrorMessage } from "@/lib/errors";
 import {
   assertTriggerJobEnv,
@@ -9,36 +9,15 @@ import {
   generateStoryboard,
 } from "@/lib/jobs/generate-creative-content";
 import { generateVideo } from "@/lib/jobs/generate-creative-video";
+import type { GenerateCreativeStageJobPayload } from "@/lib/jobs/generate-creative-stage-payload";
 import {
   getCreativeWriteRepository,
   getJobWriteRepository,
   getProductWriteRepository,
 } from "@/repositories";
 
-export type GenerateCreativeStageJobPayload = {
-  jobRunId: string;
-  workspaceId: string;
-  createdBy: string | null;
-  creativeId: string;
-  productId: string;
-  stage: CreativeStage;
-};
-
-export function payloadFromGenerateCreativeStageInput(
-  jobRunId: string,
-  workspaceId: string,
-  createdBy: string | null,
-  input: GenerateCreativeStageJobInput,
-): GenerateCreativeStageJobPayload {
-  return {
-    jobRunId,
-    workspaceId,
-    createdBy,
-    creativeId: input.creativeId,
-    productId: input.productId,
-    stage: input.stage,
-  };
-}
+export type { GenerateCreativeStageJobPayload } from "@/lib/jobs/generate-creative-stage-payload";
+export { payloadFromGenerateCreativeStageInput } from "@/lib/jobs/generate-creative-stage-payload";
 
 async function wasCanceled(jobRunId: string): Promise<boolean> {
   const jobs = getJobWriteRepository();
