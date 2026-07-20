@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import type { Creative, PerformancePoint, Product } from "@/domain";
+import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { PageCanvas } from "@/components/layout/page-canvas";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -325,6 +326,8 @@ export function CreativeWorkspace({
   const [revising, setRevising] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setCreative(initial);
@@ -407,20 +410,26 @@ export function CreativeWorkspace({
 
   async function removeCreative() {
     setError(null);
-    const res = await fetch(`/api/creatives/${creative.id}`, {
-      method: "DELETE",
-    });
-    if (!res.ok) {
-      const body = (await res.json().catch(() => null)) as {
-        error?: string;
-      } | null;
-      setError(body?.error ?? "Delete failed");
-      return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/creatives/${creative.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        const message = body?.error ?? "Delete failed";
+        setError(message);
+        throw new Error(message);
+      }
+      startTransition(() => {
+        router.push("/creatives");
+        router.refresh();
+      });
+    } finally {
+      setDeleting(false);
     }
-    startTransition(() => {
-      router.push("/creatives");
-      router.refresh();
-    });
   }
 
   const canControlJob =
@@ -531,8 +540,8 @@ export function CreativeWorkspace({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     variant="destructive"
-                    disabled={pending}
-                    onClick={() => void removeCreative()}
+                    disabled={pending || deleting}
+                    onClick={() => setDeleteOpen(true)}
                   >
                     Delete creative
                   </DropdownMenuItem>
@@ -623,6 +632,15 @@ export function CreativeWorkspace({
           />
         </div>
       </PageCanvas>
+
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete creative?"
+        description={`“${creative.title}” will be permanently deleted, and any in-progress generation on Trigger.dev will be canceled. This cannot be undone.`}
+        pending={deleting}
+        onConfirm={removeCreative}
+      />
     </Tabs>
   );
 }

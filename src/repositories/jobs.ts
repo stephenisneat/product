@@ -109,6 +109,20 @@ export class SupabaseJobRepository {
     return (data as DbJobRun[]).map(mapJobRun);
   }
 
+  async listNonTerminalForCreative(
+    workspaceId: string,
+    creativeId: string,
+  ): Promise<JobRun[]> {
+    const { data, error } = await this.client
+      .from("job_runs")
+      .select("*")
+      .eq("workspace_id", workspaceId)
+      .in("status", ["pending", "running"])
+      .contains("input", { creativeId });
+    if (error) throw error;
+    return (data as DbJobRun[]).map(mapJobRun);
+  }
+
   async update(id: string, patch: JobRunUpdateInput): Promise<JobRun> {
     const row: Record<string, unknown> = {};
     if (patch.status !== undefined) row.status = patch.status;

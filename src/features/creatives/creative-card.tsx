@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import type { Creative } from "@/domain";
+import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -143,6 +144,8 @@ export function CreativeCard({
   const [revising, setRevising] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setCreative(initial);
@@ -217,23 +220,29 @@ export function CreativeCard({
 
   async function removeCreative() {
     setError(null);
-    const res = await fetch(`/api/creatives/${creative.id}`, {
-      method: "DELETE",
-    });
-    if (!res.ok) {
-      const body = (await res.json().catch(() => null)) as {
-        error?: string;
-      } | null;
-      setError(body?.error ?? "Delete failed");
-      return;
-    }
-    onDeleted?.(creative.id);
-    startTransition(() => {
-      if (!onDeleted) {
-        router.push("/creatives");
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/creatives/${creative.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        const message = body?.error ?? "Delete failed";
+        setError(message);
+        throw new Error(message);
       }
-      router.refresh();
-    });
+      onDeleted?.(creative.id);
+      startTransition(() => {
+        if (!onDeleted) {
+          router.push("/creatives");
+        }
+        router.refresh();
+      });
+    } finally {
+      setDeleting(false);
+    }
   }
 
   const canReview = creative.status === "awaiting_review";
@@ -309,8 +318,8 @@ export function CreativeCard({
             size="sm"
             variant="ghost"
             className="text-destructive hover:text-destructive"
-            disabled={pending}
-            onClick={() => void removeCreative()}
+            disabled={pending || deleting}
+            onClick={() => setDeleteOpen(true)}
           >
             Delete
           </Button>
@@ -380,14 +389,23 @@ export function CreativeCard({
               size="sm"
               variant="ghost"
               className="text-destructive hover:text-destructive"
-              disabled={pending}
-              onClick={() => void removeCreative()}
+              disabled={pending || deleting}
+              onClick={() => setDeleteOpen(true)}
             >
               Delete
             </Button>
           </div>
         </div>
       ) : null}
+
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete creative?"
+        description={`“${creative.title}” will be permanently deleted, and any in-progress generation on Trigger.dev will be canceled. This cannot be undone.`}
+        pending={deleting}
+        onConfirm={removeCreative}
+      />
     </article>
   );
 }

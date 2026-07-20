@@ -67,6 +67,20 @@ export async function runGenerateCreativeStageJob(
     startedAt: existing?.startedAt ?? new Date().toISOString(),
   });
 
+  const existingCreative = await creatives.getById(payload.creativeId);
+  if (
+    !existingCreative ||
+    existingCreative.workspaceId !== payload.workspaceId
+  ) {
+    // Soft-exit when the creative was hard-deleted while this run was queued.
+    await jobs.update(payload.jobRunId, {
+      status: "canceled",
+      error: "Creative deleted",
+      finishedAt: new Date().toISOString(),
+    });
+    return null;
+  }
+
   // Heal pause/fail side-effects if Trigger retries this attempt.
   await creatives.update(payload.creativeId, {
     status: "generating",
@@ -80,7 +94,12 @@ export async function runGenerateCreativeStageJob(
 
     const creative = await creatives.getById(payload.creativeId);
     if (!creative || creative.workspaceId !== payload.workspaceId) {
-      throw new Error("Creative not found in workspace.");
+      await jobs.update(payload.jobRunId, {
+        status: "canceled",
+        error: "Creative deleted",
+        finishedAt: new Date().toISOString(),
+      });
+      return null;
     }
 
     const product = await products.getProduct(payload.productId);
