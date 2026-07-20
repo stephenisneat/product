@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { PlanEntitlementError } from "@/lib/billing/gates";
+import { logServerError, unknownErrorMessage } from "@/lib/errors";
 import { startVideoCreative } from "@/lib/jobs/enqueue";
 import { hasServiceRole } from "@/lib/supabase/service";
 import { getCreativeRepository, getProductRepository } from "@/repositories";
@@ -80,9 +81,13 @@ export async function POST(req: Request) {
         { status: err.status },
       );
     }
+    logServerError("api.creatives.create", err, {
+      workspaceId: active.workspace.id,
+      productId: product.id,
+    });
     return NextResponse.json(
       {
-        error: err instanceof Error ? err.message : "Failed to start creative.",
+        error: unknownErrorMessage(err, "Failed to start creative."),
       },
       { status: 500 },
     );

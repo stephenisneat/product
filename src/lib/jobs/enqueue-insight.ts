@@ -7,6 +7,8 @@ import type {
   JobRunTrigger,
 } from "@/domain";
 import { assertHasInsights } from "@/lib/billing/gates";
+import { getEntitlements } from "@/lib/billing/entitlements";
+import { logServerError, unknownErrorMessage } from "@/lib/errors";
 import {
   payloadFromGenerateInsightInput,
   runGenerateInsightJob,
@@ -15,7 +17,6 @@ import {
   HEARTBEAT_MIN_HOURS_BETWEEN_INSIGHTS,
   MAX_AWAITING_REVIEW_INSIGHTS,
 } from "@/lib/jobs/insight-stubs";
-import { getEntitlements } from "@/lib/billing/entitlements";
 import { hasServiceRole } from "@/lib/supabase/service";
 import {
   getGoalWriteRepository,
@@ -82,8 +83,11 @@ export async function enqueueGenerateInsightJob(
     );
     return jobs.update(run.id, { triggerRunId: handle.id });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to trigger job.";
+    const message = unknownErrorMessage(err, "Failed to trigger job.");
+    logServerError("enqueueGenerateInsightJob.trigger", err, {
+      jobRunId: run.id,
+      insightId: opts.input.insightId,
+    });
     await jobs.update(run.id, {
       status: "failed",
       error: message,
@@ -93,7 +97,7 @@ export async function enqueueGenerateInsightJob(
       status: "failed",
       activeJobId: null,
     });
-    throw err;
+    throw new Error(message, { cause: err });
   }
 }
 
