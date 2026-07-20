@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAgentContext } from "@/features/agent/agent-context";
 import { CampaignAssociation } from "@/features/campaigns/campaign-association";
+import { CreativeVideoEditor } from "@/features/creatives/creative-video-editor";
 import { ScreenplayDocument } from "@/features/creatives/screenplay-document";
 import { PerformanceChartLazy } from "@/features/reporting/performance-chart-lazy";
 import { cn } from "@/lib/utils";
@@ -160,8 +161,7 @@ function StoryboardView({ creative }: { creative: Creative }) {
 }
 
 function VideoView({ creative }: { creative: Creative }) {
-  const video = creative.video;
-  if (!video) {
+  if (!creative.video) {
     return (
       <StageEmptyState
         label="Video"
@@ -173,19 +173,7 @@ function VideoView({ creative }: { creative: Creative }) {
     );
   }
 
-  return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 px-4 py-10">
-      <video
-        className="aspect-[9/16] max-h-[70vh] w-full rounded-lg bg-black object-contain"
-        controls
-        poster={video.thumbnailUrl}
-        src={video.url}
-      />
-      <p className="font-mono text-xs text-muted-foreground">
-        {video.durationSec}s · {video.aspectRatio}
-      </p>
-    </div>
-  );
+  return <CreativeVideoEditor creative={creative} />;
 }
 
 function PerformanceView({

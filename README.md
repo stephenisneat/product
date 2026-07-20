@@ -69,14 +69,20 @@ Product images upload to the `product-assets` storage bucket created by migratio
 | `RESEND_FROM` | Optional From address for invite emails |
 | `TRIGGER_SECRET_KEY` | Trigger.dev secret key for enqueueing background jobs (Vercel + local) |
 | `TRIGGER_PROJECT_ID` | Optional Trigger.dev project ref (defaults in `trigger.config.ts`) |
+| `ELEVENLABS_API_KEY` | ElevenLabs API key (video stage TTS; voices auto-cast from library) |
+| `ELEVENLABS_VOICE_ID` | Optional pin for narrator / voiceover |
+| `ELEVENLABS_DIALOGUE_VOICE_ID` | Optional pin for the first dialogue character |
+| `RUNWAYML_API_SECRET` | Runway API secret (Veo 3.1 image-to-video) |
 
 Trigger.dev **workers** do not inherit Vercel env. In the Trigger dashboard → Environment Variables (prod), also set:
 
 - `NEXT_PUBLIC_SUPABASE_URL` — must be the **Project URL** from Supabase → Settings → API (`https://<project-ref>.supabase.co`). Do not use localhost, `supabase.com`, or the bare project ref. A wrong value surfaces as Supabase’s `"Project not specified."`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `AI_GATEWAY_API_KEY` (or OIDC equivalent) for screenplay/storyboard
+- `ELEVENLABS_API_KEY` and `RUNWAYML_API_SECRET` for the video stage (optional `ELEVENLABS_VOICE_ID` / `ELEVENLABS_DIALOGUE_VOICE_ID` to pin casts)
 
-Use the same values as Vercel production. Then deploy workers with `pnpm exec trigger deploy`. Stub creative jobs should finish in under a second; multi-minute runs usually mean missing worker env or the task hanging until `maxDuration`.
+Use the same values as Vercel production. Then deploy workers with `pnpm exec trigger deploy`. Video-stage jobs can take several minutes (Veo per scene + Remotion stitch); hanging until `maxDuration` usually means missing worker env.
 
 ## Scripts
 

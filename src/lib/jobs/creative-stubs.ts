@@ -107,11 +107,22 @@ export function buildTemplateStoryboard(
 }
 
 export function buildStubVideo(screenplay: ScreenplayPayload | null): VideoPayload {
+  const scenes = screenplay?.scenes ?? [];
+  const clips = scenes.map((scene) => ({
+    sceneId: scene.id,
+    url: STUB_VIDEO_URL,
+    audioUrl: null,
+    thumbnailUrl: STUB_THUMBNAIL_URL,
+    durationSec: scene.durationSec,
+    caption: scene.dialogue ?? "",
+  }));
+
   return {
     url: STUB_VIDEO_URL,
     thumbnailUrl: STUB_THUMBNAIL_URL,
     durationSec: screenplay?.targetDurationSec ?? 15,
     aspectRatio: screenplay?.aspectRatio ?? "9:16",
+    clips,
   };
 }
 

@@ -6,7 +6,7 @@ export default defineConfig({
   // pnpm@11 requires Node >=22; default "node" is 21.x / build image 20.x
   runtime: "node-22",
   logLevel: "log",
-  maxDuration: 300,
+  maxDuration: 1200,
   retries: {
     enabledInDev: true,
     default: {

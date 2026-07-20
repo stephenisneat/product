@@ -8,7 +8,7 @@ import {
   generateScreenplay,
   generateStoryboard,
 } from "@/lib/jobs/generate-creative-content";
-import { buildStubVideo, sleep } from "@/lib/jobs/creative-stubs";
+import { generateVideo } from "@/lib/jobs/generate-creative-video";
 import {
   getCreativeWriteRepository,
   getJobWriteRepository,
@@ -155,9 +155,17 @@ export async function runGenerateCreativeStageJob(
       if (!creative.storyboard) {
         throw new Error("Storyboard is required before video generation.");
       }
-      // Video render is still stubbed; keep a short beat so the UI can poll.
-      await sleep(800);
-      const video = buildStubVideo(creative.screenplay);
+      if (!creative.screenplay) {
+        throw new Error("Screenplay is required before video generation.");
+      }
+      const video = await generateVideo({
+        screenplay: creative.screenplay,
+        storyboard: creative.storyboard,
+        product,
+        workspaceId: payload.workspaceId,
+        creativeId: creative.id,
+        isCanceled: () => wasCanceled(payload.jobRunId),
+      });
       await creatives.update(creative.id, {
         stage: "video",
         status: "awaiting_review",

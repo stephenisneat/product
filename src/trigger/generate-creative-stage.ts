@@ -8,10 +8,15 @@ import { logServerError } from "@/lib/errors";
 
 export const generateCreativeStageTask = task({
   id: "generate-creative-stage",
-  // Screenplay is quick; storyboard runs multiple image generations.
-  maxDuration: 480,
+  // Screenplay/storyboard are quicker; video runs Veo per scene + Remotion stitch.
+  maxDuration: 1200,
+  // Remotion Chrome + multi-clip stitch needs more than the default small machine.
+  machine: "large-1x",
   retry: {
     maxAttempts: 3,
+    outOfMemory: {
+      machine: "large-2x",
+    },
   },
   run: async (payload: GenerateCreativeStageJobPayload) => {
     return runGenerateCreativeStageJob(payload);

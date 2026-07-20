@@ -743,11 +743,27 @@ export const storyboardPayloadSchema = z.object({
 });
 export type StoryboardPayload = z.infer<typeof storyboardPayloadSchema>;
 
+export const videoClipSchema = z.object({
+  sceneId: z.string(),
+  url: z.string().url(),
+  audioUrl: z.string().url().nullable(),
+  thumbnailUrl: z.string().url().nullable(),
+  durationSec: z.number().positive(),
+  prompt: z.string().optional(),
+  /** Spoken caption text for this clip (from screenplay dialogue). */
+  caption: z.string().default(""),
+});
+export type VideoClip = z.infer<typeof videoClipSchema>;
+
 export const videoPayloadSchema = z.object({
   url: z.string().url(),
   thumbnailUrl: z.string().url(),
   durationSec: z.number().positive(),
   aspectRatio: z.string().default("9:16"),
+  /** Per-scene Veo clips used by the timeline editor / Remotion composition. */
+  clips: z.array(videoClipSchema).default([]),
+  /** Product title for Remotion end card. */
+  productTitle: z.string().optional(),
 });
 export type VideoPayload = z.infer<typeof videoPayloadSchema>;
 
