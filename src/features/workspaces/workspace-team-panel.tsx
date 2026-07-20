@@ -262,23 +262,25 @@ export function WorkspaceTeamPanel({
                 />
               </div>
               <div className="w-32 space-y-1.5">
-                <Label>Role</Label>
-                <Select
-                  value={inviteRole}
-                  onValueChange={(value) => {
-                    if (value === "admin" || value === "member") {
-                      setInviteRole(value);
-                    }
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="member">Member</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="invite-role">Role</Label>
+                <div>
+                  <Select
+                    value={inviteRole}
+                    onValueChange={(value) => {
+                      if (value === "admin" || value === "member") {
+                        setInviteRole(value);
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="invite-role" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="member">Member</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <Button
                 type="button"

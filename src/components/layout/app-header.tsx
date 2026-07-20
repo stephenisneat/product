@@ -46,15 +46,7 @@ export function AppHeader({
       </div>
       <div className="flex items-center gap-2">
         <Button
-          render={
-            <Link
-              href={
-                activeWorkspaceId
-                  ? "/settings/workspace"
-                  : "/settings/profile"
-              }
-            />
-          }
+          render={<Link href="/settings/profile" />}
           variant="outline"
           size="icon-sm"
           aria-label="Settings"
