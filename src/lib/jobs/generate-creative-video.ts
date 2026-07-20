@@ -6,7 +6,7 @@ import type {
   VideoPayload,
 } from "@/domain";
 import { videoPayloadSchema } from "@/domain";
-import { synthesizeSceneAudio } from "@/lib/media/elevenlabs";
+import { synthesizeSceneAudio, createCreativeVoiceCast, resolveSceneVoiceId } from "@/lib/media/elevenlabs";
 import { assertElevenLabsConfigured, assertRunwayConfigured } from "@/lib/media/env";
 import { generateVeoClip } from "@/lib/media/runway";
 import { renderCreativeAdVideo } from "@/lib/jobs/render-creative-video";
@@ -41,6 +41,11 @@ export async function generateVideo(
     opts.screenplay.scenes.map((scene) => [scene.id, scene]),
   );
 
+  const voiceCast = await createCreativeVoiceCast({
+    creativeId: opts.creativeId,
+    scenes: opts.screenplay.scenes,
+  });
+
   const clips: VideoClip[] = [];
 
   for (const frame of opts.storyboard.frames) {
@@ -54,7 +59,10 @@ export async function generateVideo(
     const audioUrl = dialogue
       ? await synthesizeSceneAudio({
           text: dialogue,
-          spokenKind,
+          voiceId: resolveSceneVoiceId(voiceCast, {
+            spokenKind,
+            character: scene?.character ?? "",
+          }),
           workspaceId: opts.workspaceId,
           creativeId: opts.creativeId,
           sceneId: frame.sceneId,

@@ -1,12 +1,20 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import type { ScreenplayScene } from "@/domain";
 import {
   assertElevenLabsConfigured,
-  getElevenLabsVoiceId,
+  getElevenLabsDialogueOverride,
+  getElevenLabsVoiceoverOverride,
 } from "@/lib/media/env";
 import {
   readableStreamToUint8Array,
   uploadCreativeAudio,
 } from "@/lib/media/creative-assets";
+import {
+  buildVoiceCast,
+  resolveSceneVoiceId,
+  type CastableVoice,
+  type CreativeVoiceCast,
+} from "@/lib/media/voice-cast";
 
 function getClient(): ElevenLabsClient {
   assertElevenLabsConfigured();
@@ -16,12 +24,52 @@ function getClient(): ElevenLabsClient {
 }
 
 /**
+ * Load voices available to this ElevenLabs API key (account library).
+ */
+export async function listElevenLabsVoices(): Promise<CastableVoice[]> {
+  const client = getClient();
+  const response = await client.voices.getAll({ showLegacy: false });
+  const voices = (response.voices ?? [])
+    .filter((v) => Boolean(v.voiceId))
+    .map((v) => ({
+      voiceId: v.voiceId,
+      name: v.name,
+      description: v.description,
+      labels: v.labels,
+    }));
+
+  if (voices.length === 0) {
+    throw new Error(
+      "ElevenLabs returned no voices for this API key. " +
+        "Add voices in the ElevenLabs Voice Library, or set ELEVENLABS_VOICE_ID.",
+    );
+  }
+
+  return voices;
+}
+
+/** Build a per-creative cast: one narrator + stable character → voice map. */
+export async function createCreativeVoiceCast(opts: {
+  creativeId: string;
+  scenes: ScreenplayScene[];
+}): Promise<CreativeVoiceCast> {
+  const voices = await listElevenLabsVoices();
+  return buildVoiceCast({
+    voices,
+    scenes: opts.scenes,
+    creativeId: opts.creativeId,
+    voiceoverOverride: getElevenLabsVoiceoverOverride(),
+    dialogueOverride: getElevenLabsDialogueOverride(),
+  });
+}
+
+/**
  * Synthesize spoken dialogue/voiceover and upload MP3 to workspace-assets.
  * Returns null when text is empty.
  */
 export async function synthesizeSceneAudio(opts: {
   text: string;
-  spokenKind: "voiceover" | "dialogue";
+  voiceId: string;
   workspaceId: string;
   creativeId: string;
   sceneId: string;
@@ -30,8 +78,7 @@ export async function synthesizeSceneAudio(opts: {
   if (!text) return null;
 
   const client = getClient();
-  const voiceId = getElevenLabsVoiceId(opts.spokenKind);
-  const stream = await client.textToSpeech.convert(voiceId, {
+  const stream = await client.textToSpeech.convert(opts.voiceId, {
     text,
     modelId: "eleven_multilingual_v2",
     outputFormat: "mp3_44100_128",
@@ -49,3 +96,6 @@ export async function synthesizeSceneAudio(opts: {
     bytes,
   });
 }
+
+export { resolveSceneVoiceId };
+export type { CreativeVoiceCast };

@@ -1,9 +1,6 @@
-/** True when ElevenLabs TTS credentials are configured. */
+/** True when ElevenLabs API key is configured (voices are fetched / auto-cast). */
 export function hasElevenLabs(): boolean {
-  return Boolean(
-    process.env.ELEVENLABS_API_KEY?.trim() &&
-      process.env.ELEVENLABS_VOICE_ID?.trim(),
-  );
+  return Boolean(process.env.ELEVENLABS_API_KEY?.trim());
 }
 
 /** True when Runway API secret is configured. */
@@ -15,8 +12,9 @@ export function assertElevenLabsConfigured(): void {
   if (hasElevenLabs()) return;
   throw new Error(
     "ElevenLabs is not configured for video generation. " +
-      "Set ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID in this environment " +
-      "(and in Trigger.dev → Environment Variables), then retry.",
+      "Set ELEVENLABS_API_KEY in this environment " +
+      "(and in Trigger.dev → Environment Variables), then retry. " +
+      "Optional: ELEVENLABS_VOICE_ID / ELEVENLABS_DIALOGUE_VOICE_ID to pin overrides.",
   );
 }
 
@@ -29,11 +27,12 @@ export function assertRunwayConfigured(): void {
   );
 }
 
-export function getElevenLabsVoiceId(kind: "voiceover" | "dialogue"): string {
-  assertElevenLabsConfigured();
-  const vo = process.env.ELEVENLABS_VOICE_ID!.trim();
-  if (kind === "dialogue") {
-    return process.env.ELEVENLABS_DIALOGUE_VOICE_ID?.trim() || vo;
-  }
-  return vo;
+/** Optional pinned narrator / voiceover voice. */
+export function getElevenLabsVoiceoverOverride(): string | null {
+  return process.env.ELEVENLABS_VOICE_ID?.trim() || null;
+}
+
+/** Optional pinned default for the first dialogue character. */
+export function getElevenLabsDialogueOverride(): string | null {
+  return process.env.ELEVENLABS_DIALOGUE_VOICE_ID?.trim() || null;
 }
