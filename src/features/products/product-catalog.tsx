@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { PageCanvas } from "@/components/layout/page-canvas";
 import { ProductImage } from "@/components/product-image";
-import { CatalogNav } from "@/features/products/catalog-toolbar";
+import { CatalogHeaderActions } from "@/features/products/catalog-toolbar";
 import {
   productSummaryLine,
   productTypeLabel,
@@ -103,13 +103,7 @@ function sortProducts(products: Product[], sort: SortKey) {
 const addProductsButtonClass =
   "border-0 bg-[#288DFF] bg-clip-border text-white shadow-[0_0_0_1px_#288DFF,0_1px_2px_0_rgba(14,18,27,0.24),inset_0_1px_0_0_rgba(255,255,255,0.12)] hover:bg-[#1f7ff5] hover:text-white focus-visible:border-transparent focus-visible:ring-0 aria-expanded:bg-[#288DFF] aria-expanded:text-white dark:bg-[#288DFF] dark:text-white dark:hover:bg-[#1f7ff5]";
 
-export function ProductCatalog({
-  products,
-  workspaceId,
-}: {
-  products: Product[];
-  workspaceId: string;
-}) {
+export function ProductCatalog({ products }: { products: Product[] }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortKey>("newest");
@@ -117,23 +111,17 @@ export function ProductCatalog({
 
   if (products.length === 0) {
     return (
-      <PageCanvas
-        header={
-          <div className="flex w-full flex-wrap items-center gap-2">
-            <CatalogNav workspaceId={workspaceId} />
-            <div className="ml-auto">
-              <Button
-                render={<Link href="/products/new" />}
-                size="sm"
-                className={addProductsButtonClass}
-              >
-                <PlusIcon data-icon="inline-start" />
-                Add products
-              </Button>
-            </div>
-          </div>
-        }
-      >
+      <PageCanvas>
+        <CatalogHeaderActions>
+          <Button
+            render={<Link href="/products/new" />}
+            size="sm"
+            className={addProductsButtonClass}
+          >
+            <PlusIcon data-icon="inline-start" />
+            Add products
+          </Button>
+        </CatalogHeaderActions>
         <div className="mx-auto max-w-3xl px-4 py-24 text-center">
           <h1 className="font-heading text-xl font-semibold tracking-tight">
             No products yet
@@ -163,133 +151,127 @@ export function ProductCatalog({
   );
 
   return (
-    <PageCanvas
-      header={
-        <div className="flex w-full flex-wrap items-center gap-2">
-          <CatalogNav workspaceId={workspaceId} />
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <Popover>
-              <PopoverTrigger
-                render={
-                  <Button
+    <PageCanvas>
+      <CatalogHeaderActions>
+        <Popover>
+          <PopoverTrigger
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                className="aspect-square"
+                aria-label="Filter products"
+              />
+            }
+          >
+            <ListFilterIcon />
+          </PopoverTrigger>
+          <PopoverContent align="end" className="min-w-56 p-0">
+            <div className="p-2">
+              <div className="relative">
+                <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  placeholder="Search products…"
+                  className="h-8 pr-8 pl-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+                  aria-label="Search products"
+                />
+                {query ? (
+                  <button
                     type="button"
-                    variant="outline"
-                    size="icon-sm"
-                    className="aspect-square"
-                    aria-label="Filter products"
-                  />
-                }
-              >
-                <ListFilterIcon />
-              </PopoverTrigger>
-              <PopoverContent align="end" className="min-w-56 p-0">
-                <div className="p-2">
-                  <div className="relative">
-                    <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      type="search"
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      onKeyDown={(e) => e.stopPropagation()}
-                      placeholder="Search products…"
-                      className="h-8 pr-8 pl-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
-                      aria-label="Search products"
+                    className="absolute top-1/2 right-1.5 flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
+                    aria-label="Clear search"
+                    onClick={() => setQuery("")}
+                  >
+                    <XIcon className="size-3.5" />
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            <Separator className="my-0" />
+            <div className="p-2">
+              <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
+                Status
+              </p>
+              <div className="space-y-0.5">
+                {STATUS_FILTERS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={optionItemClass}
+                    onClick={() => setStatusFilter(option.value)}
+                  >
+                    <CheckIcon
+                      className={cn(
+                        "size-4 shrink-0",
+                        statusFilter === option.value
+                          ? "opacity-100"
+                          : "opacity-0",
+                      )}
                     />
-                    {query ? (
-                      <button
-                        type="button"
-                        className="absolute top-1/2 right-1.5 flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
-                        aria-label="Clear search"
-                        onClick={() => setQuery("")}
-                      >
-                        <XIcon className="size-3.5" />
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-                <Separator className="my-0" />
-                <div className="p-2">
-                  <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
-                    Status
-                  </p>
-                  <div className="space-y-0.5">
-                    {STATUS_FILTERS.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        className={optionItemClass}
-                        onClick={() => setStatusFilter(option.value)}
-                      >
-                        <CheckIcon
-                          className={cn(
-                            "size-4 shrink-0",
-                            statusFilter === option.value
-                              ? "opacity-100"
-                              : "opacity-0",
-                          )}
-                        />
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
 
-            <Popover open={sortOpen} onOpenChange={setSortOpen}>
-              <PopoverTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-sm"
-                    className="aspect-square"
-                    aria-label="Sort products"
+        <Popover open={sortOpen} onOpenChange={setSortOpen}>
+          <PopoverTrigger
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                className="aspect-square"
+                aria-label="Sort products"
+              />
+            }
+          >
+            <ArrowUpDownIcon />
+          </PopoverTrigger>
+          <PopoverContent align="end" className="min-w-48 p-2">
+            <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
+              Sort by
+            </p>
+            <div className="space-y-0.5">
+              {SORT_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={optionItemClass}
+                  onClick={() => {
+                    setSort(option.value);
+                    setSortOpen(false);
+                  }}
+                >
+                  <CheckIcon
+                    className={cn(
+                      "size-4 shrink-0",
+                      sort === option.value ? "opacity-100" : "opacity-0",
+                    )}
                   />
-                }
-              >
-                <ArrowUpDownIcon />
-              </PopoverTrigger>
-              <PopoverContent align="end" className="min-w-48 p-2">
-                <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
-                  Sort by
-                </p>
-                <div className="space-y-0.5">
-                  {SORT_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={optionItemClass}
-                      onClick={() => {
-                        setSort(option.value);
-                        setSortOpen(false);
-                      }}
-                    >
-                      <CheckIcon
-                        className={cn(
-                          "size-4 shrink-0",
-                          sort === option.value ? "opacity-100" : "opacity-0",
-                        )}
-                      />
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
 
-            <Button
-              render={<Link href="/products/new" />}
-              size="sm"
-              className={addProductsButtonClass}
-            >
-              <PlusIcon data-icon="inline-start" />
-              Add products
-            </Button>
-          </div>
-        </div>
-      }
-    >
+        <Button
+          render={<Link href="/products/new" />}
+          size="sm"
+          className={addProductsButtonClass}
+        >
+          <PlusIcon data-icon="inline-start" />
+          Add products
+        </Button>
+      </CatalogHeaderActions>
       <div className="mx-auto max-w-[1600px] px-4 py-6">
         {filtered.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border px-4 py-16 text-center">

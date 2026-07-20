@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { WorkspacePlan } from "@/domain";
 import {
   ANNUAL_DISCOUNT,
   GROWTH_AI_MARKUP,
@@ -8,6 +9,7 @@ import {
   getEntitlements,
   includedUsageCentsForSeats,
   nextUpgradePlan,
+  normalizeWorkspacePlan,
   priceCentsPerSeat,
 } from "@/lib/billing/entitlements";
 
@@ -45,6 +47,15 @@ describe("plan entitlements", () => {
       canSpendAndLaunch: true,
       allowUsageTopOff: true,
       badgeColor: "green",
+    });
+  });
+
+  it("maps legacy hobby plan ids to Growth entitlements", () => {
+    expect(normalizeWorkspacePlan("hobby")).toBe("growth");
+    expect(getEntitlements("hobby" as WorkspacePlan)).toMatchObject({
+      plan: "growth",
+      maxCreativesPerCampaign: 3,
+      canSpendAndLaunch: true,
     });
   });
 

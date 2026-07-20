@@ -64,6 +64,10 @@ import {
 import { CreativeCardFromId } from "@/features/creatives/creative-card-from-id";
 import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 import {
+  isPaidPlan,
+  normalizeWorkspacePlan,
+} from "@/lib/billing/entitlements";
+import {
   openVisualizationTab,
   upsertVisualization,
 } from "@/features/visualizer/visualization-store";
@@ -185,6 +189,16 @@ function extractCreativeToolErrors(message: UIMessage): string[] {
     }
   }
   return errors;
+}
+
+function formatCreativeToolError(err: string, plan: string | undefined): string {
+  const looksLikePlanGate =
+    /upgrade to continue/i.test(err) || /creatives require/i.test(err);
+  const normalized = normalizeWorkspacePlan(plan);
+  if (looksLikePlanGate && isPaidPlan(normalized)) {
+    return `${err} Your workspace is on ${normalized === "pro" ? "Pro" : "Growth"} now — start a new chat and ask again so the agent retries.`;
+  }
+  return err;
 }
 
 const menuItemClass =
@@ -1037,7 +1051,10 @@ export function AgentComposer({
                                       key={err}
                                       className="mt-2 rounded-md border border-destructive/30 bg-destructive/5 px-2.5 py-2 text-[12px] text-destructive"
                                     >
-                                      {err}
+                                      {formatCreativeToolError(
+                                        err,
+                                        walletCtx?.plan,
+                                      )}
                                     </p>
                                   ))}
                                   {creativeIds.map((id) => (

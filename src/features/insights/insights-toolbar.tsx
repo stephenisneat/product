@@ -20,7 +20,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { UpgradeButton } from "@/features/billing/upgrade-button";
-import { CatalogNav } from "@/features/products/catalog-toolbar";
+import { CatalogHeaderActions } from "@/features/products/catalog-toolbar";
 import { cn } from "@/lib/utils";
 
 const optionItemClass =
@@ -46,126 +46,117 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "title-desc", label: "Title Z–A" },
 ];
 
-export function InsightsToolbar({
-  plan = "free",
-  workspaceId,
-}: {
-  plan?: WorkspacePlan;
-  workspaceId: string;
-}) {
+export function InsightsToolbar({ plan = "free" }: { plan?: WorkspacePlan }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortKey>("newest");
   const [sortOpen, setSortOpen] = useState(false);
   const showUnlock = plan !== "pro";
 
   return (
-    <div className="flex w-full flex-wrap items-center gap-2">
-      <CatalogNav workspaceId={workspaceId} />
-      <div className="ml-auto flex flex-wrap items-center gap-2">
-        <Popover>
-          <PopoverTrigger
-            render={
-              <Button
+    <CatalogHeaderActions>
+      <Popover>
+        <PopoverTrigger
+          render={
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              className="aspect-square"
+              aria-label="Filter insights"
+            />
+          }
+        >
+          <ListFilterIcon />
+        </PopoverTrigger>
+        <PopoverContent align="end" className="min-w-48 p-2">
+          <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
+            Status
+          </p>
+          <div className="space-y-0.5">
+            {STATUS_FILTERS.map((option) => (
+              <button
+                key={option.value}
                 type="button"
-                variant="outline"
-                size="icon-sm"
-                className="aspect-square"
-                aria-label="Filter insights"
-              />
-            }
-          >
-            <ListFilterIcon />
-          </PopoverTrigger>
-          <PopoverContent align="end" className="min-w-48 p-2">
-            <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
-              Status
-            </p>
-            <div className="space-y-0.5">
-              {STATUS_FILTERS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={optionItemClass}
-                  onClick={() => setStatusFilter(option.value)}
-                >
-                  <CheckIcon
-                    className={cn(
-                      "size-4 shrink-0",
-                      statusFilter === option.value
-                        ? "opacity-100"
-                        : "opacity-0",
-                    )}
-                  />
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        <Popover open={sortOpen} onOpenChange={setSortOpen}>
-          <PopoverTrigger
-            render={
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                className="aspect-square"
-                aria-label="Sort insights"
-              />
-            }
-          >
-            <ArrowUpDownIcon />
-          </PopoverTrigger>
-          <PopoverContent align="end" className="min-w-48 p-2">
-            <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
-              Sort by
-            </p>
-            <div className="space-y-0.5">
-              {SORT_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={optionItemClass}
-                  onClick={() => {
-                    setSort(option.value);
-                    setSortOpen(false);
-                  }}
-                >
-                  <CheckIcon
-                    className={cn(
-                      "size-4 shrink-0",
-                      sort === option.value ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        {showUnlock ? (
-          <Tooltip>
-            <TooltipTrigger
-              delay={50}
-              closeOnClick={false}
-              render={
-                <UpgradeButton
-                  size="sm"
-                  className={insightsCtaButtonClass}
+                className={optionItemClass}
+                onClick={() => setStatusFilter(option.value)}
+              >
+                <CheckIcon
+                  className={cn(
+                    "size-4 shrink-0",
+                    statusFilter === option.value
+                      ? "opacity-100"
+                      : "opacity-0",
+                  )}
                 />
-              }
-            >
-              <LockOpenIcon data-icon="inline-start" />
-              Unlock insights
-            </TooltipTrigger>
-            <TooltipContent side="bottom" align="end">
-              Insights are included on the Pro plan.
-            </TooltipContent>
-          </Tooltip>
-        ) : null}
-      </div>
-    </div>
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      <Popover open={sortOpen} onOpenChange={setSortOpen}>
+        <PopoverTrigger
+          render={
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              className="aspect-square"
+              aria-label="Sort insights"
+            />
+          }
+        >
+          <ArrowUpDownIcon />
+        </PopoverTrigger>
+        <PopoverContent align="end" className="min-w-48 p-2">
+          <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
+            Sort by
+          </p>
+          <div className="space-y-0.5">
+            {SORT_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={optionItemClass}
+                onClick={() => {
+                  setSort(option.value);
+                  setSortOpen(false);
+                }}
+              >
+                <CheckIcon
+                  className={cn(
+                    "size-4 shrink-0",
+                    sort === option.value ? "opacity-100" : "opacity-0",
+                  )}
+                />
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {showUnlock ? (
+        <Tooltip>
+          <TooltipTrigger
+            delay={50}
+            closeOnClick={false}
+            render={
+              <UpgradeButton
+                size="sm"
+                className={insightsCtaButtonClass}
+              />
+            }
+          >
+            <LockOpenIcon data-icon="inline-start" />
+            Unlock insights
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="end">
+            Insights are included on the Pro plan.
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
+    </CatalogHeaderActions>
   );
 }
