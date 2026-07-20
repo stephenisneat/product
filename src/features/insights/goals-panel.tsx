@@ -127,11 +127,8 @@ export function GoalsPanel({
   }
 
   return (
-    <section className="mb-8 space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="font-heading text-base font-semibold tracking-tight">
-          Goals
-        </h2>
+    <div className="space-y-3">
+      <div className="flex items-center justify-end gap-2">
         <Button
           type="button"
           size="sm"
@@ -365,6 +362,6 @@ export function GoalsPanel({
           ) : null}
         </div>
       )}
-    </section>
+    </div>
   );
 }

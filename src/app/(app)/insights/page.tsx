@@ -29,7 +29,6 @@ export default async function InsightsPage() {
       <PageCanvas>
         <InsightsPageClient
           plan={plan}
-          workspaceName={active.workspace.name}
           locked
           goals={[]}
           insights={[]}
@@ -55,7 +54,6 @@ export default async function InsightsPage() {
     <PageCanvas>
       <InsightsPageClient
         plan={plan}
-        workspaceName={active.workspace.name}
         locked={false}
         goals={goals}
         insights={insights}

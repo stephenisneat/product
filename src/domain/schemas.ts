@@ -561,6 +561,41 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   billingAlerts: true,
   marketing: false,
 };
+
+export const insightGoalModeSchema = z.enum(["auto", "manual"]);
+export type InsightGoalMode = z.infer<typeof insightGoalModeSchema>;
+
+export const insightHeartbeatScheduleSchema = z.enum([
+  "daily",
+  "weekly",
+  "off",
+]);
+export type InsightHeartbeatSchedule = z.infer<
+  typeof insightHeartbeatScheduleSchema
+>;
+
+export const insightSettingsSchema = z.object({
+  goalMode: insightGoalModeSchema,
+  triggers: z.object({
+    job: z.boolean(),
+    agent: z.boolean(),
+    heartbeat: z.boolean(),
+    api: z.boolean(),
+  }),
+  heartbeatSchedule: insightHeartbeatScheduleSchema,
+});
+export type InsightSettings = z.infer<typeof insightSettingsSchema>;
+
+export const DEFAULT_INSIGHT_SETTINGS: InsightSettings = {
+  goalMode: "auto",
+  triggers: {
+    job: true,
+    agent: true,
+    heartbeat: true,
+    api: true,
+  },
+  heartbeatSchedule: "daily",
+};
 export const walletTransactionTypeSchema = z.enum([
   "credit_purchase",
   "auto_reload",
