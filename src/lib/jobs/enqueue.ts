@@ -26,6 +26,7 @@ import { hasServiceRole } from "@/lib/supabase/service";
 import {
   getCreativeWriteRepository,
   getJobWriteRepository,
+  getProductWriteRepository,
 } from "@/repositories";
 import type { createCampaignTask } from "@/trigger/create-campaign";
 import type { generateCreativeStageTask } from "@/trigger/generate-creative-stage";
@@ -199,6 +200,31 @@ export async function enqueueGenerateCreativeStageJob(
   }
 }
 
+/**
+ * Keep campaign_id only when it exists for this product.
+ * Agents often invent campaign ids; an invalid FK would fail the insert.
+ */
+async function resolveCreativeCampaignId(
+  productId: string,
+  campaignId: string | null | undefined,
+): Promise<string | null> {
+  const trimmed = campaignId?.trim() || null;
+  if (!trimmed) return null;
+
+  const products = getProductWriteRepository();
+  const campaigns = await products.listCampaigns(productId);
+  if (campaigns.some((c) => c.id === trimmed)) return trimmed;
+
+  console.warn(
+    JSON.stringify({
+      context: "startVideoCreative.invalid_campaign_id",
+      productId,
+      campaignId: trimmed,
+    }),
+  );
+  return null;
+}
+
 /** Create a video creative and enqueue screenplay generation. */
 export async function startVideoCreative(
   opts: StartVideoCreativeInput,
@@ -210,9 +236,13 @@ export async function startVideoCreative(
   }
 
   const creatives = getCreativeWriteRepository();
+  const campaignId = await resolveCreativeCampaignId(
+    opts.productId,
+    opts.campaignId,
+  );
 
-  if (opts.campaignId) {
-    const count = await creatives.countByCampaign(opts.campaignId);
+  if (campaignId) {
+    const count = await creatives.countByCampaign(campaignId);
     assertCanCreateCreative(opts.plan, count);
   } else {
     assertCanCreateCreative(opts.plan, 0);
@@ -221,7 +251,7 @@ export async function startVideoCreative(
   const creative = await creatives.create({
     workspaceId: opts.workspaceId,
     productId: opts.productId,
-    campaignId: opts.campaignId ?? null,
+    campaignId,
     title: opts.title,
     brief: opts.brief,
     stage: "screenplay",
