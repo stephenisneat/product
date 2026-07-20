@@ -5,6 +5,7 @@ import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { PlanEntitlementError } from "@/lib/billing/gates";
 import { normalizeWorkspacePlan } from "@/lib/billing/entitlements";
 import { logServerError, unknownErrorMessage } from "@/lib/errors";
+import { reconcileCreativesAgainstTrigger } from "@/lib/jobs/creative-job-controls";
 import { startVideoCreative } from "@/lib/jobs/enqueue";
 import { hasServiceRole } from "@/lib/supabase/service";
 import { getCreativeRepository, getProductRepository } from "@/repositories";
@@ -32,6 +33,16 @@ export async function GET() {
 
   const creatives = await getCreativeRepository();
   const list = await creatives.listByWorkspace(active.workspace.id);
+  if (hasServiceRole() && list.some((c) => c.status === "generating")) {
+    try {
+      const reconciled = await reconcileCreativesAgainstTrigger(list);
+      return NextResponse.json({ creatives: reconciled });
+    } catch (err) {
+      logServerError("api.creatives.list.reconcile", err, {
+        workspaceId: active.workspace.id,
+      });
+    }
+  }
   return NextResponse.json({ creatives: list });
 }
 

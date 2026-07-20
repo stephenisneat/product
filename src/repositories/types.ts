@@ -136,6 +136,7 @@ export interface CreativeRepository {
   getById(id: string): Promise<Creative | null>;
   create(input: CreativeCreateInput): Promise<Creative>;
   update(id: string, patch: CreativeUpdateInput): Promise<Creative>;
+  delete(id: string): Promise<void>;
 }
 
 export interface WorkspaceRepository {

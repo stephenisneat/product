@@ -67,7 +67,13 @@ export function CreativesList({
               {productTitleById[creative.productId] ?? "Product"}
             </Badge>
           </div>
-          <CreativeCard creative={creative} pollWhileGenerating={false} />
+          <CreativeCard
+            creative={creative}
+            pollWhileGenerating={false}
+            onDeleted={(id) =>
+              setCreatives((prev) => prev.filter((c) => c.id !== id))
+            }
+          />
         </li>
       ))}
     </ul>

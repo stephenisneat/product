@@ -292,6 +292,9 @@ export async function resubmitCreativeStage(opts: {
   if (creative.status === "generating") {
     throw new Error("Generation is already in progress.");
   }
+  if (creative.status === "paused") {
+    throw new Error("Resume the paused creative instead of revising.");
+  }
 
   const stage: CreativeStage = creative.stage;
   const patch: {

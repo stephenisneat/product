@@ -37,21 +37,43 @@ export function payloadFromGenerateCreativeStageInput(
   };
 }
 
+async function wasCanceled(jobRunId: string): Promise<boolean> {
+  const jobs = getJobWriteRepository();
+  const job = await jobs.getById(jobRunId);
+  return job?.status === "canceled";
+}
+
 export async function runGenerateCreativeStageJob(
   payload: GenerateCreativeStageJobPayload,
-): Promise<{ creativeId: string; stage: CreativeStage }> {
+): Promise<{ creativeId: string; stage: CreativeStage } | null> {
   assertTriggerJobEnv();
 
   const jobs = getJobWriteRepository();
   const creatives = getCreativeWriteRepository();
   const products = getProductWriteRepository();
 
+  const existing = await jobs.getById(payload.jobRunId);
+  // Canceled wins; allow retries after a prior failed attempt.
+  if (existing?.status === "canceled" || existing?.status === "succeeded") {
+    return null;
+  }
+
   await jobs.update(payload.jobRunId, {
     status: "running",
-    startedAt: new Date().toISOString(),
+    startedAt: existing?.startedAt ?? new Date().toISOString(),
+  });
+
+  // Heal pause/fail side-effects if Trigger retries this attempt.
+  await creatives.update(payload.creativeId, {
+    status: "generating",
+    activeJobId: payload.jobRunId,
   });
 
   try {
+    if (await wasCanceled(payload.jobRunId)) {
+      return null;
+    }
+
     const creative = await creatives.getById(payload.creativeId);
     if (!creative || creative.workspaceId !== payload.workspaceId) {
       throw new Error("Creative not found in workspace.");
@@ -64,6 +86,10 @@ export async function runGenerateCreativeStageJob(
 
     // Simulate async generation latency for stub pipeline.
     await sleep(800);
+
+    if (await wasCanceled(payload.jobRunId)) {
+      return null;
+    }
 
     const feedback = creative.revisionFeedback?.trim() || "";
     const briefForGen = feedback
@@ -111,6 +137,11 @@ export async function runGenerateCreativeStageJob(
       });
     }
 
+    if (await wasCanceled(payload.jobRunId)) {
+      // UI/Trigger cancel won the race — do not mark succeeded.
+      return null;
+    }
+
     const result = {
       creativeId: payload.creativeId,
       stage: payload.stage,
@@ -136,6 +167,10 @@ export async function runGenerateCreativeStageJob(
 
     return result;
   } catch (err) {
+    if (await wasCanceled(payload.jobRunId)) {
+      return null;
+    }
+
     const message =
       err instanceof Error ? err.message : "Creative generation job failed.";
     await jobs.update(payload.jobRunId, {
@@ -144,8 +179,9 @@ export async function runGenerateCreativeStageJob(
       finishedAt: new Date().toISOString(),
     });
     try {
+      // Park as paused so the user can resume after a hard failure.
       await creatives.update(payload.creativeId, {
-        status: "awaiting_review",
+        status: "paused",
         activeJobId: null,
       });
     } catch {
