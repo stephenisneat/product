@@ -2,23 +2,18 @@
 
 import { validateAvatarFile, extensionForAvatar } from "@/lib/avatars/validate";
 
-export {
-  validateAvatarFile as validateWorkspaceAvatarFile,
-  extensionForAvatar,
-};
-
-export async function uploadWorkspaceAvatar(
-  workspaceId: string,
+export async function uploadUserAvatar(
+  userId: string,
   file: File,
 ): Promise<string> {
   validateAvatarFile(file);
 
   const { createClient } = await import("@/lib/supabase/client");
   const supabase = createClient();
-  const path = `${workspaceId}/avatar/${crypto.randomUUID().slice(0, 8)}.${extensionForAvatar(file)}`;
+  const path = `${userId}/avatar/${crypto.randomUUID().slice(0, 8)}.${extensionForAvatar(file)}`;
 
   const { error } = await supabase.storage
-    .from("workspace-assets")
+    .from("user-assets")
     .upload(path, file, {
       cacheControl: "3600",
       contentType: file.type,
@@ -28,6 +23,6 @@ export async function uploadWorkspaceAvatar(
     throw new Error(error.message || "Failed to upload avatar");
   }
 
-  const { data } = supabase.storage.from("workspace-assets").getPublicUrl(path);
+  const { data } = supabase.storage.from("user-assets").getPublicUrl(path);
   return data.publicUrl;
 }

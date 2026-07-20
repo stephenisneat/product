@@ -12,6 +12,7 @@ import {
   PlanEntitlementError,
   assertCanCreateCreative,
 } from "@/lib/billing/gates";
+import { logServerError, unknownErrorMessage } from "@/lib/errors";
 import {
   payloadFromCreateCampaignInput,
   runCreateCampaignJob,
@@ -103,14 +104,17 @@ export async function enqueueCreateCampaignJob(
     );
     return jobs.update(run.id, { triggerRunId: handle.id });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to trigger job.";
+    const message = unknownErrorMessage(err, "Failed to trigger job.");
+    logServerError("enqueueCreateCampaignJob.trigger", err, {
+      jobRunId: run.id,
+      workspaceId: opts.workspaceId,
+    });
     await jobs.update(run.id, {
       status: "failed",
       error: message,
       finishedAt: new Date().toISOString(),
     });
-    throw err;
+    throw new Error(message, { cause: err });
   }
 }
 
@@ -174,8 +178,14 @@ export async function enqueueGenerateCreativeStageJob(
     );
     return jobs.update(run.id, { triggerRunId: handle.id });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to trigger job.";
+    const message = unknownErrorMessage(err, "Failed to trigger job.");
+    logServerError("enqueueGenerateCreativeStageJob.trigger", err, {
+      jobRunId: run.id,
+      workspaceId: opts.workspaceId,
+      creativeId: opts.input.creativeId,
+      stage: opts.input.stage,
+      hasTriggerSecret: hasTriggerSecret(),
+    });
     await jobs.update(run.id, {
       status: "failed",
       error: message,
@@ -185,7 +195,7 @@ export async function enqueueGenerateCreativeStageJob(
       status: "awaiting_review",
       activeJobId: null,
     });
-    throw err;
+    throw new Error(message, { cause: err });
   }
 }
 
@@ -234,11 +244,19 @@ export async function startVideoCreative(
     return { creative: refreshed ?? creative, job };
   } catch (err) {
     if (err instanceof PlanEntitlementError) throw err;
+    const message = unknownErrorMessage(err, "Failed to start video creative.");
+    logServerError("startVideoCreative", err, {
+      creativeId: creative.id,
+      workspaceId: opts.workspaceId,
+      productId: opts.productId,
+      plan: opts.plan,
+      hasTriggerSecret: hasTriggerSecret(),
+    });
     await creatives.update(creative.id, {
       status: "rejected",
       activeJobId: null,
     });
-    throw err;
+    throw new Error(message, { cause: err });
   }
 }
 

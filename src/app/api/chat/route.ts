@@ -40,6 +40,7 @@ import {
   resubmitInsight,
   startInsightGeneration,
 } from "@/lib/jobs/enqueue-insight";
+import { logServerError, unknownErrorMessage } from "@/lib/errors";
 import { hasServiceRole } from "@/lib/supabase/service";
 import { assertWalletAllowsAi, chargeAiUsage } from "@/lib/wallet/gate";
 import {
@@ -632,12 +633,17 @@ export async function POST(req: Request) {
               if (err instanceof PlanEntitlementError) {
                 return { ok: false, error: err.message, code: err.code };
               }
+              logServerError("chat.create_video_creative", err, {
+                workspaceId: active.workspace.id,
+                productId,
+                plan,
+              });
               return {
                 ok: false,
-                error:
-                  err instanceof Error
-                    ? err.message
-                    : "Failed to start video creative.",
+                error: unknownErrorMessage(
+                  err,
+                  "Failed to start video creative.",
+                ),
               };
             }
           },
@@ -675,12 +681,16 @@ export async function POST(req: Request) {
                 message: `Resubmitted ${creative.stage} generation for "${creative.title}".`,
               };
             } catch (err) {
+              logServerError("chat.resubmit_creative", err, {
+                workspaceId: active.workspace.id,
+                creativeId: input.creativeId,
+              });
               return {
                 ok: false,
-                error:
-                  err instanceof Error
-                    ? err.message
-                    : "Failed to resubmit creative.",
+                error: unknownErrorMessage(
+                  err,
+                  "Failed to resubmit creative.",
+                ),
               };
             }
           },
@@ -1049,12 +1059,17 @@ export async function POST(req: Request) {
             if (err instanceof PlanEntitlementError) {
               return { ok: false, error: err.message, code: err.code };
             }
+            logServerError("chat.create_video_creative", err, {
+              workspaceId: activeWorkspace.workspace.id,
+              productId: input.productId,
+              plan,
+            });
             return {
               ok: false,
-              error:
-                err instanceof Error
-                  ? err.message
-                  : "Failed to start video creative.",
+              error: unknownErrorMessage(
+                err,
+                "Failed to start video creative.",
+              ),
             };
           }
         },
@@ -1092,12 +1107,16 @@ export async function POST(req: Request) {
               message: `Resubmitted ${creative.stage} generation for "${creative.title}".`,
             };
           } catch (err) {
+            logServerError("chat.resubmit_creative", err, {
+              workspaceId: activeWorkspace.workspace.id,
+              creativeId: input.creativeId,
+            });
             return {
               ok: false,
-              error:
-                err instanceof Error
-                  ? err.message
-                  : "Failed to resubmit creative.",
+              error: unknownErrorMessage(
+                err,
+                "Failed to resubmit creative.",
+              ),
             };
           }
         },

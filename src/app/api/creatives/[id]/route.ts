@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { nextStageAfterAccept } from "@/lib/jobs/creative-stubs";
 import { enqueueGenerateCreativeStageJob } from "@/lib/jobs/enqueue";
+import { logServerError, unknownErrorMessage } from "@/lib/errors";
 import { hasServiceRole } from "@/lib/supabase/service";
 import { getCreativeRepository } from "@/repositories";
 
@@ -152,10 +153,13 @@ export async function PATCH(
       jobId: job.id,
     });
   } catch (err) {
+    logServerError("api.creatives.accept.next_stage", err, {
+      creativeId: existing.id,
+      stage: nextStage,
+    });
     return NextResponse.json(
       {
-        error:
-          err instanceof Error ? err.message : "Failed to start next stage.",
+        error: unknownErrorMessage(err, "Failed to start next stage."),
       },
       { status: 500 },
     );
