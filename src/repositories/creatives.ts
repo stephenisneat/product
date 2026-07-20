@@ -295,4 +295,15 @@ export class SupabaseCreativeRepository {
     const [creative] = await this.attachCampaignIds([data as DbCreative]);
     return creative!;
   }
+
+  async delete(id: string): Promise<void> {
+    const { error: linkError } = await this.client
+      .from("creative_campaigns")
+      .delete()
+      .eq("creative_id", id);
+    if (linkError) throw linkError;
+
+    const { error } = await this.client.from("creatives").delete().eq("id", id);
+    if (error) throw error;
+  }
 }

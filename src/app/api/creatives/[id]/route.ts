@@ -9,6 +9,12 @@ import {
   assertCanLinkCreativesToCampaigns,
   resolveProductCampaignIds,
 } from "@/lib/campaigns/associate";
+import {
+  deleteCreativeWithJob,
+  pauseCreativeGeneration,
+  reconcileCreativeAgainstTrigger,
+  resumeCreativeGeneration,
+} from "@/lib/jobs/creative-job-controls";
 import { nextStageAfterAccept } from "@/lib/jobs/creative-stubs";
 import { enqueueGenerateCreativeStageJob } from "@/lib/jobs/enqueue";
 import { logServerError, unknownErrorMessage } from "@/lib/errors";
@@ -31,6 +37,12 @@ const patchSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("set_campaigns"),
     campaignIds: z.array(z.string().min(1)),
+  }),
+  z.object({
+    action: z.literal("pause"),
+  }),
+  z.object({
+    action: z.literal("resume"),
   }),
 ]);
 
@@ -64,7 +76,54 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  if (creative.status === "generating" && hasServiceRole()) {
+    try {
+      const reconciled = await reconcileCreativeAgainstTrigger(creative);
+      return NextResponse.json({ creative: reconciled });
+    } catch (err) {
+      logServerError("api.creatives.get.reconcile", err, { creativeId: id });
+    }
+  }
+
   return NextResponse.json({ creative });
+}
+
+export async function DELETE(
+  _req: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const active = await getActiveWorkspace();
+  if (!active) {
+    return NextResponse.json({ error: "No workspace available" }, { status: 400 });
+  }
+
+  if (!hasServiceRole()) {
+    return NextResponse.json(
+      { error: "Jobs service is not configured." },
+      { status: 503 },
+    );
+  }
+
+  const { id } = await context.params;
+  try {
+    await deleteCreativeWithJob({
+      workspaceId: active.workspace.id,
+      creativeId: id,
+    });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const message = unknownErrorMessage(err, "Failed to delete creative.");
+    if (message.includes("not found")) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    logServerError("api.creatives.delete", err, { creativeId: id });
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 export async function PATCH(
@@ -94,6 +153,53 @@ export async function PATCH(
   }
 
   const { action } = parsed.data;
+
+  if (action === "pause") {
+    if (!hasServiceRole()) {
+      return NextResponse.json(
+        { error: "Jobs service is not configured." },
+        { status: 503 },
+      );
+    }
+    try {
+      const { creative, job } = await pauseCreativeGeneration({
+        workspaceId: active.workspace.id,
+        creativeId: id,
+      });
+      return NextResponse.json({ creative, jobId: job?.id ?? null });
+    } catch (err) {
+      const message = unknownErrorMessage(err, "Failed to pause.");
+      if (message.includes("Only generating")) {
+        return NextResponse.json({ error: message }, { status: 409 });
+      }
+      logServerError("api.creatives.pause", err, { creativeId: id });
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  }
+
+  if (action === "resume") {
+    if (!hasServiceRole()) {
+      return NextResponse.json(
+        { error: "Jobs service is not configured." },
+        { status: 503 },
+      );
+    }
+    try {
+      const { creative, job } = await resumeCreativeGeneration({
+        workspaceId: active.workspace.id,
+        creativeId: id,
+        createdBy: user.id,
+      });
+      return NextResponse.json({ creative, jobId: job.id });
+    } catch (err) {
+      const message = unknownErrorMessage(err, "Failed to resume.");
+      if (message.includes("Only paused")) {
+        return NextResponse.json({ error: message }, { status: 409 });
+      }
+      logServerError("api.creatives.resume", err, { creativeId: id });
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  }
 
   if (action === "set_campaigns") {
     try {
@@ -130,10 +236,11 @@ export async function PATCH(
   if (action === "reject") {
     if (
       existing.status !== "awaiting_review" &&
-      existing.status !== "revising"
+      existing.status !== "revising" &&
+      existing.status !== "paused"
     ) {
       return NextResponse.json(
-        { error: "Only reviewable creatives can be rejected." },
+        { error: "Only reviewable or paused creatives can be rejected." },
         { status: 409 },
       );
     }

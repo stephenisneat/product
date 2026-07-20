@@ -658,6 +658,7 @@ export const creativeStatusSchema = z.enum([
   "generating",
   "awaiting_review",
   "revising",
+  "paused",
   "rejected",
   "ready",
 ]);

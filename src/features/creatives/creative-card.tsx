@@ -31,6 +31,8 @@ function statusLabel(status: Creative["status"]): string {
       return "Awaiting review";
     case "revising":
       return "Revising";
+    case "paused":
+      return "Paused";
     case "rejected":
       return "Rejected";
     case "ready":
@@ -108,6 +110,14 @@ function CreativePreview({ creative }: { creative: Creative }) {
     );
   }
 
+  if (creative.status === "paused") {
+    return (
+      <p className="mt-3 text-xs text-muted-foreground">
+        Generation paused. Resume to continue {stageLabel(creative.stage).toLowerCase()}.
+      </p>
+    );
+  }
+
   return (
     <p className="mt-3 text-xs text-muted-foreground">
       No {stageLabel(creative.stage).toLowerCase()} output yet.
@@ -119,10 +129,12 @@ export function CreativeCard({
   creative: initial,
   compact = false,
   pollWhileGenerating = true,
+  onDeleted,
 }: {
   creative: Creative;
   compact?: boolean;
   pollWhileGenerating?: boolean;
+  onDeleted?: (id: string) => void;
 }) {
   const router = useRouter();
   const { setComposePrefill } = useAgentContext();
@@ -167,7 +179,9 @@ export function CreativeCard({
     router,
   ]);
 
-  async function mutate(action: "accept" | "reject" | "revise") {
+  async function mutate(
+    action: "accept" | "reject" | "revise" | "pause" | "resume",
+  ) {
     setError(null);
     const res = await fetch(`/api/creatives/${creative.id}`, {
       method: "PATCH",
@@ -201,7 +215,30 @@ export function CreativeCard({
     startTransition(() => router.refresh());
   }
 
+  async function removeCreative() {
+    setError(null);
+    const res = await fetch(`/api/creatives/${creative.id}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      setError(body?.error ?? "Delete failed");
+      return;
+    }
+    onDeleted?.(creative.id);
+    startTransition(() => {
+      if (!onDeleted) {
+        router.push("/creatives");
+      }
+      router.refresh();
+    });
+  }
+
   const canReview = creative.status === "awaiting_review";
+  const canControlJob =
+    creative.status === "generating" || creative.status === "paused";
 
   return (
     <article
@@ -247,6 +284,38 @@ export function CreativeCard({
       <CreativePreview creative={creative} />
 
       {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
+
+      {canControlJob ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {creative.status === "generating" ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              onClick={() => void mutate("pause")}
+            >
+              Pause
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              disabled={pending}
+              onClick={() => void mutate("resume")}
+            >
+              Resume
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-destructive hover:text-destructive"
+            disabled={pending}
+            onClick={() => void removeCreative()}
+          >
+            Delete
+          </Button>
+        </div>
+      ) : null}
 
       {canReview ? (
         <div className="mt-3 space-y-2">
@@ -307,6 +376,15 @@ export function CreativeCard({
                 Revise
               </Button>
             )}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              disabled={pending}
+              onClick={() => void removeCreative()}
+            >
+              Delete
+            </Button>
           </div>
         </div>
       ) : null}
