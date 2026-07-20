@@ -3,7 +3,6 @@
 import { useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { PageCanvas } from "@/components/layout/page-canvas";
-import { CatalogNav } from "@/features/products/catalog-toolbar";
 import { VisualizationTabs } from "@/features/visualizer/visualization-tabs";
 import { setLastVisualizerPath } from "@/features/visualizer/visualization-store";
 
@@ -27,10 +26,7 @@ export function VisualizerShell({
   }, [pathname, workspaceId]);
 
   return (
-    <PageCanvas
-      header={<CatalogNav workspaceId={workspaceId} />}
-      contentClassName="flex flex-col overflow-hidden"
-    >
+    <PageCanvas contentClassName="flex flex-col overflow-hidden">
       <VisualizationTabs workspaceId={workspaceId} />
       <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
     </PageCanvas>

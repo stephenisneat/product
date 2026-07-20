@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import type { JobRun } from "@/domain";
 import { PageCanvas } from "@/components/layout/page-canvas";
-import { CatalogNav } from "@/features/products/catalog-toolbar";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { getJobRepository, getProductRepository } from "@/repositories";
@@ -110,7 +109,7 @@ export default async function JobsPage() {
   }
 
   return (
-    <PageCanvas header={<CatalogNav workspaceId={active.workspace.id} />}>
+    <PageCanvas>
       <div className="mx-auto w-full max-w-3xl px-4 py-6">
         <div className="mb-6">
           <h1 className="font-heading text-xl font-semibold tracking-tight">

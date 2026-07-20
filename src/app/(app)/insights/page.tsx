@@ -22,9 +22,8 @@ export default async function InsightsPage() {
   const locked = !getEntitlements(plan).hasInsights;
 
   return (
-    <PageCanvas
-      header={<InsightsToolbar plan={plan} workspaceId={active.workspace.id} />}
-    >
+    <PageCanvas>
+      <InsightsToolbar plan={plan} />
       <div className="mx-auto w-full max-w-3xl px-4 py-6">
         <p className="mb-6 text-sm text-muted-foreground">
           Product and marketing insights for {active.workspace.name}.

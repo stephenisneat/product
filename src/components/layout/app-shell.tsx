@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import type { AppUser, WorkspaceRole } from "@/domain";
@@ -9,6 +9,11 @@ import { AppHeader } from "@/components/layout/app-header";
 import { AgentContextProvider } from "@/features/agent/agent-context";
 import { WalletProvider, useWallet } from "@/features/wallet/wallet-context";
 import { UpgradeProvider } from "@/features/billing/upgrade-context";
+import {
+  CatalogHeaderActionsProvider,
+  CatalogNav,
+  isCatalogNavPath,
+} from "@/features/products/catalog-toolbar";
 import { rememberSettingsReturnPath } from "@/features/settings/return-path";
 import type { WorkspaceWithRole } from "@/repositories/types";
 
@@ -63,12 +68,19 @@ function AppShellFrame({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const [catalogActionsNode, setCatalogActionsNode] =
+    useState<HTMLElement | null>(null);
+  const showCatalogNav = isCatalogNavPath(pathname);
 
   useEffect(() => {
     rememberSettingsReturnPath(
       `${window.location.pathname}${window.location.search}`,
     );
   }, [pathname]);
+
+  useEffect(() => {
+    if (!showCatalogNav) setCatalogActionsNode(null);
+  }, [showCatalogNav]);
 
   return (
     <div className="flex h-svh flex-col overflow-hidden bg-black">
@@ -80,7 +92,26 @@ function AppShellFrame({
       />
       <div className="flex min-h-0 flex-1 gap-2 px-3 pb-3">
         <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-canvas">
-          {children}
+          <CatalogHeaderActionsProvider actionsNode={catalogActionsNode}>
+            {showCatalogNav ? (
+              <>
+                <div className="absolute top-0 z-10 flex h-12 w-full items-center border-b border-border bg-canvas/95 px-4 backdrop-blur supports-backdrop-filter:bg-canvas/80">
+                  <div className="flex w-full flex-wrap items-center gap-2">
+                    <CatalogNav workspaceId={activeWorkspaceId} />
+                    <div
+                      ref={setCatalogActionsNode}
+                      className="ml-auto flex flex-wrap items-center gap-2"
+                    />
+                  </div>
+                </div>
+                <div className="absolute inset-x-0 top-12 bottom-0 min-h-0 overflow-hidden">
+                  {children}
+                </div>
+              </>
+            ) : (
+              children
+            )}
+          </CatalogHeaderActionsProvider>
         </main>
         <aside className="relative hidden min-h-0 w-[360px] shrink-0 overflow-visible lg:block xl:w-[400px]">
           <AgentComposer user={user} workspaceId={activeWorkspaceId} />

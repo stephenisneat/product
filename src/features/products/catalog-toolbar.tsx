@@ -1,6 +1,13 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -44,6 +51,32 @@ const catalogPages = [
     icon: BriefcaseIcon,
   },
 ] as const;
+
+const CatalogHeaderActionsContext = createContext<HTMLElement | null>(null);
+
+export function isCatalogNavPath(pathname: string) {
+  return catalogPages.some(({ href }) => isCatalogNavActive(pathname, href));
+}
+
+export function CatalogHeaderActionsProvider({
+  actionsNode,
+  children,
+}: {
+  actionsNode: HTMLElement | null;
+  children: ReactNode;
+}) {
+  return (
+    <CatalogHeaderActionsContext.Provider value={actionsNode}>
+      {children}
+    </CatalogHeaderActionsContext.Provider>
+  );
+}
+
+export function CatalogHeaderActions({ children }: { children: ReactNode }) {
+  const slot = useContext(CatalogHeaderActionsContext);
+  if (!slot) return null;
+  return createPortal(children, slot);
+}
 
 const toolbarOnlyPages = [
   {
