@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { SupabaseCreativeRepository } from "./creatives";
+import { SupabaseGoalRepository } from "./goals";
+import { SupabaseInsightRepository } from "./insights";
 import { SupabaseJobRepository } from "./jobs";
 import { SupabaseArtifactRepository, SupabaseProductRepository } from "./supabase";
 import { SupabaseWalletRepository } from "./wallet";
@@ -36,6 +38,26 @@ export async function getCreativeRepository(): Promise<CreativeRepository> {
 /** Service-role creative writes for background jobs. */
 export function getCreativeWriteRepository(): CreativeRepository {
   return new SupabaseCreativeRepository(createServiceClient());
+}
+
+export async function getGoalRepository(): Promise<SupabaseGoalRepository> {
+  const client = await createClient();
+  return new SupabaseGoalRepository(client);
+}
+
+/** Service-role goal reads/writes for background jobs. */
+export function getGoalWriteRepository(): SupabaseGoalRepository {
+  return new SupabaseGoalRepository(createServiceClient());
+}
+
+export async function getInsightRepository(): Promise<SupabaseInsightRepository> {
+  const client = await createClient();
+  return new SupabaseInsightRepository(client);
+}
+
+/** Service-role insight writes for background jobs. */
+export function getInsightWriteRepository(): SupabaseInsightRepository {
+  return new SupabaseInsightRepository(createServiceClient());
 }
 
 export async function getWorkspaceRepository(): Promise<WorkspaceRepository> {
@@ -75,6 +97,8 @@ export type {
 } from "./types";
 export type { SupabaseWalletRepository } from "./wallet";
 export type { SupabaseJobRepository } from "./jobs";
+export type { SupabaseGoalRepository } from "./goals";
+export type { SupabaseInsightRepository } from "./insights";
 export {
   effectiveIncludedAllotmentCents,
   getWalletBlockedReason,

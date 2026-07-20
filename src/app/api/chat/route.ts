@@ -14,7 +14,13 @@ import type {
   ProductIntelligence,
   WorkspacePlan,
 } from "@/domain";
-import { visualizationKindSchema } from "@/domain";
+import {
+  goalHorizonSchema,
+  goalMetricSchema,
+  goalScopeSchema,
+  goalStatusSchema,
+  visualizationKindSchema,
+} from "@/domain";
 import { resolveChatModel } from "@/lib/ai/models";
 import { hasAiGateway } from "@/lib/mode";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -22,6 +28,7 @@ import { getActiveWorkspace } from "@/lib/auth/workspace";
 import {
   PlanEntitlementError,
   assertCanCreateCreative,
+  assertHasInsights,
 } from "@/lib/billing/gates";
 import { normalizeWorkspacePlan } from "@/lib/billing/entitlements";
 import {
@@ -29,13 +36,21 @@ import {
   resubmitCreativeStage,
   startVideoCreative,
 } from "@/lib/jobs/enqueue";
+import {
+  resubmitInsight,
+  startInsightGeneration,
+} from "@/lib/jobs/enqueue-insight";
 import { hasServiceRole } from "@/lib/supabase/service";
 import { assertWalletAllowsAi, chargeAiUsage } from "@/lib/wallet/gate";
 import {
   buildCreateVisualizationResult,
   inferVisualizationFromPrompt,
 } from "@/features/visualizer/create-visualization";
-import { getArtifactRepository, getProductRepository } from "@/repositories";
+import {
+  getArtifactRepository,
+  getGoalRepository,
+  getProductRepository,
+} from "@/repositories";
 
 const createVisualizationToolSchema = z.object({
   title: z.string().trim().min(1).max(120),
@@ -79,6 +94,8 @@ Keep propose_artifact for reviewable copy, positioning, and campaign concepts; u
 When the user wants a video ad, call create_video_creative immediately with a short title and brief. If they ask you to invent the concept (e.g. "come up with something"), invent the title and brief yourself and call the tool — do not ask follow-up questions first.
 When the user is revising an existing video creative (they mention a creative id or are iterating on feedback), call resubmit_creative with that creativeId — do not create a new creative.
 When proposing ad_copy creatives for a campaign, include that campaign's id as campaignId.
+Insights require Pro. When the user states a measurable objective, call create_goal (product or workspace scope). Use list_goals to see active goals. For proactive recommendations, call propose_insight; when revising an insight, call resubmit_insight.
+Keep propose_artifact for reviewable copy, positioning, and campaign concepts; use propose_insight for goal-oriented next steps the user Accepts / Rejects / Revises.
 When the user asks about performance, funnels, comparisons (e.g. Q1 vs Q2), trends, or wants a chart/visualization, call create_visualization with an appropriate kind (sankey, timeseries, comparison, or bar) and a clear title.
 Never invent inventory or prices that contradict the product context.
 The user may navigate between pages during a conversation. Treat the product below as the current page context for this turn.
@@ -124,6 +141,8 @@ When the user wants to create a campaign for a product, call run_job with type c
 Keep propose_artifact for reviewable copy and concepts; use run_job to create a draft campaign.
 When the user wants a video ad, call create_video_creative immediately with productId from the catalog (match @mentions to catalog ids), plus a short title and brief. If they ask you to invent the concept, invent title and brief yourself and call the tool — do not ask follow-up questions first.
 When the user is revising an existing video creative, call resubmit_creative with that creativeId — do not create a new creative.
+Insights require Pro. When the user states a measurable objective, call create_goal. Use list_goals to inspect goals. For proactive recommendations, call propose_insight; when revising, call resubmit_insight.
+Keep propose_artifact for reviewable copy and concepts; use propose_insight for goal-oriented recommendations.
 When the user asks about performance, funnels, comparisons (e.g. Q1 vs Q2), trends, or wants a chart/visualization, call create_visualization with an appropriate kind (sankey, timeseries, comparison, or bar) and a clear title.
 Never invent inventory or prices that contradict the catalog.
 The user may navigate between pages during a conversation. Treat this workspace context as the current page for this turn.
@@ -666,6 +685,189 @@ export async function POST(req: Request) {
             }
           },
         }),
+        list_goals: tool({
+          description:
+            "List goals for the current workspace (product and workspace scope).",
+          inputSchema: z.object({
+            status: goalStatusSchema.optional(),
+          }),
+          execute: async (input) => {
+            try {
+              assertHasInsights(plan);
+            } catch (err) {
+              if (err instanceof PlanEntitlementError) {
+                return { ok: false, error: err.message, code: err.code };
+              }
+              throw err;
+            }
+            const goals = await getGoalRepository();
+            const list = await goals.listByWorkspace(active.workspace.id, {
+              status: input.status,
+            });
+            return { ok: true, goals: list };
+          },
+        }),
+        create_goal: tool({
+          description:
+            "Create a measurable goal. Prefer product scope with the current productId when the goal is product-specific.",
+          inputSchema: z.object({
+            scope: goalScopeSchema.default("product"),
+            productId: z.string().optional(),
+            title: z.string().trim().min(1).max(200),
+            metric: goalMetricSchema.optional(),
+            targetValue: z.number().finite().nullable().optional(),
+            targetUnit: z.string().trim().max(20).nullable().optional(),
+            horizon: goalHorizonSchema.optional(),
+            notes: z.string().trim().max(2000).optional(),
+          }),
+          execute: async (input) => {
+            try {
+              assertHasInsights(plan);
+            } catch (err) {
+              if (err instanceof PlanEntitlementError) {
+                return { ok: false, error: err.message, code: err.code };
+              }
+              throw err;
+            }
+            const scope = input.scope ?? "product";
+            const resolvedProductId =
+              scope === "product" ? (input.productId ?? productId) : null;
+            if (scope === "product" && !resolvedProductId) {
+              return { ok: false, error: "productId is required for product goals." };
+            }
+            const goals = await getGoalRepository();
+            const goal = await goals.create({
+              workspaceId: active.workspace.id,
+              scope,
+              productId: resolvedProductId,
+              title: input.title,
+              metric: input.metric,
+              targetValue: input.targetValue,
+              targetUnit: input.targetUnit,
+              horizon: input.horizon,
+              notes: input.notes,
+              createdBy: user.id,
+            });
+            return {
+              ok: true,
+              goalId: goal.id,
+              message: `Created goal "${goal.title}".`,
+            };
+          },
+        }),
+        update_goal: tool({
+          description: "Update an existing goal (status, target, title, etc.).",
+          inputSchema: z.object({
+            goalId: z.string().uuid(),
+            title: z.string().trim().min(1).max(200).optional(),
+            metric: goalMetricSchema.optional(),
+            targetValue: z.number().finite().nullable().optional(),
+            targetUnit: z.string().trim().max(20).nullable().optional(),
+            horizon: goalHorizonSchema.optional(),
+            status: goalStatusSchema.optional(),
+            notes: z.string().trim().max(2000).optional(),
+          }),
+          execute: async (input) => {
+            try {
+              assertHasInsights(plan);
+            } catch (err) {
+              if (err instanceof PlanEntitlementError) {
+                return { ok: false, error: err.message, code: err.code };
+              }
+              throw err;
+            }
+            const goals = await getGoalRepository();
+            const existing = await goals.getById(input.goalId);
+            if (!existing || existing.workspaceId !== active.workspace.id) {
+              return { ok: false, error: "Goal not found." };
+            }
+            const { goalId: _id, ...patch } = input;
+            const goal = await goals.update(input.goalId, patch);
+            return { ok: true, goalId: goal.id, goal };
+          },
+        }),
+        propose_insight: tool({
+          description:
+            "Generate a goal-oriented insight for human review (Accept / Reject / Revise). Prefer when recommending a next marketing move. Pro plan required.",
+          inputSchema: z.object({
+            productId: z.string().optional(),
+            goalId: z.string().uuid().optional(),
+          }),
+          execute: async (input) => {
+            if (!hasServiceRole()) {
+              return { ok: false, error: "Jobs service is not configured." };
+            }
+            try {
+              assertHasInsights(plan);
+              const { insight, job } = await startInsightGeneration({
+                workspaceId: active.workspace.id,
+                productId: input.productId ?? productId,
+                goalId: input.goalId ?? null,
+                createdBy: user.id,
+                insightTrigger: "agent",
+                jobTrigger: "agent",
+              });
+              return {
+                ok: true,
+                insightId: insight.id,
+                jobId: job.id,
+                href: "/insights",
+                message: `Started insight generation. Review it on /insights.`,
+              };
+            } catch (err) {
+              if (err instanceof PlanEntitlementError) {
+                return { ok: false, error: err.message, code: err.code };
+              }
+              return {
+                ok: false,
+                error:
+                  err instanceof Error
+                    ? err.message
+                    : "Failed to propose insight.",
+              };
+            }
+          },
+        }),
+        resubmit_insight: tool({
+          description:
+            "Re-generate an insight after the user requested revisions via Revise.",
+          inputSchema: z.object({
+            insightId: z.string().uuid(),
+            feedback: z.string().trim().max(2000).optional(),
+          }),
+          execute: async (input) => {
+            if (!hasServiceRole()) {
+              return { ok: false, error: "Jobs service is not configured." };
+            }
+            try {
+              assertHasInsights(plan);
+              const { insight, job } = await resubmitInsight({
+                workspaceId: active.workspace.id,
+                insightId: input.insightId,
+                createdBy: user.id,
+                feedback: input.feedback,
+              });
+              return {
+                ok: true,
+                insightId: insight.id,
+                jobId: job.id,
+                href: "/insights",
+                message: `Resubmitted insight "${insight.title || insight.id}".`,
+              };
+            } catch (err) {
+              if (err instanceof PlanEntitlementError) {
+                return { ok: false, error: err.message, code: err.code };
+              }
+              return {
+                ok: false,
+                error:
+                  err instanceof Error
+                    ? err.message
+                    : "Failed to resubmit insight.",
+              };
+            }
+          },
+        }),
         create_visualization: createVisualizationTool,
       },
     });
@@ -896,6 +1098,201 @@ export async function POST(req: Request) {
                 err instanceof Error
                   ? err.message
                   : "Failed to resubmit creative.",
+            };
+          }
+        },
+      }),
+      list_goals: tool({
+        description:
+          "List goals for the current workspace (product and workspace scope).",
+        inputSchema: z.object({
+          status: goalStatusSchema.optional(),
+        }),
+        execute: async (input) => {
+          try {
+            assertHasInsights(plan);
+          } catch (err) {
+            if (err instanceof PlanEntitlementError) {
+              return { ok: false, error: err.message, code: err.code };
+            }
+            throw err;
+          }
+          const goals = await getGoalRepository();
+          const list = await goals.listByWorkspace(
+            activeWorkspace.workspace.id,
+            { status: input.status },
+          );
+          return { ok: true, goals: list };
+        },
+      }),
+      create_goal: tool({
+        description:
+          "Create a measurable goal. For product scope, pass productId from the catalog.",
+        inputSchema: z.object({
+          scope: goalScopeSchema,
+          productId: z.string().optional(),
+          title: z.string().trim().min(1).max(200),
+          metric: goalMetricSchema.optional(),
+          targetValue: z.number().finite().nullable().optional(),
+          targetUnit: z.string().trim().max(20).nullable().optional(),
+          horizon: goalHorizonSchema.optional(),
+          notes: z.string().trim().max(2000).optional(),
+        }),
+        execute: async (input) => {
+          try {
+            assertHasInsights(plan);
+          } catch (err) {
+            if (err instanceof PlanEntitlementError) {
+              return { ok: false, error: err.message, code: err.code };
+            }
+            throw err;
+          }
+          if (input.scope === "product") {
+            if (!input.productId || !ownedIds.has(input.productId)) {
+              return {
+                ok: false,
+                error: "productId must be in this workspace catalog.",
+              };
+            }
+          }
+          const goals = await getGoalRepository();
+          const goal = await goals.create({
+            workspaceId: activeWorkspace.workspace.id,
+            scope: input.scope,
+            productId: input.scope === "product" ? input.productId : null,
+            title: input.title,
+            metric: input.metric,
+            targetValue: input.targetValue,
+            targetUnit: input.targetUnit,
+            horizon: input.horizon,
+            notes: input.notes,
+            createdBy: user.id,
+          });
+          return {
+            ok: true,
+            goalId: goal.id,
+            message: `Created goal "${goal.title}".`,
+          };
+        },
+      }),
+      update_goal: tool({
+        description: "Update an existing goal (status, target, title, etc.).",
+        inputSchema: z.object({
+          goalId: z.string().uuid(),
+          title: z.string().trim().min(1).max(200).optional(),
+          metric: goalMetricSchema.optional(),
+          targetValue: z.number().finite().nullable().optional(),
+          targetUnit: z.string().trim().max(20).nullable().optional(),
+          horizon: goalHorizonSchema.optional(),
+          status: goalStatusSchema.optional(),
+          notes: z.string().trim().max(2000).optional(),
+        }),
+        execute: async (input) => {
+          try {
+            assertHasInsights(plan);
+          } catch (err) {
+            if (err instanceof PlanEntitlementError) {
+              return { ok: false, error: err.message, code: err.code };
+            }
+            throw err;
+          }
+          const goals = await getGoalRepository();
+          const existing = await goals.getById(input.goalId);
+          if (
+            !existing ||
+            existing.workspaceId !== activeWorkspace.workspace.id
+          ) {
+            return { ok: false, error: "Goal not found." };
+          }
+          const { goalId: _id, ...patch } = input;
+          const goal = await goals.update(input.goalId, patch);
+          return { ok: true, goalId: goal.id, goal };
+        },
+      }),
+      propose_insight: tool({
+        description:
+          "Generate a goal-oriented insight for human review. Pass optional productId from the catalog. Pro plan required.",
+        inputSchema: z.object({
+          productId: z.string().optional(),
+          goalId: z.string().uuid().optional(),
+        }),
+        execute: async (input) => {
+          if (input.productId && !ownedIds.has(input.productId)) {
+            return {
+              ok: false,
+              error: "productId is not in this workspace catalog.",
+            };
+          }
+          if (!hasServiceRole()) {
+            return { ok: false, error: "Jobs service is not configured." };
+          }
+          try {
+            assertHasInsights(plan);
+            const { insight, job } = await startInsightGeneration({
+              workspaceId: activeWorkspace.workspace.id,
+              productId: input.productId ?? null,
+              goalId: input.goalId ?? null,
+              createdBy: user.id,
+              insightTrigger: "agent",
+              jobTrigger: "agent",
+            });
+            return {
+              ok: true,
+              insightId: insight.id,
+              jobId: job.id,
+              href: "/insights",
+              message: `Started insight generation. Review it on /insights.`,
+            };
+          } catch (err) {
+            if (err instanceof PlanEntitlementError) {
+              return { ok: false, error: err.message, code: err.code };
+            }
+            return {
+              ok: false,
+              error:
+                err instanceof Error
+                  ? err.message
+                  : "Failed to propose insight.",
+            };
+          }
+        },
+      }),
+      resubmit_insight: tool({
+        description:
+          "Re-generate an insight after the user requested revisions via Revise.",
+        inputSchema: z.object({
+          insightId: z.string().uuid(),
+          feedback: z.string().trim().max(2000).optional(),
+        }),
+        execute: async (input) => {
+          if (!hasServiceRole()) {
+            return { ok: false, error: "Jobs service is not configured." };
+          }
+          try {
+            assertHasInsights(plan);
+            const { insight, job } = await resubmitInsight({
+              workspaceId: activeWorkspace.workspace.id,
+              insightId: input.insightId,
+              createdBy: user.id,
+              feedback: input.feedback,
+            });
+            return {
+              ok: true,
+              insightId: insight.id,
+              jobId: job.id,
+              href: "/insights",
+              message: `Resubmitted insight "${insight.title || insight.id}".`,
+            };
+          } catch (err) {
+            if (err instanceof PlanEntitlementError) {
+              return { ok: false, error: err.message, code: err.code };
+            }
+            return {
+              ok: false,
+              error:
+                err instanceof Error
+                  ? err.message
+                  : "Failed to resubmit insight.",
             };
           }
         },

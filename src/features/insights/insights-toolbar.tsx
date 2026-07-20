@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowUpDownIcon,
   CheckIcon,
   ListFilterIcon,
   LockOpenIcon,
+  SparklesIcon,
 } from "lucide-react";
 import type { WorkspacePlan } from "@/domain";
 import { Button } from "@/components/ui/button";
@@ -20,6 +22,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { UpgradeButton } from "@/features/billing/upgrade-button";
+import type {
+  InsightsSortKey,
+  InsightsStatusFilter,
+} from "@/features/insights/insights-list";
 import { CatalogHeaderActions } from "@/features/products/catalog-toolbar";
 import { cn } from "@/lib/utils";
 
@@ -29,28 +35,63 @@ const optionItemClass =
 const insightsCtaButtonClass =
   "border-0 bg-[#288DFF] bg-clip-border text-white shadow-[0_0_0_1px_#288DFF,0_1px_2px_0_rgba(14,18,27,0.24),inset_0_1px_0_0_rgba(255,255,255,0.12)] hover:bg-[#1f7ff5] hover:text-white focus-visible:border-transparent focus-visible:ring-0 aria-expanded:bg-[#288DFF] aria-expanded:text-white dark:bg-[#288DFF] dark:text-white dark:hover:bg-[#1f7ff5]";
 
-type StatusFilter = "all" | "ready" | "generating" | "failed";
-type SortKey = "newest" | "oldest" | "title-asc" | "title-desc";
-
-const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
+const STATUS_FILTERS: { value: InsightsStatusFilter; label: string }[] = [
   { value: "all", label: "All statuses" },
-  { value: "ready", label: "Ready" },
+  { value: "awaiting_review", label: "Awaiting review" },
+  { value: "accepted", label: "Accepted" },
   { value: "generating", label: "Generating" },
   { value: "failed", label: "Failed" },
 ];
 
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+const SORT_OPTIONS: { value: InsightsSortKey; label: string }[] = [
   { value: "newest", label: "Newest" },
   { value: "oldest", label: "Oldest" },
   { value: "title-asc", label: "Title A–Z" },
   { value: "title-desc", label: "Title Z–A" },
 ];
 
-export function InsightsToolbar({ plan = "free" }: { plan?: WorkspacePlan }) {
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [sort, setSort] = useState<SortKey>("newest");
+export function InsightsToolbar({
+  plan = "free",
+  statusFilter,
+  onStatusFilterChange,
+  sort,
+  onSortChange,
+  canGenerate = false,
+}: {
+  plan?: WorkspacePlan;
+  statusFilter: InsightsStatusFilter;
+  onStatusFilterChange: (value: InsightsStatusFilter) => void;
+  sort: InsightsSortKey;
+  onSortChange: (value: InsightsSortKey) => void;
+  canGenerate?: boolean;
+}) {
+  const router = useRouter();
   const [sortOpen, setSortOpen] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
   const showUnlock = plan !== "pro";
+
+  async function generate() {
+    setGenError(null);
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        setGenError(body?.error ?? "Failed to generate");
+        return;
+      }
+      router.refresh();
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   return (
     <CatalogHeaderActions>
@@ -78,7 +119,7 @@ export function InsightsToolbar({ plan = "free" }: { plan?: WorkspacePlan }) {
                 key={option.value}
                 type="button"
                 className={optionItemClass}
-                onClick={() => setStatusFilter(option.value)}
+                onClick={() => onStatusFilterChange(option.value)}
               >
                 <CheckIcon
                   className={cn(
@@ -120,7 +161,7 @@ export function InsightsToolbar({ plan = "free" }: { plan?: WorkspacePlan }) {
                 type="button"
                 className={optionItemClass}
                 onClick={() => {
-                  setSort(option.value);
+                  onSortChange(option.value);
                   setSortOpen(false);
                 }}
               >
@@ -136,6 +177,30 @@ export function InsightsToolbar({ plan = "free" }: { plan?: WorkspacePlan }) {
           </div>
         </PopoverContent>
       </Popover>
+
+      {canGenerate ? (
+        <Tooltip>
+          <TooltipTrigger
+            delay={50}
+            closeOnClick={false}
+            render={
+              <Button
+                type="button"
+                size="sm"
+                className={insightsCtaButtonClass}
+                disabled={generating}
+                onClick={() => void generate()}
+              />
+            }
+          >
+            <SparklesIcon data-icon="inline-start" />
+            {generating ? "Generating…" : "Generate"}
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="end">
+            {genError ?? "Generate a new insight from your goals."}
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
 
       {showUnlock ? (
         <Tooltip>

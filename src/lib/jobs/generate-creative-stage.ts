@@ -118,6 +118,19 @@ export async function runGenerateCreativeStageJob(
       error: null,
       finishedAt: new Date().toISOString(),
     });
+
+    const finished = await jobs.getById(payload.jobRunId);
+    if (finished) {
+      const { maybeEnqueueInsightAfterJob } = await import(
+        "@/lib/jobs/enqueue-insight"
+      );
+      void maybeEnqueueInsightAfterJob({
+        workspaceId: payload.workspaceId,
+        job: finished,
+        createdBy: payload.createdBy,
+      });
+    }
+
     return result;
   } catch (err) {
     const message =
@@ -135,6 +148,19 @@ export async function runGenerateCreativeStageJob(
     } catch {
       // Best-effort restore; original error already recorded on job.
     }
+
+    const finished = await jobs.getById(payload.jobRunId);
+    if (finished) {
+      const { maybeEnqueueInsightAfterJob } = await import(
+        "@/lib/jobs/enqueue-insight"
+      );
+      void maybeEnqueueInsightAfterJob({
+        workspaceId: payload.workspaceId,
+        job: finished,
+        createdBy: payload.createdBy,
+      });
+    }
+
     throw err;
   }
 }

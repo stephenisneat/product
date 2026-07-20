@@ -62,6 +62,7 @@ import {
   savePreferredChatModel,
 } from "@/features/agent/agent-model-preference";
 import { CreativeCardFromId } from "@/features/creatives/creative-card-from-id";
+import { InsightCardFromId } from "@/features/insights/insight-card-from-id";
 import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 import {
   isPaidPlan,
@@ -157,6 +158,34 @@ function extractCreativeIdsFromMessage(message: UIMessage): string[] {
           p.toolName === "resubmit_creative"));
     if (!isCreativeTool || p.state !== "output-available") continue;
     const id = p.output?.ok ? p.output.creativeId : undefined;
+    if (typeof id === "string" && !seen.has(id)) {
+      seen.add(id);
+      ids.push(id);
+    }
+  }
+  return ids;
+}
+
+function extractInsightIdsFromMessage(message: UIMessage): string[] {
+  if (message.role !== "assistant" || !Array.isArray(message.parts)) return [];
+  const ids: string[] = [];
+  const seen = new Set<string>();
+
+  for (const part of message.parts) {
+    const p = part as {
+      type?: string;
+      toolName?: string;
+      state?: string;
+      output?: { ok?: boolean; insightId?: string };
+    };
+    const isInsightTool =
+      p.type === "tool-propose_insight" ||
+      p.type === "tool-resubmit_insight" ||
+      (p.type === "dynamic-tool" &&
+        (p.toolName === "propose_insight" ||
+          p.toolName === "resubmit_insight"));
+    if (!isInsightTool || p.state !== "output-available") continue;
+    const id = p.output?.ok ? p.output.insightId : undefined;
     if (typeof id === "string" && !seen.has(id)) {
       seen.add(id);
       ids.push(id);
@@ -1013,6 +1042,9 @@ export function AgentComposer({
                       const creativeIds = isUser
                         ? []
                         : extractCreativeIdsFromMessage(message);
+                      const insightIds = isUser
+                        ? []
+                        : extractInsightIdsFromMessage(message);
                       const creativeErrors = isUser
                         ? []
                         : extractCreativeToolErrors(message);
@@ -1061,6 +1093,12 @@ export function AgentComposer({
                                     <CreativeCardFromId
                                       key={id}
                                       creativeId={id}
+                                    />
+                                  ))}
+                                  {insightIds.map((id) => (
+                                    <InsightCardFromId
+                                      key={id}
+                                      insightId={id}
                                     />
                                   ))}
                                 </div>

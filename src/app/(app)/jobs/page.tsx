@@ -15,6 +15,8 @@ function typeLabel(type: JobRun["type"]): string {
       return "Generate storyboard";
     case "generate_creative_video":
       return "Generate video";
+    case "generate_insight":
+      return "Generate insight";
     default:
       return type;
   }
@@ -73,6 +75,9 @@ function resultSummary(job: JobRun): string {
     const stage =
       typeof job.result.stage === "string" ? ` (${job.result.stage})` : "";
     return `Creative ${job.result.creativeId.slice(0, 8)}…${stage}`;
+  }
+  if (job.result && typeof job.result.insightId === "string") {
+    return `Insight ${job.result.insightId.slice(0, 8)}…`;
   }
   if (job.status === "pending" || job.status === "running") return "—";
   return "—";

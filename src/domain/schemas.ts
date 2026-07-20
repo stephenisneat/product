@@ -721,11 +721,112 @@ export const creativeSchema = z.object({
 });
 export type Creative = z.infer<typeof creativeSchema>;
 
+export const goalScopeSchema = z.enum(["workspace", "product"]);
+export type GoalScope = z.infer<typeof goalScopeSchema>;
+
+export const goalMetricSchema = z.enum([
+  "roas",
+  "cac",
+  "revenue",
+  "conversions",
+  "custom",
+]);
+export type GoalMetric = z.infer<typeof goalMetricSchema>;
+
+export const goalHorizonSchema = z.enum([
+  "weekly",
+  "monthly",
+  "quarterly",
+  "ongoing",
+]);
+export type GoalHorizon = z.infer<typeof goalHorizonSchema>;
+
+export const goalStatusSchema = z.enum([
+  "active",
+  "paused",
+  "achieved",
+  "archived",
+]);
+export type GoalStatus = z.infer<typeof goalStatusSchema>;
+
+export const goalSchema = z.object({
+  id: z.string().uuid(),
+  workspaceId: z.string().uuid(),
+  productId: z.string().nullable(),
+  scope: goalScopeSchema,
+  title: z.string(),
+  metric: goalMetricSchema,
+  targetValue: z.number().nullable(),
+  targetUnit: z.string().nullable(),
+  horizon: goalHorizonSchema,
+  status: goalStatusSchema,
+  notes: z.string(),
+  createdBy: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type Goal = z.infer<typeof goalSchema>;
+
+export const insightStatusSchema = z.enum([
+  "generating",
+  "awaiting_review",
+  "revising",
+  "accepted",
+  "rejected",
+  "failed",
+]);
+export type InsightStatus = z.infer<typeof insightStatusSchema>;
+
+export const insightTriggerSourceSchema = z.enum([
+  "job",
+  "agent",
+  "heartbeat",
+  "api",
+]);
+export type InsightTriggerSource = z.infer<typeof insightTriggerSourceSchema>;
+
+export const insightActionTypeSchema = z.enum([
+  "create_campaign",
+  "propose_artifact",
+  "create_video_creative",
+  "open_chat",
+]);
+export type InsightActionType = z.infer<typeof insightActionTypeSchema>;
+
+export const insightActionSchema = z.object({
+  type: insightActionTypeSchema,
+  label: z.string(),
+  payload: z.record(z.string(), z.unknown()),
+});
+export type InsightAction = z.infer<typeof insightActionSchema>;
+
+export const insightSchema = z.object({
+  id: z.string().uuid(),
+  workspaceId: z.string().uuid(),
+  productId: z.string().nullable(),
+  campaignId: z.string().nullable(),
+  goalId: z.string().uuid().nullable(),
+  title: z.string(),
+  summary: z.string(),
+  rationale: z.string(),
+  status: insightStatusSchema,
+  triggerSource: insightTriggerSourceSchema,
+  triggerRef: z.record(z.string(), z.unknown()).nullable(),
+  action: insightActionSchema.nullable(),
+  revisionFeedback: z.string().nullable(),
+  activeJobId: z.string().uuid().nullable(),
+  createdBy: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type Insight = z.infer<typeof insightSchema>;
+
 export const jobRunTypeSchema = z.enum([
   "create_campaign",
   "generate_creative_screenplay",
   "generate_creative_storyboard",
   "generate_creative_video",
+  "generate_insight",
 ]);
 export type JobRunType = z.infer<typeof jobRunTypeSchema>;
 
@@ -758,6 +859,17 @@ export const generateCreativeStageJobInputSchema = z.object({
 });
 export type GenerateCreativeStageJobInput = z.infer<
   typeof generateCreativeStageJobInputSchema
+>;
+
+export const generateInsightJobInputSchema = z.object({
+  insightId: z.string().uuid(),
+  productId: z.string().nullable().optional(),
+  goalId: z.string().uuid().nullable().optional(),
+  sourceJobId: z.string().uuid().nullable().optional(),
+  revisionFeedback: z.string().nullable().optional(),
+});
+export type GenerateInsightJobInput = z.infer<
+  typeof generateInsightJobInputSchema
 >;
 
 export const jobRunSchema = z.object({
