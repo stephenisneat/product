@@ -1,4 +1,5 @@
 import type { GenerateInsightJobInput } from "@/domain";
+import { assertTriggerJobEnv } from "@/lib/jobs/assert-trigger-env";
 import { buildStubInsight } from "@/lib/jobs/insight-stubs";
 import {
   getGoalWriteRepository,
@@ -43,6 +44,8 @@ function sleep(ms: number): Promise<void> {
 export async function runGenerateInsightJob(
   payload: GenerateInsightJobPayload,
 ): Promise<{ insightId: string }> {
+  assertTriggerJobEnv();
+
   const jobs = getJobWriteRepository();
   const insights = getInsightWriteRepository();
   const goals = getGoalWriteRepository();
