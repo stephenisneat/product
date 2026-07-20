@@ -66,6 +66,8 @@ export function VisualizationTabs({
     }
   }
 
+  if (openTabs.length === 0) return null;
+
   return (
     <div className="flex h-10 items-stretch gap-0.5 overflow-x-auto border-b border-border bg-canvas/80 px-2">
       {openTabs.map((tab) => {
