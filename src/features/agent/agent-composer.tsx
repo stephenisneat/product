@@ -56,12 +56,17 @@ import {
   upsertConversation,
   type AgentConversation,
 } from "@/features/agent/agent-conversations";
+import {
+  AgentEmptySuggestions,
+  getAgentSuggestions,
+} from "@/features/agent/agent-empty-suggestions";
 import { AgentModelSelect } from "@/features/agent/agent-model-select";
 import {
   loadPreferredChatModel,
   savePreferredChatModel,
 } from "@/features/agent/agent-model-preference";
 import { CreativeCardFromId } from "@/features/creatives/creative-card-from-id";
+import { InsightCardFromId } from "@/features/insights/insight-card-from-id";
 import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 import {
   isPaidPlan,
@@ -157,6 +162,34 @@ function extractCreativeIdsFromMessage(message: UIMessage): string[] {
           p.toolName === "resubmit_creative"));
     if (!isCreativeTool || p.state !== "output-available") continue;
     const id = p.output?.ok ? p.output.creativeId : undefined;
+    if (typeof id === "string" && !seen.has(id)) {
+      seen.add(id);
+      ids.push(id);
+    }
+  }
+  return ids;
+}
+
+function extractInsightIdsFromMessage(message: UIMessage): string[] {
+  if (message.role !== "assistant" || !Array.isArray(message.parts)) return [];
+  const ids: string[] = [];
+  const seen = new Set<string>();
+
+  for (const part of message.parts) {
+    const p = part as {
+      type?: string;
+      toolName?: string;
+      state?: string;
+      output?: { ok?: boolean; insightId?: string };
+    };
+    const isInsightTool =
+      p.type === "tool-propose_insight" ||
+      p.type === "tool-resubmit_insight" ||
+      (p.type === "dynamic-tool" &&
+        (p.toolName === "propose_insight" ||
+          p.toolName === "resubmit_insight"));
+    if (!isInsightTool || p.state !== "output-available") continue;
+    const id = p.output?.ok ? p.output.insightId : undefined;
     if (typeof id === "string" && !seen.has(id)) {
       seen.add(id);
       ids.push(id);
@@ -786,6 +819,22 @@ export function AgentComposer({
     await sendMessage({ text });
   }
 
+  const handleSuggestionSelect = useCallback(
+    (suggestion: { prompt: string }) => {
+      if (busy || walletBlocked) {
+        if (walletBlocked) {
+          walletCtx?.revealBlockedBanner();
+          toast.error(
+            "AI is blocked until you add credits or raise your usage limit.",
+          );
+        }
+        return;
+      }
+      void sendMessage({ text: suggestion.prompt });
+    },
+    [busy, sendMessage, walletBlocked, walletCtx],
+  );
+
   function closeHistorySearch() {
     setHistorySearchOpen(false);
     setHistoryQuery("");
@@ -842,6 +891,13 @@ export function AgentComposer({
     status === "streaming" && lastMessage?.role === "assistant"
       ? lastMessage.id
       : null;
+
+  const isEmpty =
+    messages.length === 0 && !waitingForAssistant && !error;
+  const suggestions = useMemo(
+    () => getAgentSuggestions({ isWorkspace, productTitle }),
+    [isWorkspace, productTitle],
+  );
 
   return (
     <div className="relative h-full min-h-0">
@@ -982,15 +1038,16 @@ export function AgentComposer({
             historyOpen && "pointer-events-none opacity-0",
           )}
         >
-          {messages.length === 0 && !waitingForAssistant && !error ? (
-            <div className="flex flex-1 items-start px-3 py-3">
-              <Marker className="rounded-md border border-dashed border-border px-3 py-3 text-[13px]">
-                <MarkerContent>
-                  {isWorkspace
-                    ? "Ask about your catalog, prioritize products, or request proposals across the workspace."
-                    : `Ask about ${productTitle ?? "this product"} — positioning, ad copy, or a campaign concept.`}
-                </MarkerContent>
-              </Marker>
+          {isEmpty ? (
+            <div className="flex min-h-0 flex-1 flex-col justify-end px-3 pb-1">
+              <h2 className="px-3 pb-4 font-heading text-xl font-semibold tracking-tight">
+                What can I help with?
+              </h2>
+              <AgentEmptySuggestions
+                suggestions={suggestions}
+                disabled={busy || walletBlocked || historyOpen}
+                onSelect={handleSuggestionSelect}
+              />
             </div>
           ) : (
             <MessageScrollerProvider autoScroll>
@@ -1013,6 +1070,9 @@ export function AgentComposer({
                       const creativeIds = isUser
                         ? []
                         : extractCreativeIdsFromMessage(message);
+                      const insightIds = isUser
+                        ? []
+                        : extractInsightIdsFromMessage(message);
                       const creativeErrors = isUser
                         ? []
                         : extractCreativeToolErrors(message);
@@ -1063,6 +1123,12 @@ export function AgentComposer({
                                       creativeId={id}
                                     />
                                   ))}
+                                  {insightIds.map((id) => (
+                                    <InsightCardFromId
+                                      key={id}
+                                      insightId={id}
+                                    />
+                                  ))}
                                 </div>
                               )}
                             </MessageContent>
@@ -1096,7 +1162,7 @@ export function AgentComposer({
           )}
 
           <div
-            className="border-t border-border"
+            className={cn(!isEmpty && "border-t border-border")}
             onClick={(e) => e.stopPropagation()}
           >
             <AgentComposerInput
@@ -1106,9 +1172,7 @@ export function AgentComposer({
               placeholder={
                 walletBlocked
                   ? "AI is paused — add credits or raise your usage limit"
-                  : isWorkspace
-                    ? "What should we improve across the catalog?"
-                    : `Ask about ${productTitle ?? "this product"} — ad copy, or a video ad idea…`
+                  : "Ask anything"
               }
             />
             <div className="flex items-center px-2 pb-2">
