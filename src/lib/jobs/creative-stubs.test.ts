@@ -15,6 +15,20 @@ describe("creative stubs", () => {
     expect(screenplay.scenes.length).toBeGreaterThan(0);
     expect(screenplay.logline).toContain("sunny");
     expect(screenplay.script.length).toBeGreaterThan(20);
+    expect(screenplay.scenes.some((s) => s.spokenKind === "dialogue")).toBe(
+      true,
+    );
+    expect(screenplay.scenes.some((s) => s.spokenKind === "voiceover")).toBe(
+      true,
+    );
+    expect(
+      screenplay.scenes.every(
+        (s) =>
+          !/everyday friction|highlight the key benefit|show the/i.test(
+            s.action,
+          ),
+      ),
+    ).toBe(true);
   });
 
   it("builds storyboard frames from screenplay scenes", () => {

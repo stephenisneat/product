@@ -313,15 +313,20 @@ export function CreativeWorkspace({
   creative: initial,
   product,
   performance = [],
+  initialTab,
 }: {
   creative: Creative;
   product: Product | null;
   performance?: PerformancePoint[];
+  initialTab?: CreativeTab;
 }) {
   const router = useRouter();
   const { setComposePrefill } = useAgentContext();
   const [creative, setCreative] = useState(initial);
-  const [tab, setTab] = useState<CreativeTab>(() => defaultTab(initial));
+  const [tab, setTab] = useState<CreativeTab>(() => {
+    if (initialTab && isTabEnabled(initialTab, initial)) return initialTab;
+    return defaultTab(initial);
+  });
   const [pending, startTransition] = useTransition();
   const [revising, setRevising] = useState(false);
   const [feedback, setFeedback] = useState("");
@@ -583,7 +588,7 @@ export function CreativeWorkspace({
           <div className="min-h-0 flex-1 overflow-y-auto">
             <TabsContent value="screenplay" className="mt-0 h-full">
               {creative.screenplay ? (
-                <div className="min-h-full bg-[#e8e6e1] px-3 py-8 sm:px-6">
+                <div className="min-h-full bg-[#e8e6e1] px-3 py-8 dark:bg-zinc-950 sm:px-6">
                   <ScreenplayDocument screenplay={creative.screenplay} />
                 </div>
               ) : (

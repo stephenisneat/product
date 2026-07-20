@@ -1,11 +1,21 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { SearchIcon, XIcon } from "lucide-react";
 import type { Creative } from "@/domain";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { CreativeCard } from "@/features/creatives/creative-card";
+import { CatalogHeaderActions } from "@/features/products/catalog-toolbar";
+
+function matchesQuery(creative: Creative, query: string) {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    creative.title.toLowerCase().includes(q) ||
+    creative.brief.toLowerCase().includes(q)
+  );
+}
 
 /**
  * List view that coalesces generating-creative polls into one workspace
@@ -15,14 +25,13 @@ import { CreativeCard } from "@/features/creatives/creative-card";
  */
 export function CreativesList({
   initialCreatives,
-  productTitleById,
 }: {
   initialCreatives: Creative[];
-  productTitleById: Record<string, string>;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [creatives, setCreatives] = useState(initialCreatives);
+  const [query, setQuery] = useState("");
   const hasGenerating = creatives.some((c) => c.status === "generating");
 
   useEffect(() => {
@@ -52,30 +61,72 @@ export function CreativesList({
     };
   }, [hasGenerating, router]);
 
+  const filtered = creatives.filter((c) => matchesQuery(c, query));
+
+const searchField = (
+    <CatalogHeaderActions>
+      <div className="relative w-44 sm:w-56">
+        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search creatives…"
+          className="h-8 pr-8 pl-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+          aria-label="Search creatives"
+        />
+        {query ? (
+          <button
+            type="button"
+            className="absolute top-1/2 right-1.5 flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
+            aria-label="Clear search"
+            onClick={() => setQuery("")}
+          >
+            <XIcon className="size-3.5" />
+          </button>
+        ) : null}
+      </div>
+    </CatalogHeaderActions>
+  );
+
+  if (creatives.length === 0) {
+    return (
+      <>
+        {searchField}
+        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+          No video creatives yet. Describe an ad idea in chat to start
+          screenplay → storyboard → video.
+        </div>
+      </>
+    );
+  }
+
   return (
-    <ul className="space-y-3">
-      {creatives.map((creative) => (
-        <li key={creative.id}>
-          <div className="mb-1.5 flex items-center gap-2 px-0.5">
-            <Link
-              href={`/creatives/${creative.id}`}
-              className="text-xs font-medium hover:underline"
-            >
-              Open detail
-            </Link>
-            <Badge variant="outline" className="text-[10px]">
-              {productTitleById[creative.productId] ?? "Product"}
-            </Badge>
-          </div>
-          <CreativeCard
-            creative={creative}
-            pollWhileGenerating={false}
-            onDeleted={(id) =>
-              setCreatives((prev) => prev.filter((c) => c.id !== id))
-            }
-          />
-        </li>
-      ))}
-    </ul>
+    <>
+      {searchField}
+
+      {filtered.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border px-4 py-16 text-center">
+          <p className="text-sm font-medium">No matching creatives</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Try a different search.
+          </p>
+        </div>
+      ) : (
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((creative) => (
+            <li key={creative.id}>
+              <CreativeCard
+                creative={creative}
+                pollWhileGenerating={false}
+                onDeleted={(id) =>
+                  setCreatives((prev) => prev.filter((c) => c.id !== id))
+                }
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }

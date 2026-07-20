@@ -5,11 +5,10 @@ import {
   clarifyTriggerSupabaseError,
 } from "@/lib/jobs/assert-trigger-env";
 import {
-  buildStubVideo,
-  buildTemplateScreenplay,
-  buildTemplateStoryboard,
-  sleep,
-} from "@/lib/jobs/creative-stubs";
+  generateScreenplay,
+  generateStoryboard,
+} from "@/lib/jobs/generate-creative-content";
+import { buildStubVideo, sleep } from "@/lib/jobs/creative-stubs";
 import {
   getCreativeWriteRepository,
   getJobWriteRepository,
@@ -107,9 +106,6 @@ export async function runGenerateCreativeStageJob(
       throw new Error("Product not found in workspace.");
     }
 
-    // Simulate async generation latency for stub pipeline.
-    await sleep(800);
-
     if (await wasCanceled(payload.jobRunId)) {
       return null;
     }
@@ -120,7 +116,12 @@ export async function runGenerateCreativeStageJob(
       : creative.brief;
 
     if (payload.stage === "screenplay") {
-      const screenplay = buildTemplateScreenplay(briefForGen, product.title);
+      const screenplay = await generateScreenplay({
+        brief: briefForGen,
+        product,
+        workspaceId: payload.workspaceId,
+        userId: payload.createdBy,
+      });
       await creatives.update(creative.id, {
         stage: "screenplay",
         status: "awaiting_review",
@@ -134,10 +135,14 @@ export async function runGenerateCreativeStageJob(
       if (!creative.screenplay) {
         throw new Error("Screenplay is required before storyboard generation.");
       }
-      const storyboard = buildTemplateStoryboard(creative.screenplay);
-      if (feedback) {
-        storyboard.styleBrief = `${storyboard.styleBrief} Revision: ${feedback}`;
-      }
+      const storyboard = await generateStoryboard({
+        screenplay: creative.screenplay,
+        product,
+        workspaceId: payload.workspaceId,
+        creativeId: creative.id,
+        userId: payload.createdBy,
+        revisionFeedback: feedback || null,
+      });
       await creatives.update(creative.id, {
         stage: "storyboard",
         status: "awaiting_review",
@@ -150,6 +155,8 @@ export async function runGenerateCreativeStageJob(
       if (!creative.storyboard) {
         throw new Error("Storyboard is required before video generation.");
       }
+      // Video render is still stubbed; keep a short beat so the UI can poll.
+      await sleep(800);
       const video = buildStubVideo(creative.screenplay);
       await creatives.update(creative.id, {
         stage: "video",

@@ -1,14 +1,22 @@
 import { notFound, redirect } from "next/navigation";
-import { AgentProductSync } from "@/features/agent/agent-context";
 import { CreativeWorkspace } from "@/features/creatives/creative-workspace";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { getCreativeRepository, getProductRepository } from "@/repositories";
 
+const CREATIVE_TABS = [
+  "screenplay",
+  "storyboard",
+  "video",
+  "performance",
+] as const;
+
 export default async function CreativeDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const user = await getCurrentUser();
   if (!user) {
@@ -21,6 +29,13 @@ export default async function CreativeDetailPage({
   }
 
   const { id } = await params;
+  const { tab } = await searchParams;
+  const initialTab = CREATIVE_TABS.includes(
+    tab as (typeof CREATIVE_TABS)[number],
+  )
+    ? (tab as (typeof CREATIVE_TABS)[number])
+    : undefined;
+
   const [creatives, products] = await Promise.all([
     getCreativeRepository(),
     getProductRepository(),
@@ -36,18 +51,11 @@ export default async function CreativeDetailPage({
   ]);
 
   return (
-    <>
-      {product ? (
-        <AgentProductSync
-          productId={product.id}
-          productTitle={product.title}
-        />
-      ) : null}
-      <CreativeWorkspace
-        creative={creative}
-        product={product}
-        performance={performance}
-      />
-    </>
+    <CreativeWorkspace
+      creative={creative}
+      product={product}
+      performance={performance}
+      initialTab={initialTab}
+    />
   );
 }

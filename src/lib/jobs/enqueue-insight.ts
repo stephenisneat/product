@@ -9,6 +9,7 @@ import type {
 import { assertHasInsights } from "@/lib/billing/gates";
 import { getEntitlements } from "@/lib/billing/entitlements";
 import { logServerError, unknownErrorMessage } from "@/lib/errors";
+import { getInsightSettingsForWorkspace } from "@/lib/insights/insight-settings";
 import {
   payloadFromGenerateInsightInput,
   runGenerateInsightJob,
@@ -17,7 +18,7 @@ import {
   HEARTBEAT_MIN_HOURS_BETWEEN_INSIGHTS,
   MAX_AWAITING_REVIEW_INSIGHTS,
 } from "@/lib/jobs/insight-stubs";
-import { hasServiceRole } from "@/lib/supabase/service";
+import { createServiceClient, hasServiceRole } from "@/lib/supabase/service";
 import {
   getGoalWriteRepository,
   getInsightWriteRepository,
@@ -311,6 +312,13 @@ export async function maybeEnqueueHeartbeatInsight(opts: {
     if (!workspace) return null;
     if (!getEntitlements(workspace.plan ?? "free").hasInsights) return null;
 
+    const settings = await getInsightSettingsForWorkspace(
+      createServiceClient(),
+      opts.workspaceId,
+    );
+    if (!settings.triggers.heartbeat) return null;
+    if (settings.heartbeatSchedule === "off") return null;
+
     const goals = getGoalWriteRepository();
     const activeGoals = await goals.listActiveByWorkspace(opts.workspaceId);
     if (activeGoals.length === 0) return null;
@@ -319,7 +327,11 @@ export async function maybeEnqueueHeartbeatInsight(opts: {
     const latest = await insights.latestCreatedAt(opts.workspaceId);
     if (latest) {
       const ageMs = Date.now() - new Date(latest).getTime();
-      const minMs = HEARTBEAT_MIN_HOURS_BETWEEN_INSIGHTS * 60 * 60 * 1000;
+      const minHours =
+        settings.heartbeatSchedule === "weekly"
+          ? 24 * 7
+          : HEARTBEAT_MIN_HOURS_BETWEEN_INSIGHTS;
+      const minMs = minHours * 60 * 60 * 1000;
       if (ageMs < minMs) return null;
     }
 

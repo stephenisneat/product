@@ -4,7 +4,6 @@ import { useState } from "react";
 import { LockIcon } from "lucide-react";
 import type { Goal, Insight, WorkspacePlan } from "@/domain";
 import { UpgradeButton } from "@/features/billing/upgrade-button";
-import { GoalsPanel } from "@/features/insights/goals-panel";
 import { InsightsList } from "@/features/insights/insights-list";
 import type {
   InsightsSortKey,
@@ -14,14 +13,12 @@ import { InsightsToolbar } from "@/features/insights/insights-toolbar";
 
 export function InsightsPageClient({
   plan,
-  workspaceName,
   locked,
   goals,
   insights,
   products,
 }: {
   plan: WorkspacePlan;
-  workspaceName: string;
   locked: boolean;
   goals: Goal[];
   insights: Insight[];
@@ -44,12 +41,8 @@ export function InsightsPageClient({
         onStatusFilterChange={setStatusFilter}
         sort={sort}
         onSortChange={setSort}
-        canGenerate={!locked}
       />
       <div className="mx-auto w-full max-w-3xl px-4 py-6">
-        <p className="mb-6 text-sm text-muted-foreground">
-          Product and marketing insights for {workspaceName}.
-        </p>
         {locked ? (
           <div className="relative overflow-hidden rounded-xl border border-dashed border-border bg-muted/20 px-6 py-16 text-center">
             <div
@@ -77,19 +70,13 @@ export function InsightsPageClient({
             </div>
           </div>
         ) : (
-          <>
-            <GoalsPanel goals={goals} products={products} />
-            <h2 className="mb-3 font-heading text-base font-semibold tracking-tight">
-              Inbox
-            </h2>
-            <InsightsList
-              initialInsights={insights}
-              productTitleById={productTitleById}
-              goalTitleById={goalTitleById}
-              statusFilter={statusFilter}
-              sort={sort}
-            />
-          </>
+          <InsightsList
+            initialInsights={insights}
+            productTitleById={productTitleById}
+            goalTitleById={goalTitleById}
+            statusFilter={statusFilter}
+            sort={sort}
+          />
         )}
       </div>
     </>

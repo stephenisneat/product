@@ -6,6 +6,7 @@ import {
   BellIcon,
   Building2Icon,
   CreditCardIcon,
+  LightbulbIcon,
   Link2Icon,
   MonitorIcon,
   ShieldIcon,
@@ -40,6 +41,11 @@ const settingsGroups = [
       { href: "/settings/team", label: "Team", icon: UsersIcon },
       { href: "/settings/billing", label: "Billing", icon: CreditCardIcon },
       { href: "/settings/wallet", label: "Wallet", icon: WalletIcon },
+      {
+        href: "/settings/goals",
+        label: "Insights",
+        icon: LightbulbIcon,
+      },
       {
         href: "/settings/connections",
         label: "Connections",

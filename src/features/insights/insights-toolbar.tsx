@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ArrowUpDownIcon,
   CheckIcon,
   ListFilterIcon,
   LockOpenIcon,
-  SparklesIcon,
+  SettingsIcon,
 } from "lucide-react";
 import type { WorkspacePlan } from "@/domain";
 import { Button } from "@/components/ui/button";
@@ -56,42 +56,15 @@ export function InsightsToolbar({
   onStatusFilterChange,
   sort,
   onSortChange,
-  canGenerate = false,
 }: {
   plan?: WorkspacePlan;
   statusFilter: InsightsStatusFilter;
   onStatusFilterChange: (value: InsightsStatusFilter) => void;
   sort: InsightsSortKey;
   onSortChange: (value: InsightsSortKey) => void;
-  canGenerate?: boolean;
 }) {
-  const router = useRouter();
   const [sortOpen, setSortOpen] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [genError, setGenError] = useState<string | null>(null);
   const showUnlock = plan !== "pro";
-
-  async function generate() {
-    setGenError(null);
-    setGenerating(true);
-    try {
-      const res = await fetch("/api/insights", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        setGenError(body?.error ?? "Failed to generate");
-        return;
-      }
-      router.refresh();
-    } finally {
-      setGenerating(false);
-    }
-  }
 
   return (
     <CatalogHeaderActions>
@@ -178,29 +151,15 @@ export function InsightsToolbar({
         </PopoverContent>
       </Popover>
 
-      {canGenerate ? (
-        <Tooltip>
-          <TooltipTrigger
-            delay={50}
-            closeOnClick={false}
-            render={
-              <Button
-                type="button"
-                size="sm"
-                className={insightsCtaButtonClass}
-                disabled={generating}
-                onClick={() => void generate()}
-              />
-            }
-          >
-            <SparklesIcon data-icon="inline-start" />
-            {generating ? "Generating…" : "Generate"}
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="end">
-            {genError ?? "Generate a new insight from your goals."}
-          </TooltipContent>
-        </Tooltip>
-      ) : null}
+      <Button
+        render={<Link href="/settings/goals" />}
+        variant="outline"
+        size="icon-sm"
+        className="aspect-square"
+        aria-label="Insight settings"
+      >
+        <SettingsIcon />
+      </Button>
 
       {showUnlock ? (
         <Tooltip>

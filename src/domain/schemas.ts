@@ -561,6 +561,41 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   billingAlerts: true,
   marketing: false,
 };
+
+export const insightGoalModeSchema = z.enum(["auto", "manual"]);
+export type InsightGoalMode = z.infer<typeof insightGoalModeSchema>;
+
+export const insightHeartbeatScheduleSchema = z.enum([
+  "daily",
+  "weekly",
+  "off",
+]);
+export type InsightHeartbeatSchedule = z.infer<
+  typeof insightHeartbeatScheduleSchema
+>;
+
+export const insightSettingsSchema = z.object({
+  goalMode: insightGoalModeSchema,
+  triggers: z.object({
+    job: z.boolean(),
+    agent: z.boolean(),
+    heartbeat: z.boolean(),
+    api: z.boolean(),
+  }),
+  heartbeatSchedule: insightHeartbeatScheduleSchema,
+});
+export type InsightSettings = z.infer<typeof insightSettingsSchema>;
+
+export const DEFAULT_INSIGHT_SETTINGS: InsightSettings = {
+  goalMode: "auto",
+  triggers: {
+    job: true,
+    agent: true,
+    heartbeat: true,
+    api: true,
+  },
+  heartbeatSchedule: "daily",
+};
 export const walletTransactionTypeSchema = z.enum([
   "credit_purchase",
   "auto_reload",
@@ -664,11 +699,23 @@ export const creativeStatusSchema = z.enum([
 ]);
 export type CreativeStatus = z.infer<typeof creativeStatusSchema>;
 
+export const screenplaySpokenKindSchema = z.enum(["voiceover", "dialogue"]);
+export type ScreenplaySpokenKind = z.infer<typeof screenplaySpokenKindSchema>;
+
 export const screenplaySceneSchema = z.object({
   id: z.string(),
   heading: z.string(),
+  /** Concrete visual direction — who/what/where, never abstract marketing language. */
   action: z.string(),
+  /** Empty string = no spoken audio in this scene. */
   dialogue: z.string().default(""),
+  /**
+   * How dialogue is delivered. Ignored when dialogue is empty.
+   * Defaults to voiceover for backwards-compatible payloads.
+   */
+  spokenKind: screenplaySpokenKindSchema.default("voiceover"),
+  /** On-screen character name when spokenKind is "dialogue". */
+  character: z.string().default(""),
   durationSec: z.number().positive(),
 });
 export type ScreenplayScene = z.infer<typeof screenplaySceneSchema>;
