@@ -66,6 +66,7 @@ export async function GET() {
           userId: member.userId,
           name: member.name ?? null,
           email: member.email ?? null,
+          avatarUrl: member.avatarUrl ?? null,
           usageCents: usage?.usageCents ?? 0,
           actionCount: usage?.actionCount ?? 0,
         };
@@ -84,6 +85,7 @@ export async function GET() {
         userId,
         name: null,
         email: null,
+        avatarUrl: null,
         usageCents: usage.usageCents,
         actionCount: usage.actionCount,
       });

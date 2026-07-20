@@ -6,6 +6,7 @@ import {
 
 export const generateInsightTask = task({
   id: "generate-insight",
+  maxDuration: 60,
   retry: {
     maxAttempts: 3,
   },

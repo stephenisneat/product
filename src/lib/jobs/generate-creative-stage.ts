@@ -1,4 +1,5 @@
 import type { CreativeStage, GenerateCreativeStageJobInput } from "@/domain";
+import { assertTriggerJobEnv } from "@/lib/jobs/assert-trigger-env";
 import {
   buildStubVideo,
   buildTemplateScreenplay,
@@ -39,6 +40,8 @@ export function payloadFromGenerateCreativeStageInput(
 export async function runGenerateCreativeStageJob(
   payload: GenerateCreativeStageJobPayload,
 ): Promise<{ creativeId: string; stage: CreativeStage }> {
+  assertTriggerJobEnv();
+
   const jobs = getJobWriteRepository();
   const creatives = getCreativeWriteRepository();
   const products = getProductWriteRepository();

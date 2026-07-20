@@ -49,6 +49,7 @@ export const workspaceMemberSchema = z.object({
   createdAt: z.string().datetime(),
   email: z.string().email().optional(),
   name: z.string().optional(),
+  avatarUrl: z.string().url().nullable().optional(),
 });
 
 export type WorkspaceMember = z.infer<typeof workspaceMemberSchema>;
@@ -637,6 +638,7 @@ export const memberUsageSchema = z.object({
   userId: z.string(),
   name: z.string().nullable(),
   email: z.string().nullable(),
+  avatarUrl: z.string().url().nullable().optional(),
   usageCents: z.number().int().nonnegative(),
   actionCount: z.number().int().nonnegative(),
 });

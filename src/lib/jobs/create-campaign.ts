@@ -3,6 +3,7 @@ import {
   PlanEntitlementError,
   assertCanCreateCampaign,
 } from "@/lib/billing/gates";
+import { assertTriggerJobEnv } from "@/lib/jobs/assert-trigger-env";
 import {
   getJobWriteRepository,
   getProductWriteRepository,
@@ -39,6 +40,8 @@ export function payloadFromCreateCampaignInput(
 export async function runCreateCampaignJob(
   payload: CreateCampaignJobPayload,
 ): Promise<{ campaignId: string }> {
+  assertTriggerJobEnv();
+
   const jobs = getJobWriteRepository();
   const products = getProductWriteRepository();
   const workspaces = getWorkspaceWriteRepository();

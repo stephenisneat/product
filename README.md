@@ -67,8 +67,16 @@ Product images upload to the `product-assets` storage bucket created by migratio
 | `TOKEN_ENCRYPTION_KEY` | Optional dedicated key for encrypting commerce access tokens |
 | `RESEND_API_KEY` | Resend API key for workspace invite emails |
 | `RESEND_FROM` | Optional From address for invite emails |
-| `TRIGGER_SECRET_KEY` | Trigger.dev secret key for enqueueing background jobs |
+| `TRIGGER_SECRET_KEY` | Trigger.dev secret key for enqueueing background jobs (Vercel + local) |
 | `TRIGGER_PROJECT_ID` | Optional Trigger.dev project ref (defaults in `trigger.config.ts`) |
+
+Trigger.dev **workers** do not inherit Vercel env. In the Trigger dashboard → Environment Variables (prod), also set:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+Then deploy workers with `pnpm exec trigger deploy`. Stub creative jobs should finish in under a second; multi-minute runs usually mean missing worker env or the task hanging until `maxDuration`.
 
 ## Scripts
 

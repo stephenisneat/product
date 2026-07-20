@@ -1,18 +1,9 @@
 "use client";
 
 import type { MemberUsage } from "@/domain";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/features/avatars/user-avatar";
 import { formatCents } from "@/features/wallet/money";
 import { cn } from "@/lib/utils";
-
-function initialsFor(member: MemberUsage): string {
-  const source = (member.name?.trim() || member.email || "?").trim();
-  const parts = source.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0]![0]!}${parts[1]![0]!}`.toUpperCase();
-  }
-  return source.slice(0, 2).toUpperCase();
-}
 
 function displayName(member: MemberUsage, isCurrentUser: boolean): string {
   if (isCurrentUser) return "You";
@@ -49,11 +40,13 @@ export function MemberUsageList({
         return (
           <li key={member.userId} className="space-y-1">
             <div className="flex items-center gap-2">
-              <Avatar size="sm">
-                <AvatarFallback className="text-[10px]">
-                  {initialsFor(member)}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                name={member.name}
+                email={member.email}
+                avatarUrl={member.avatarUrl}
+                size="sm"
+                fallbackClassName="text-[10px]"
+              />
               <span
                 className={cn(
                   "min-w-0 flex-1 truncate text-xs",

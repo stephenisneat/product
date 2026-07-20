@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDownIcon } from "lucide-react";
 import type { AppUser } from "@/domain";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -12,19 +11,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { UserAvatar } from "@/features/avatars/user-avatar";
 import { cn } from "@/lib/utils";
 
 const menuItemClass =
   "flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground";
-
-function initialsFor(user: AppUser) {
-  const source = user.name?.trim() || user.email;
-  const parts = source.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0]![0]!}${parts[1]![0]!}`.toUpperCase();
-  }
-  return source.slice(0, 2).toUpperCase();
-}
 
 export function UserMenu({
   user,
@@ -55,10 +46,12 @@ export function UserMenu({
           />
         }
       >
-        <Avatar size="sm">
-          {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt="" /> : null}
-          <AvatarFallback>{initialsFor(user)}</AvatarFallback>
-        </Avatar>
+        <UserAvatar
+          name={user.name}
+          email={user.email}
+          avatarUrl={user.avatarUrl}
+          size="sm"
+        />
         {showLabel ? (
           <>
             <span className="max-w-40 truncate">{label}</span>

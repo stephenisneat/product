@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { UserAvatar } from "@/features/avatars/user-avatar";
 
 export function WorkspaceTeamPanel({
   workspaceId,
@@ -180,20 +181,28 @@ export function WorkspaceTeamPanel({
                 key={member.userId}
                 className="flex flex-wrap items-center justify-between gap-3 px-3 py-3"
               >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
-                    {member.name || member.email || member.userId}
-                    {isSelf ? (
-                      <span className="ml-1 text-xs text-muted-foreground">
-                        (you)
-                      </span>
-                    ) : null}
-                  </p>
-                  {member.email ? (
-                    <p className="truncate text-xs text-muted-foreground">
-                      {member.email}
+                <div className="flex min-w-0 items-center gap-3">
+                  <UserAvatar
+                    name={member.name}
+                    email={member.email}
+                    avatarUrl={member.avatarUrl}
+                    size="sm"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      {member.name || member.email || member.userId}
+                      {isSelf ? (
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          (you)
+                        </span>
+                      ) : null}
                     </p>
-                  ) : null}
+                    {member.email ? (
+                      <p className="truncate text-xs text-muted-foreground">
+                        {member.email}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {canEditRole ? (

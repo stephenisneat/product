@@ -6,6 +6,7 @@ import {
 
 export const createCampaignTask = task({
   id: "create-campaign",
+  maxDuration: 60,
   retry: {
     maxAttempts: 3,
   },
