@@ -155,7 +155,7 @@ export function WorkspacePicker({
               className={cn(
                 "gap-1.5",
                 variant === "header" &&
-                  "h-8 px-1.5 text-foreground hover:bg-white/5 aria-expanded:bg-white/5",
+                  "h-8 px-1.5 text-xs text-foreground hover:bg-white/5 aria-expanded:bg-white/5",
               )}
             />
           }
