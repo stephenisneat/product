@@ -78,6 +78,7 @@ import {
 } from "@/features/visualizer/visualization-store";
 import type { Visualization } from "@/domain";
 import { useWalletOptional } from "@/features/wallet/wallet-context";
+import { userFacingErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 
 const AgentMessageMarkdown = dynamic(
@@ -556,11 +557,11 @@ export function AgentComposer({
       void walletCtx?.refresh();
     },
     onError: (err) => {
-      const msg = err.message || "";
+      const raw = err instanceof Error ? err.message : String(err ?? "");
       if (
-        msg.includes("402") ||
-        msg.includes("wallet_blocked") ||
-        msg.includes("Wallet blocked")
+        raw.includes("402") ||
+        raw.includes("wallet_blocked") ||
+        raw.includes("Wallet blocked")
       ) {
         walletCtx?.revealBlockedBanner();
         toast.error(
@@ -569,7 +570,7 @@ export function AgentComposer({
         void walletCtx?.refresh();
         return;
       }
-      toast.error(msg || "Something went wrong");
+      toast.error(userFacingErrorMessage(err));
     },
   });
 
@@ -1149,7 +1150,7 @@ export function AgentComposer({
                       <MessageScrollerItem>
                         <Marker role="alert">
                           <MarkerContent className="text-[13px] text-destructive">
-                            {error.message}
+                            {userFacingErrorMessage(error)}
                           </MarkerContent>
                         </Marker>
                       </MessageScrollerItem>

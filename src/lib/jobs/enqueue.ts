@@ -168,8 +168,26 @@ export async function enqueueGenerateCreativeStageJob(
   );
 
   if (!hasTriggerSecret()) {
-    // Dynamic import keeps Remotion/rspack out of Next.js API route modules
-    // (static imports crash Vercel with missing @rspack/binding).
+    // Remotion (@remotion/bundler → @rspack/binding) cannot load on Vercel
+    // serverless. Keep the job runner out of that graph entirely: on Vercel
+    // require Trigger; locally, dynamic-import the runner for inline fallback.
+    // `process.env.VERCEL` is inlined at build time so the import is tree-shaken
+    // out of production bundles.
+    if (process.env.VERCEL) {
+      const message =
+        "TRIGGER_SECRET_KEY is required to generate creatives on Vercel.";
+      await jobs.update(run.id, {
+        status: "failed",
+        error: message,
+        finishedAt: new Date().toISOString(),
+      });
+      await creatives.update(opts.input.creativeId, {
+        status: "awaiting_review",
+        activeJobId: null,
+      });
+      throw new Error(message);
+    }
+
     void import("@/lib/jobs/generate-creative-stage")
       .then(({ runGenerateCreativeStageJob }) =>
         runGenerateCreativeStageJob(payload),
