@@ -313,15 +313,20 @@ export function CreativeWorkspace({
   creative: initial,
   product,
   performance = [],
+  initialTab,
 }: {
   creative: Creative;
   product: Product | null;
   performance?: PerformancePoint[];
+  initialTab?: CreativeTab;
 }) {
   const router = useRouter();
   const { setComposePrefill } = useAgentContext();
   const [creative, setCreative] = useState(initial);
-  const [tab, setTab] = useState<CreativeTab>(() => defaultTab(initial));
+  const [tab, setTab] = useState<CreativeTab>(() => {
+    if (initialTab && isTabEnabled(initialTab, initial)) return initialTab;
+    return defaultTab(initial);
+  });
   const [pending, startTransition] = useTransition();
   const [revising, setRevising] = useState(false);
   const [feedback, setFeedback] = useState("");

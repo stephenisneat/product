@@ -2,127 +2,177 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Ellipsis, Loader2 } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import type { Creative } from "@/domain";
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { useAgentContext } from "@/features/agent/agent-context";
-import { CampaignAssociation } from "@/features/campaigns/campaign-association";
 import { cn } from "@/lib/utils";
 
-function stageLabel(stage: Creative["stage"]): string {
-  switch (stage) {
-    case "screenplay":
-      return "Screenplay";
-    case "storyboard":
-      return "Storyboard";
-    case "video":
-      return "Video";
+function previewThumbnail(creative: Creative): string | null {
+  if (creative.video?.thumbnailUrl) return creative.video.thumbnailUrl;
+  const frames = creative.storyboard?.frames;
+  if (frames && frames.length > 0) {
+    return frames[frames.length - 1]!.imageUrl;
   }
+  return null;
 }
 
-function statusLabel(status: Creative["status"]): string {
-  switch (status) {
-    case "generating":
-      return "Generating";
-    case "awaiting_review":
-      return "Awaiting review";
-    case "revising":
-      return "Revising";
-    case "paused":
-      return "Paused";
-    case "rejected":
-      return "Rejected";
-    case "ready":
-      return "Ready for campaigns";
-  }
-}
+function CreativePreviewMedia({ creative }: { creative: Creative }) {
+  const thumbnail = previewThumbnail(creative);
+  const isWorking =
+    creative.status === "generating" || creative.status === "revising";
 
-function CreativePreview({ creative }: { creative: Creative }) {
-  if (creative.stage === "screenplay" && creative.screenplay) {
+  if (thumbnail) {
     return (
-      <div className="mt-3 space-y-2">
-        <p className="text-xs font-medium text-foreground">
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={thumbnail}
+        alt=""
+        className="size-full object-cover"
+      />
+    );
+  }
+
+  if (creative.screenplay) {
+    return (
+      <div className="flex size-full flex-col justify-end bg-gradient-to-b from-muted/40 to-muted/80 p-3">
+        <p className="line-clamp-2 text-xs font-medium text-foreground">
           {creative.screenplay.logline}
         </p>
-        <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-md bg-muted/50 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+        <pre className="mt-1.5 line-clamp-4 whitespace-pre-wrap font-mono text-[10px] leading-relaxed text-muted-foreground">
           {creative.screenplay.script}
         </pre>
       </div>
     );
   }
 
-  if (creative.stage === "storyboard" && creative.storyboard) {
-    return (
-      <div className="mt-3 space-y-2">
-        <p className="text-xs text-muted-foreground">
-          {creative.storyboard.styleBrief}
-        </p>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {creative.storyboard.frames.map((frame) => (
-            <figure
-              key={`${frame.sceneId}-${frame.shotDescription.slice(0, 12)}`}
-              className="overflow-hidden rounded-md border border-border bg-muted/30"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={frame.imageUrl}
-                alt={frame.shotDescription}
-                className="aspect-[9/16] w-full object-cover"
-              />
-              <figcaption className="space-y-0.5 p-1.5">
-                <p className="line-clamp-2 text-[10px] leading-snug text-foreground">
-                  {frame.shotDescription}
-                </p>
-                <p className="text-[10px] text-muted-foreground">{frame.camera}</p>
-              </figcaption>
-            </figure>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  return (
+    <div className="flex size-full items-center justify-center bg-muted/50 text-xs text-muted-foreground">
+      {isWorking ? (
+        <span className="inline-flex items-center gap-2">
+          <Loader2 className="size-3.5 animate-spin" />
+          Generating…
+        </span>
+      ) : (
+        "No preview yet"
+      )}
+    </div>
+  );
+}
 
-  if (creative.stage === "video" && creative.video) {
-    return (
-      <div className="mt-3 space-y-2">
-        <video
-          className="aspect-[9/16] max-h-80 w-full rounded-md bg-black object-contain"
-          controls
-          poster={creative.video.thumbnailUrl}
-          src={creative.video.url}
-        />
-        <p className="text-[11px] text-muted-foreground">
-          {creative.video.durationSec}s · {creative.video.aspectRatio}
-        </p>
-      </div>
-    );
-  }
+function CardFooterActions({
+  creative,
+  pending,
+  revising,
+  feedback,
+  onFeedbackChange,
+  onReviseToggle,
+  onAction,
+}: {
+  creative: Creative;
+  pending: boolean;
+  revising: boolean;
+  feedback: string;
+  onFeedbackChange: (value: string) => void;
+  onReviseToggle: (open: boolean) => void;
+  onAction: (action: "accept" | "reject" | "revise") => void;
+}) {
+  const isWorking =
+    creative.status === "generating" || creative.status === "revising";
 
-  if (creative.status === "generating") {
+  if (isWorking) {
     return (
-      <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="flex h-7 items-center gap-1.5 text-xs text-muted-foreground">
         <Loader2 className="size-3.5 animate-spin" />
-        Generating {stageLabel(creative.stage).toLowerCase()}…
+        Working…
       </div>
     );
   }
 
-  if (creative.status === "paused") {
+  if (creative.status === "ready") {
     return (
-      <p className="mt-3 text-xs text-muted-foreground">
-        Generation paused. Resume to continue {stageLabel(creative.stage).toLowerCase()}.
-      </p>
+      <Button
+        size="sm"
+        variant="outline"
+        className="w-full"
+        render={<Link href={`/creatives/${creative.id}?tab=performance`} />}
+      >
+        View performance
+      </Button>
     );
+  }
+
+  if (creative.status !== "awaiting_review") {
+    return null;
   }
 
   return (
-    <p className="mt-3 text-xs text-muted-foreground">
-      No {stageLabel(creative.stage).toLowerCase()} output yet.
-    </p>
+    <div className="space-y-2">
+      {revising ? (
+        <Textarea
+          className="text-xs"
+          rows={3}
+          placeholder="What should change?"
+          value={feedback}
+          onChange={(e) => onFeedbackChange(e.target.value)}
+        />
+      ) : null}
+      <div className="flex flex-wrap gap-1.5">
+        <Button
+          size="sm"
+          disabled={pending}
+          onClick={() => onAction("accept")}
+        >
+          Accept
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={pending}
+          onClick={() => onAction("reject")}
+        >
+          Reject
+        </Button>
+        {revising ? (
+          <>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={pending}
+              onClick={() => onAction("revise")}
+            >
+              Send to chat
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={pending}
+              onClick={() => onReviseToggle(false)}
+            >
+              Cancel
+            </Button>
+          </>
+        ) : (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={pending}
+            onClick={() => onReviseToggle(true)}
+          >
+            Revise
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -175,16 +225,9 @@ export function CreativeCard({
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [
-    creative.id,
-    creative.status,
-    pollWhileGenerating,
-    router,
-  ]);
+  }, [creative.id, creative.status, pollWhileGenerating, router]);
 
-  async function mutate(
-    action: "accept" | "reject" | "revise" | "pause" | "resume",
-  ) {
+  async function mutate(action: "accept" | "reject" | "revise") {
     setError(null);
     const res = await fetch(`/api/creatives/${creative.id}`, {
       method: "PATCH",
@@ -245,158 +288,74 @@ export function CreativeCard({
     }
   }
 
-  const canReview = creative.status === "awaiting_review";
-  const canControlJob =
-    creative.status === "generating" || creative.status === "paused";
-
   return (
     <article
       className={cn(
-        "rounded-lg border border-border bg-card/40 p-3",
+        "overflow-hidden rounded-lg border border-border bg-card/40",
         compact && "max-w-md",
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className="truncate text-sm font-medium">
-            <Link
-              href={`/creatives/${creative.id}`}
-              className="hover:underline"
+      <div className="relative aspect-video bg-muted">
+        <Link
+          href={`/creatives/${creative.id}`}
+          className="absolute inset-0 block"
+          aria-label={`Open ${creative.title}`}
+        >
+          <CreativePreviewMedia creative={creative} />
+        </Link>
+
+        <div className="absolute top-2 right-2 z-10">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="secondary"
+                  size="icon-xs"
+                  className="bg-background/90 shadow-sm backdrop-blur supports-backdrop-filter:bg-background/75"
+                  aria-label="Creative actions"
+                />
+              }
             >
-              {creative.title}
-            </Link>
-          </h3>
-          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-            {creative.brief}
-          </p>
-          <CampaignAssociation
-            className="mt-2"
-            productId={creative.productId}
-            campaignIds={creative.campaignIds}
-            patchUrl={`/api/creatives/${creative.id}`}
-            compact={compact}
-          />
-        </div>
-        <div className="flex shrink-0 flex-wrap justify-end gap-1">
-          <Badge variant="outline" className="text-[10px] uppercase">
-            {stageLabel(creative.stage)}
-          </Badge>
-          <Badge
-            variant={creative.status === "ready" ? "default" : "outline"}
-            className="text-[10px] uppercase"
-          >
-            {statusLabel(creative.status)}
-          </Badge>
+              <Ellipsis className="size-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-36">
+              <DropdownMenuItem
+                variant="destructive"
+                disabled={pending || deleting}
+                onClick={() => setDeleteOpen(true)}
+              >
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-      <CreativePreview creative={creative} />
-
-      {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
-
-      {canControlJob ? (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {creative.status === "generating" ? (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={pending}
-              onClick={() => void mutate("pause")}
-            >
-              Pause
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              disabled={pending}
-              onClick={() => void mutate("resume")}
-            >
-              Resume
-            </Button>
-          )}
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-destructive hover:text-destructive"
-            disabled={pending || deleting}
-            onClick={() => setDeleteOpen(true)}
+      <div className="space-y-2 p-3">
+        <h3 className="truncate text-sm font-medium">
+          <Link
+            href={`/creatives/${creative.id}`}
+            className="hover:underline"
           >
-            Delete
-          </Button>
-        </div>
-      ) : null}
+            {creative.title}
+          </Link>
+        </h3>
 
-      {canReview ? (
-        <div className="mt-3 space-y-2">
-          {revising ? (
-            <Textarea
-              className="text-xs"
-              rows={3}
-              placeholder="What should change?"
-              value={feedback}
-              onChange={(e) => setFeedback(e.target.value)}
-            />
-          ) : null}
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              disabled={pending}
-              onClick={() => void mutate("accept")}
-            >
-              Accept
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={pending}
-              onClick={() => void mutate("reject")}
-            >
-              Reject
-            </Button>
-            {revising ? (
-              <>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={pending}
-                  onClick={() => void mutate("revise")}
-                >
-                  Send to chat
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={pending}
-                  onClick={() => {
-                    setRevising(false);
-                    setFeedback("");
-                  }}
-                >
-                  Cancel
-                </Button>
-              </>
-            ) : (
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={pending}
-                onClick={() => setRevising(true)}
-              >
-                Revise
-              </Button>
-            )}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-destructive hover:text-destructive"
-              disabled={pending || deleting}
-              onClick={() => setDeleteOpen(true)}
-            >
-              Delete
-            </Button>
-          </div>
-        </div>
-      ) : null}
+        {error ? <p className="text-xs text-destructive">{error}</p> : null}
+
+        <CardFooterActions
+          creative={creative}
+          pending={pending}
+          revising={revising}
+          feedback={feedback}
+          onFeedbackChange={setFeedback}
+          onReviseToggle={(open) => {
+            setRevising(open);
+            if (!open) setFeedback("");
+          }}
+          onAction={(action) => void mutate(action)}
+        />
+      </div>
 
       <ConfirmDeleteDialog
         open={deleteOpen}
