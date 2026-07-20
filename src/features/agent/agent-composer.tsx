@@ -56,6 +56,10 @@ import {
   upsertConversation,
   type AgentConversation,
 } from "@/features/agent/agent-conversations";
+import {
+  AgentEmptySuggestions,
+  getAgentSuggestions,
+} from "@/features/agent/agent-empty-suggestions";
 import { AgentModelSelect } from "@/features/agent/agent-model-select";
 import {
   loadPreferredChatModel,
@@ -815,6 +819,22 @@ export function AgentComposer({
     await sendMessage({ text });
   }
 
+  const handleSuggestionSelect = useCallback(
+    (suggestion: { prompt: string }) => {
+      if (busy || walletBlocked) {
+        if (walletBlocked) {
+          walletCtx?.revealBlockedBanner();
+          toast.error(
+            "AI is blocked until you add credits or raise your usage limit.",
+          );
+        }
+        return;
+      }
+      void sendMessage({ text: suggestion.prompt });
+    },
+    [busy, sendMessage, walletBlocked, walletCtx],
+  );
+
   function closeHistorySearch() {
     setHistorySearchOpen(false);
     setHistoryQuery("");
@@ -871,6 +891,13 @@ export function AgentComposer({
     status === "streaming" && lastMessage?.role === "assistant"
       ? lastMessage.id
       : null;
+
+  const isEmpty =
+    messages.length === 0 && !waitingForAssistant && !error;
+  const suggestions = useMemo(
+    () => getAgentSuggestions({ isWorkspace, productTitle }),
+    [isWorkspace, productTitle],
+  );
 
   return (
     <div className="relative h-full min-h-0">
@@ -1011,15 +1038,16 @@ export function AgentComposer({
             historyOpen && "pointer-events-none opacity-0",
           )}
         >
-          {messages.length === 0 && !waitingForAssistant && !error ? (
-            <div className="flex flex-1 items-start px-3 py-3">
-              <Marker className="rounded-md border border-dashed border-border px-3 py-3 text-[13px]">
-                <MarkerContent>
-                  {isWorkspace
-                    ? "Ask about your catalog, prioritize products, or request proposals across the workspace."
-                    : `Ask about ${productTitle ?? "this product"} — positioning, ad copy, or a campaign concept.`}
-                </MarkerContent>
-              </Marker>
+          {isEmpty ? (
+            <div className="flex min-h-0 flex-1 flex-col justify-end px-3 pb-1">
+              <h2 className="px-3 pb-4 font-heading text-xl font-semibold tracking-tight">
+                What can I help with?
+              </h2>
+              <AgentEmptySuggestions
+                suggestions={suggestions}
+                disabled={busy || walletBlocked || historyOpen}
+                onSelect={handleSuggestionSelect}
+              />
             </div>
           ) : (
             <MessageScrollerProvider autoScroll>
@@ -1134,7 +1162,7 @@ export function AgentComposer({
           )}
 
           <div
-            className="border-t border-border"
+            className={cn(!isEmpty && "border-t border-border")}
             onClick={(e) => e.stopPropagation()}
           >
             <AgentComposerInput
@@ -1144,9 +1172,7 @@ export function AgentComposer({
               placeholder={
                 walletBlocked
                   ? "AI is paused — add credits or raise your usage limit"
-                  : isWorkspace
-                    ? "What should we improve across the catalog?"
-                    : `Ask about ${productTitle ?? "this product"} — ad copy, or a video ad idea…`
+                  : "Ask anything"
               }
             />
             <div className="flex items-center px-2 pb-2">
