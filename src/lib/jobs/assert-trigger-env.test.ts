@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { assertTriggerJobEnv } from "@/lib/jobs/assert-trigger-env";
+import {
+  assertSupabaseUrlForTrigger,
+  assertTriggerJobEnv,
+  clarifyTriggerSupabaseError,
+} from "@/lib/jobs/assert-trigger-env";
 
 describe("assertTriggerJobEnv", () => {
   const keys = [
@@ -42,5 +46,45 @@ describe("assertTriggerJobEnv", () => {
     process.env.SUPABASE_SERVICE_ROLE_KEY = "service";
 
     expect(() => assertTriggerJobEnv()).not.toThrow();
+  });
+
+  it("throws when supabase url is a bare supabase.com host", () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://supabase.com";
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "pub";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "service";
+
+    expect(() => assertTriggerJobEnv()).toThrow(/not a project URL/i);
+  });
+});
+
+describe("assertSupabaseUrlForTrigger", () => {
+  it("accepts project subdomain urls and localhost", () => {
+    expect(() =>
+      assertSupabaseUrlForTrigger("https://abcd1234.supabase.co"),
+    ).not.toThrow();
+    expect(() =>
+      assertSupabaseUrlForTrigger("http://127.0.0.1:54321"),
+    ).not.toThrow();
+  });
+
+  it("rejects invalid and non-project hosts", () => {
+    expect(() => assertSupabaseUrlForTrigger("not-a-url")).toThrow(/valid URL/i);
+    expect(() =>
+      assertSupabaseUrlForTrigger("https://api.supabase.com"),
+    ).toThrow(/not a project URL/i);
+  });
+});
+
+describe("clarifyTriggerSupabaseError", () => {
+  it("rewrites Project not specified", () => {
+    const out = clarifyTriggerSupabaseError("Project not specified.");
+    expect(out).toMatch(/Trigger worker/i);
+    expect(out).toMatch(/Project URL/i);
+  });
+
+  it("leaves other messages alone", () => {
+    expect(clarifyTriggerSupabaseError("Creative not found.")).toBe(
+      "Creative not found.",
+    );
   });
 });

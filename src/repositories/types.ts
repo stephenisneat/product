@@ -201,6 +201,11 @@ export interface JobRepository {
     workspaceId: string,
     opts?: { limit?: number; offset?: number },
   ): Promise<JobRun[]>;
+  /** Pending/running jobs whose input.creativeId matches. */
+  listNonTerminalForCreative(
+    workspaceId: string,
+    creativeId: string,
+  ): Promise<JobRun[]>;
   update(id: string, patch: JobRunUpdateInput): Promise<JobRun>;
 }
 

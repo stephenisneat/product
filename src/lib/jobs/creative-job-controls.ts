@@ -187,19 +187,32 @@ export async function deleteCreativeWithJob(opts: {
     throw new Error("Creative not found in workspace.");
   }
 
-  if (creative.activeJobId) {
-    const job = await jobs.getById(creative.activeJobId);
-    if (job?.triggerRunId) {
-      await cancelTriggerRunIfNeeded(job.triggerRunId);
-    }
-    if (job && !isJobTerminal(job.status)) {
-      await jobs.update(job.id, {
-        status: "canceled",
-        error: "Creative deleted",
-        finishedAt: new Date().toISOString(),
-      });
+  // Cancel every in-flight Trigger run for this creative (not only activeJobId),
+  // so the platform hard-delete cannot leave orphaned workers.
+  const activeJobs = await jobs.listNonTerminalForCreative(
+    opts.workspaceId,
+    opts.creativeId,
+  );
+  const jobsById = new Map(activeJobs.map((job) => [job.id, job]));
+  if (creative.activeJobId && !jobsById.has(creative.activeJobId)) {
+    const active = await jobs.getById(creative.activeJobId);
+    if (active && !isJobTerminal(active.status)) {
+      jobsById.set(active.id, active);
     }
   }
+
+  await Promise.all(
+    [...jobsById.values()].map(async (job) => {
+      await cancelTriggerRunIfNeeded(job.triggerRunId);
+      if (!isJobTerminal(job.status)) {
+        await jobs.update(job.id, {
+          status: "canceled",
+          error: "Creative deleted",
+          finishedAt: new Date().toISOString(),
+        });
+      }
+    }),
+  );
 
   // Clear FK before delete in case on-delete is set null and race with job.
   if (creative.activeJobId) {

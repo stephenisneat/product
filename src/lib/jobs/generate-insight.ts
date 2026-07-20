@@ -1,5 +1,9 @@
 import type { GenerateInsightJobInput } from "@/domain";
-import { assertTriggerJobEnv } from "@/lib/jobs/assert-trigger-env";
+import {
+  assertTriggerJobEnv,
+  clarifyTriggerSupabaseError,
+} from "@/lib/jobs/assert-trigger-env";
+import { unknownErrorMessage } from "@/lib/errors";
 import { buildStubInsight } from "@/lib/jobs/insight-stubs";
 import {
   getGoalWriteRepository,
@@ -112,8 +116,9 @@ export async function runGenerateInsightJob(
     });
     return result;
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Insight generation failed.";
+    const message = clarifyTriggerSupabaseError(
+      unknownErrorMessage(err, "Insight generation failed."),
+    );
     await jobs.update(payload.jobRunId, {
       status: "failed",
       error: message,
