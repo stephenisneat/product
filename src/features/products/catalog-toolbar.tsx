@@ -98,7 +98,9 @@ function pageForPath(pathname: string): {
 }
 
 function isCatalogNavActive(pathname: string, href: string) {
-  if (href === "/") return pathname === "/";
+  // Exact match for list roots that have their own detail chrome
+  // (product workspace lives under /products/[id], creative under /creatives/[id]).
+  if (href === "/" || href === "/creatives") return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

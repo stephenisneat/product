@@ -1,8 +1,6 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { PageCanvas } from "@/components/layout/page-canvas";
-import { Badge } from "@/components/ui/badge";
-import { CreativeCard } from "@/features/creatives/creative-card";
+import { AgentProductSync } from "@/features/agent/agent-context";
+import { CreativeWorkspace } from "@/features/creatives/creative-workspace";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { getCreativeRepository, getProductRepository } from "@/repositories";
@@ -32,37 +30,24 @@ export default async function CreativeDetailPage({
     notFound();
   }
 
-  const product = await products.getProduct(creative.productId);
+  const [product, performance] = await Promise.all([
+    products.getProduct(creative.productId),
+    products.getPerformance(creative.productId),
+  ]);
 
   return (
-    <PageCanvas>
-      <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-6">
-        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <Link href="/creatives" className="hover:underline">
-            Creatives
-          </Link>
-          <span>/</span>
-          <span className="text-foreground">{creative.title}</span>
-          {product ? (
-            <Badge variant="outline" className="text-[10px]">
-              <Link
-                href={`/products/${product.id}`}
-                className="hover:underline"
-              >
-                {product.title}
-              </Link>
-            </Badge>
-          ) : null}
-        </div>
-
-        <CreativeCard creative={creative} />
-
-        {creative.status === "ready" ? (
-          <p className="text-sm text-muted-foreground">
-            This video creative is ready for campaigns.
-          </p>
-        ) : null}
-      </div>
-    </PageCanvas>
+    <>
+      {product ? (
+        <AgentProductSync
+          productId={product.id}
+          productTitle={product.title}
+        />
+      ) : null}
+      <CreativeWorkspace
+        creative={creative}
+        product={product}
+        performance={performance}
+      />
+    </>
   );
 }
