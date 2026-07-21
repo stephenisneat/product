@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   Building2Icon,
   CalendarDaysIcon,
-  ChevronRightIcon,
   GlobeIcon,
   PenLineIcon,
   ShoppingBagIcon,
@@ -16,7 +15,10 @@ import {
 import { toast } from "sonner";
 import type { ProductType } from "@/domain";
 import { PageCanvas } from "@/components/layout/page-canvas";
-import { CatalogToolbar } from "@/features/products/catalog-toolbar";
+import {
+  CatalogToolbar,
+  type CatalogBreadcrumb,
+} from "@/features/products/catalog-toolbar";
 import { CreateProductButton } from "@/features/products/create-product-dialog";
 import { ImportShopifyDialog } from "@/features/products/import-shopify-dialog";
 import {
@@ -61,11 +63,6 @@ type Step =
   | { kind: "create"; productType: ProductType }
   | { kind: "shopify" };
 
-type Crumb = {
-  label: string;
-  onClick?: () => void;
-};
-
 export function CreateProductFlow() {
   const router = useRouter();
   const [step, setStep] = useState<Step>({ kind: "type" });
@@ -109,7 +106,8 @@ export function CreateProductFlow() {
     }
   }, [startTransition]);
 
-  const crumbs: Crumb[] = [
+  const crumbs: CatalogBreadcrumb[] = [
+    { label: "Products", href: "/" },
     {
       label: "Select type",
       onClick: step.kind === "type" ? undefined : () => setStep({ kind: "type" }),
@@ -155,48 +153,11 @@ export function CreateProductFlow() {
             : `Create your ${productTypeLabel(step.productType).toLowerCase()}`;
 
   return (
-    <PageCanvas header={<CatalogToolbar title={title} />}>
-      <div className="sticky top-0 z-10 border-b border-border bg-canvas/95 px-4 py-3 backdrop-blur supports-backdrop-filter:bg-canvas/80">
-        <nav aria-label="Flow">
-          <ol className="flex flex-wrap items-center gap-1 text-sm">
-            {crumbs.map((crumb, index) => {
-              const isLast = index === crumbs.length - 1;
-              return (
-                <li
-                  key={`${crumb.label}-${index}`}
-                  className="flex items-center gap-1"
-                >
-                  {index > 0 ? (
-                    <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                  ) : null}
-                  {crumb.onClick && !isLast ? (
-                    <button
-                      type="button"
-                      onClick={crumb.onClick}
-                      className="truncate text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      {crumb.label}
-                    </button>
-                  ) : (
-                    <span
-                      className={cn(
-                        "truncate",
-                        isLast
-                          ? "font-medium text-foreground"
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      {crumb.label}
-                    </span>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-        </nav>
-      </div>
-
+    <PageCanvas header={<CatalogToolbar breadcrumbs={crumbs} />}>
       <div className="mx-auto flex min-h-full w-full max-w-[1600px] flex-col p-6">
+        <h1 className="mb-6 font-heading text-2xl font-semibold tracking-tight">
+          {title}
+        </h1>
         {step.kind === "type" ? (
           <div className={optionGridClass}>
             {PRODUCT_TYPE_OPTIONS.map((option) => {

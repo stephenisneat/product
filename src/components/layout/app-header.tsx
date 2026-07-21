@@ -44,18 +44,10 @@ export function AppHeader({
           <WalletMenu />
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-0.5">
         <Button
-          render={
-            <Link
-              href={
-                activeWorkspaceId
-                  ? "/settings/workspace"
-                  : "/settings/profile"
-              }
-            />
-          }
-          variant="outline"
+          render={<Link href="/settings/profile" />}
+          variant="ghost"
           size="icon-sm"
           aria-label="Settings"
         >

@@ -13,5 +13,5 @@ export default async function SettingsLayout({
     return children;
   }
 
-  return <SettingsShell user={user}>{children}</SettingsShell>;
+  return <SettingsShell>{children}</SettingsShell>;
 }

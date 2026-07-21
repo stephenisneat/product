@@ -42,7 +42,7 @@ export function UserMenu({
             type="button"
             variant="ghost"
             size="sm"
-            className={cn(!showLabel && "rounded-full px-1.5")}
+            className={cn("text-xs", !showLabel && "rounded-full px-1.5")}
           />
         }
       >

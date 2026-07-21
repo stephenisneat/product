@@ -11,18 +11,16 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  ArrowLeftIcon,
   BriefcaseIcon,
   ChartNoAxesCombinedIcon,
+  ChevronRightIcon,
   LightbulbIcon,
   PackageIcon,
   PaletteIcon,
-  PlusIcon,
-  type LucideIcon,
 } from "lucide-react";
 import { NavLink } from "@/components/layout/nav-link";
-import { Button } from "@/components/ui/button";
 import { getLastVisualizerPath } from "@/features/visualizer/visualization-store";
+import { cn } from "@/lib/utils";
 
 const catalogPages = [
   {
@@ -78,25 +76,6 @@ export function CatalogHeaderActions({ children }: { children: ReactNode }) {
   return createPortal(children, slot);
 }
 
-const toolbarOnlyPages = [
-  {
-    href: "/products/new",
-    label: "Add products",
-    icon: PlusIcon,
-  },
-] as const;
-
-function pageForPath(pathname: string): {
-  label: string;
-  icon: LucideIcon;
-} | null {
-  const match = [...catalogPages, ...toolbarOnlyPages].find(({ href }) => {
-    if (href === "/") return pathname === "/";
-    return pathname === href || pathname.startsWith(`${href}/`);
-  });
-  return match ? { label: match.label, icon: match.icon } : null;
-}
-
 function isCatalogNavActive(pathname: string, href: string) {
   // Exact match for list roots that have their own detail chrome
   // (product workspace lives under /products/[id], creative under /creatives/[id]).
@@ -149,34 +128,65 @@ export function CatalogNav({
   );
 }
 
-export function CatalogToolbar({ title }: { title?: string } = {}) {
-  const pathname = usePathname();
-  const page = pageForPath(pathname);
+export type CatalogBreadcrumb = {
+  label: string;
+  href?: string;
+  onClick?: () => void;
+};
 
-  if (!page && !title) return null;
-
-  const Icon = page?.icon;
-  const label = title ?? page?.label;
-
+export function CatalogToolbar({
+  breadcrumbs,
+}: {
+  breadcrumbs: CatalogBreadcrumb[];
+}) {
   return (
-    <div className="relative flex w-full items-center">
-      <Button
-        render={<Link href="/" />}
-        variant="ghost"
-        size="sm"
-        className="-ml-2 gap-1.5 text-muted-foreground"
-      >
-        <ArrowLeftIcon className="size-3.5" />
-        Back
-      </Button>
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-20">
-        <div className="flex max-w-full items-center gap-2 text-sm font-medium">
-          {Icon && !title ? (
-            <Icon className="size-4 shrink-0 text-muted-foreground" />
-          ) : null}
-          <span className="truncate">{label}</span>
-        </div>
-      </div>
-    </div>
+    <nav aria-label="Flow" className="min-w-0">
+      <ol className="flex flex-wrap items-center gap-1 text-sm">
+        {breadcrumbs.map((crumb, index) => {
+          const isLast = index === breadcrumbs.length - 1;
+          const interactive = Boolean(
+            (crumb.href || crumb.onClick) && !isLast,
+          );
+
+          return (
+            <li
+              key={`${crumb.label}-${index}`}
+              className="flex items-center gap-1"
+            >
+              {index > 0 ? (
+                <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground" />
+              ) : null}
+              {interactive && crumb.href ? (
+                <Link
+                  href={crumb.href}
+                  className="truncate text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {crumb.label}
+                </Link>
+              ) : interactive && crumb.onClick ? (
+                <button
+                  type="button"
+                  onClick={crumb.onClick}
+                  className="truncate text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {crumb.label}
+                </button>
+              ) : (
+                <span
+                  className={cn(
+                    "truncate",
+                    isLast
+                      ? "font-medium text-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {crumb.label}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }

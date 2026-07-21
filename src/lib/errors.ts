@@ -24,6 +24,35 @@ export function unknownErrorMessage(
   return fallback;
 }
 
+/**
+ * Collapse HTML / Next.js error-page bodies into a short user-facing message.
+ * Chat transports often surface a 500 HTML document as `error.message`.
+ */
+export function userFacingErrorMessage(
+  err: unknown,
+  fallback = "Something went wrong. Please try again.",
+): string {
+  const raw = unknownErrorMessage(err, fallback).trim();
+  if (!raw) return fallback;
+
+  const looksLikeHtml =
+    raw.startsWith("<!DOCTYPE") ||
+    raw.startsWith("<html") ||
+    raw.includes("__next_error__") ||
+    raw.includes("<title>500");
+
+  if (looksLikeHtml) {
+    if (/500|couldn.?t load|server error/i.test(raw)) {
+      return "A server error occurred. Please try again.";
+    }
+    return fallback;
+  }
+
+  // Cap runaway blobs (e.g. large JSON/HTML fragments without a doctype).
+  if (raw.length > 280) return fallback;
+  return raw;
+}
+
 /** Log a structured error for Vercel / server logs. */
 export function logServerError(
   context: string,

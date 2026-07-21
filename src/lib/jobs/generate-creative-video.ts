@@ -9,7 +9,6 @@ import { videoPayloadSchema } from "@/domain";
 import { synthesizeSceneAudio, createCreativeVoiceCast, resolveSceneVoiceId } from "@/lib/media/elevenlabs";
 import { assertElevenLabsConfigured, assertRunwayConfigured } from "@/lib/media/env";
 import { generateVeoClip } from "@/lib/media/runway";
-import { renderCreativeAdVideo } from "@/lib/jobs/render-creative-video";
 import type { CreativeAdClip } from "@/remotion/constants";
 
 export type GenerateVideoOpts = {
@@ -108,6 +107,12 @@ export async function generateVideo(
   }
 
   await throwIfCanceled(opts.isCanceled);
+
+  // Dynamic import keeps @remotion/bundler out of modules that only need
+  // screenplay/storyboard (and out of Next.js API graphs that import those).
+  const { renderCreativeAdVideo } = await import(
+    "@/lib/jobs/render-creative-video"
+  );
 
   const remotionClips: CreativeAdClip[] = clips.map((c) => ({
     sceneId: c.sceneId,

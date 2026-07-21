@@ -17,7 +17,6 @@ import {
 } from "@/repositories";
 
 export type { GenerateCreativeStageJobPayload } from "@/lib/jobs/generate-creative-stage-payload";
-export { payloadFromGenerateCreativeStageInput } from "@/lib/jobs/generate-creative-stage-payload";
 
 async function wasCanceled(jobRunId: string): Promise<boolean> {
   const jobs = getJobWriteRepository();
