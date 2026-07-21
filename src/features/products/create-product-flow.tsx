@@ -11,7 +11,7 @@ import {
   SmartphoneIcon,
   StoreIcon,
   VoteIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import { toast } from "sonner";
 import type { CommerceProvider, ProductType } from "@/domain";
 import { PageCanvas } from "@/components/layout/page-canvas";

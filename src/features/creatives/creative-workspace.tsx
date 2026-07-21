@@ -6,7 +6,7 @@ import {
   ArrowLeft,
   Ellipsis,
   Loader2,
-} from "lucide-react";
+} from "@/components/icons";
 import { useEffect, useState, useTransition } from "react";
 import type { Creative, PerformancePoint, Product } from "@/domain";
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";

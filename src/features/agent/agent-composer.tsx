@@ -10,7 +10,7 @@ import {
   Search,
   SquarePen,
   X,
-} from "lucide-react";
+} from "@/components/icons";
 import dynamic from "next/dynamic";
 import {
   useCallback,

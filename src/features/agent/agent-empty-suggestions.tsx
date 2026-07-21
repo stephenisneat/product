@@ -1,6 +1,6 @@
 "use client";
 
-import { CornerDownLeft } from "lucide-react";
+import { CornerDownLeft } from "@/components/icons";
 import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 

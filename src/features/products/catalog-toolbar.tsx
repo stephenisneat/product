@@ -17,7 +17,7 @@ import {
   LightbulbIcon,
   PackageIcon,
   PaletteIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import { NavLink } from "@/components/layout/nav-link";
 import { getLastVisualizerPath } from "@/features/visualizer/visualization-store";
 import { cn } from "@/lib/utils";

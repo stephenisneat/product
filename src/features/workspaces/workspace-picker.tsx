@@ -9,7 +9,7 @@ import {
   PlusIcon,
   SettingsIcon,
   SparklesIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import type { Workspace, WorkspacePlan, WorkspaceRole } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

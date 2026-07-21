@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Ellipsis, Loader2 } from "lucide-react";
+import { Ellipsis, Loader2 } from "@/components/icons";
 import { useEffect, useState, useTransition } from "react";
 import type { Creative } from "@/domain";
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";

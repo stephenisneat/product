@@ -22,7 +22,7 @@ import {
   type BeautifulMentionsMenuItemProps,
   type BeautifulMentionsMenuProps,
 } from "lexical-beautiful-mentions";
-import { Loader2, Paperclip, Plus, Send, X } from "lucide-react";
+import { Loader2, Paperclip, Plus, Send, X } from "@/components/icons";
 import {
   forwardRef,
   useCallback,

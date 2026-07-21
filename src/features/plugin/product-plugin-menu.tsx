@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckIcon, ChevronDownIcon, CopyIcon, SettingsIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, CopyIcon, SettingsIcon } from "@/components/icons";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {

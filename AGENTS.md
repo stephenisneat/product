@@ -32,6 +32,10 @@ Supabase (Postgres + Auth + Storage). Standard scripts live in `package.json` an
   them from `supabase status` (`PUBLISHABLE_KEY` / `ANON_KEY` / `SERVICE_ROLE_KEY`). Also
   set `NEXT_PUBLIC_APP_URL=http://localhost:3000`. If `.env.local` is missing, recreate it
   from these values (see `.env.example` for the full variable list).
+- Hugeicons Pro packages (`@hugeicons-pro/*`) need the Universal License Key. Set
+  `HUGEICONS_LICENSE_KEY` in `.env.local`, then authenticate pnpm once with
+  `pnpm config set //npm.hugeicons.com/:_authToken "$HUGEICONS_LICENSE_KEY"`
+  (pnpm will not expand auth tokens from the project `.npmrc`).
 
 ### Supabase grants caveat (important, non-obvious)
 

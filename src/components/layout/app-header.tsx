@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { SettingsIcon } from "lucide-react";
+import { SettingsIcon } from "@/components/icons";
 import type { AppUser, WorkspaceRole } from "@/domain";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Button } from "@/components/ui/button";

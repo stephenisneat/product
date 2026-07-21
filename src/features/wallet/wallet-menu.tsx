@@ -9,7 +9,7 @@ import {
   CircleAlertIcon,
   CreditCardIcon,
   FileTextIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import { toast } from "sonner";
 import type { MemberUsage, WalletSummary } from "@/domain";
 import { Button } from "@/components/ui/button";

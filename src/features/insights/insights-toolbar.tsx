@@ -8,7 +8,7 @@ import {
   ListFilterIcon,
   LockOpenIcon,
   SettingsIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import type { WorkspacePlan } from "@/domain";
 import { Button } from "@/components/ui/button";
 import {

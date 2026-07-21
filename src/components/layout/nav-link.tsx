@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { LucideIcon } from "lucide-react";
+import type { IconComponent } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 export function NavLink({
@@ -12,7 +12,7 @@ export function NavLink({
 }: {
   href: string;
   label: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   isActive: boolean;
 }) {
   return (

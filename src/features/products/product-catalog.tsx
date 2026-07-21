@@ -9,7 +9,7 @@ import {
   PlusIcon,
   SearchIcon,
   XIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import type { Product, ProductStatus } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

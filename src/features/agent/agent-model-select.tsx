@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronsUpDown, Search } from "lucide-react";
+import { Check, ChevronsUpDown, Search } from "@/components/icons";
 import {
   useCallback,
   useEffect,

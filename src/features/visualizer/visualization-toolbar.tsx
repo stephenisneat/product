@@ -10,7 +10,7 @@ import {
   RotateCcwIcon,
   TableIcon,
   XIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import type { VisualizationKind } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
