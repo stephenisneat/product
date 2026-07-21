@@ -123,7 +123,7 @@ export function VisualizationTabs({
       <div
         onClick={() => router.push("/visualizer")}
         className={cn(
-          "cursor-pointer h-10 w-10 shrink-0 border-t-0 border-l-0 border-r border-b border-border rounded-none flex items-center justify-center",
+          "cursor-pointer h-10 w-10 shrink-0 border-t-0 border-l-0 border-r border-b border-border rounded-none flex items-center justify-center pt-1",
           isNewActive
             ? "bg-neutral-900 border-b-neutral-900"
             : "bg-canvas hover:bg-neutral-700/20 text-muted-foreground",
