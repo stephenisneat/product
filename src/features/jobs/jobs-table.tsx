@@ -26,6 +26,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { UserAvatar } from "@/features/avatars/user-avatar";
 import { JOBS_PAGE_SIZE } from "@/features/jobs/jobs-constants";
 import {
@@ -512,15 +517,21 @@ export function JobsTable({
                         </Badge>
                       </td>
                       <td className="border-b border-border/60 px-4 py-3">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <UserAvatar
-                            name={creator.name}
-                            email={creator.email}
-                            avatarUrl={creator.avatarUrl}
-                            size="sm"
-                          />
-                          <span className="truncate">{creator.name}</span>
-                        </div>
+                        <Tooltip>
+                          <TooltipTrigger
+                            delay={50}
+                            className="inline-flex rounded-full"
+                            aria-label={creator.name}
+                          >
+                            <UserAvatar
+                              name={creator.name}
+                              email={creator.email}
+                              avatarUrl={creator.avatarUrl}
+                              size="sm"
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent>{creator.name}</TooltipContent>
+                        </Tooltip>
                       </td>
                       <td className="max-w-[180px] truncate border-b border-border/60 px-4 py-3 text-muted-foreground">
                         {job.productId
