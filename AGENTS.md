@@ -35,7 +35,9 @@ Supabase (Postgres + Auth + Storage). Standard scripts live in `package.json` an
 - Hugeicons Pro packages (`@hugeicons-pro/*`) need the Universal License Key. Set
   `HUGEICONS_LICENSE_KEY` in `.env.local`, then authenticate pnpm once with
   `pnpm config set //npm.hugeicons.com/:_authToken "$HUGEICONS_LICENSE_KEY"`
-  (pnpm will not expand auth tokens from the project `.npmrc`).
+  (pnpm will not expand auth tokens from the project `.npmrc`). On Vercel, set the
+  same env var for Production + Preview with Build access; `vercel.json`
+  `installCommand` injects it into `.npmrc` before `pnpm install`.
 
 ### Supabase grants caveat (important, non-obvious)
 
