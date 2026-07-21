@@ -65,9 +65,22 @@ function stageIndex(stage: Creative["stage"]) {
   return STAGE_ORDER.indexOf(stage);
 }
 
+/** User-uploaded ads skip screenplay/storyboard and land as ready video. */
+function isUploadedCreative(creative: Creative): boolean {
+  return (
+    creative.stage === "video" &&
+    Boolean(creative.video) &&
+    !creative.screenplay &&
+    !creative.storyboard
+  );
+}
+
 function isTabEnabled(tab: CreativeTab, creative: Creative): boolean {
   if (tab === "performance") {
     return creative.status === "ready";
+  }
+  if (isUploadedCreative(creative)) {
+    return tab === "video";
   }
   const tabIdx = STAGE_ORDER.indexOf(tab);
   const currentIdx = stageIndex(creative.stage);
@@ -80,6 +93,7 @@ function isTabEnabled(tab: CreativeTab, creative: Creative): boolean {
 }
 
 function defaultTab(creative: Creative): CreativeTab {
+  if (isUploadedCreative(creative)) return "video";
   if (isTabEnabled(creative.stage, creative)) return creative.stage;
   if (creative.screenplay) return "screenplay";
   return "screenplay";
@@ -469,12 +483,19 @@ export function CreativeWorkspace({
                 className="pointer-events-auto h-auto max-w-full gap-0 overflow-x-auto bg-transparent p-0"
               >
                 {(
-                  [
-                    ["screenplay", "Screenplay"],
-                    ["storyboard", "Storyboard"],
-                    ["video", "Video"],
-                    ["performance", "Performance"],
-                  ] as const
+                  (
+                    isUploadedCreative(creative)
+                      ? ([
+                          ["video", "Video"],
+                          ["performance", "Performance"],
+                        ] as const)
+                      : ([
+                          ["screenplay", "Screenplay"],
+                          ["storyboard", "Storyboard"],
+                          ["video", "Video"],
+                          ["performance", "Performance"],
+                        ] as const)
+                  )
                 ).map(([value, label]) => {
                   const enabled = isTabEnabled(value, creative);
                   return (

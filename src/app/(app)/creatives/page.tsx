@@ -3,7 +3,7 @@ import { PageCanvas } from "@/components/layout/page-canvas";
 import { CreativesList } from "@/features/creatives/creatives-list";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
-import { getCreativeRepository } from "@/repositories";
+import { getCreativeRepository, getProductRepository } from "@/repositories";
 
 export default async function CreativesPage() {
   const user = await getCurrentUser();
@@ -16,9 +16,14 @@ export default async function CreativesPage() {
     redirect("/");
   }
 
-  const creatives = await getCreativeRepository().then((repo) =>
-    repo.listByWorkspace(active.workspace.id),
-  );
+  const [creatives, products] = await Promise.all([
+    getCreativeRepository().then((repo) =>
+      repo.listByWorkspace(active.workspace.id),
+    ),
+    getProductRepository().then((repo) =>
+      repo.listProducts(active.workspace.id),
+    ),
+  ]);
 
   return (
     <PageCanvas>
@@ -26,6 +31,7 @@ export default async function CreativesPage() {
         <CreativesList
           key={creatives.map((c) => `${c.id}:${c.status}`).join("|")}
           initialCreatives={creatives}
+          products={products.map((p) => ({ id: p.id, title: p.title }))}
         />
       </div>
     </PageCanvas>

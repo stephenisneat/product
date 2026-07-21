@@ -3,9 +3,10 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { SearchIcon, XIcon } from "@/components/icons";
-import type { Creative } from "@/domain";
+import type { Creative, Product } from "@/domain";
 import { Input } from "@/components/ui/input";
 import { CreativeCard } from "@/features/creatives/creative-card";
+import { UploadVideoAdDialog } from "@/features/creatives/upload-video-ad-dialog";
 import { CatalogHeaderActions } from "@/features/products/catalog-toolbar";
 
 function matchesQuery(creative: Creative, query: string) {
@@ -25,8 +26,10 @@ function matchesQuery(creative: Creative, query: string) {
  */
 export function CreativesList({
   initialCreatives,
+  products,
 }: {
   initialCreatives: Creative[];
+  products: Pick<Product, "id" | "title">[];
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -63,28 +66,36 @@ export function CreativesList({
 
   const filtered = creatives.filter((c) => matchesQuery(c, query));
 
-const searchField = (
+  const headerActions = (
     <CatalogHeaderActions>
-      <div className="relative w-44 sm:w-56">
-        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search creatives…"
-          className="h-8 pr-8 pl-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
-          aria-label="Search creatives"
+      <div className="flex items-center gap-2">
+        <div className="relative w-44 sm:w-56">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search creatives…"
+            className="h-8 pr-8 pl-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+            aria-label="Search creatives"
+          />
+          {query ? (
+            <button
+              type="button"
+              className="absolute top-1/2 right-1.5 flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
+              aria-label="Clear search"
+              onClick={() => setQuery("")}
+            >
+              <XIcon className="size-3.5" />
+            </button>
+          ) : null}
+        </div>
+        <UploadVideoAdDialog
+          products={products}
+          onUploaded={(creative) =>
+            setCreatives((prev) => [creative, ...prev.filter((c) => c.id !== creative.id)])
+          }
         />
-        {query ? (
-          <button
-            type="button"
-            className="absolute top-1/2 right-1.5 flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
-            aria-label="Clear search"
-            onClick={() => setQuery("")}
-          >
-            <XIcon className="size-3.5" />
-          </button>
-        ) : null}
       </div>
     </CatalogHeaderActions>
   );
@@ -92,10 +103,10 @@ const searchField = (
   if (creatives.length === 0) {
     return (
       <>
-        {searchField}
+        {headerActions}
         <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          No video creatives yet. Describe an ad idea in chat to start
-          screenplay → storyboard → video.
+          No video creatives yet. Upload your own video ad, or describe an idea
+          in chat to generate screenplay → storyboard → video.
         </div>
       </>
     );
@@ -103,7 +114,7 @@ const searchField = (
 
   return (
     <>
-      {searchField}
+      {headerActions}
 
       {filtered.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border px-4 py-16 text-center">

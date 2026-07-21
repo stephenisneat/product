@@ -77,12 +77,16 @@ export function CreativeVideoEditor({ creative }: { creative: Creative }) {
     [remotionProps],
   );
 
-  // Legacy stub payloads without clips: fall back to plain HTML video.
+  // Legacy stub / uploaded payloads without clips: fall back to plain HTML video.
   if (!remotionProps) {
+    const aspectCss = video.aspectRatio.includes(":")
+      ? video.aspectRatio.replace(":", " / ")
+      : "9 / 16";
     return (
       <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 px-4 py-10">
         <video
-          className="aspect-[9/16] max-h-[70vh] w-full rounded-lg bg-black object-contain"
+          className="max-h-[70vh] w-full rounded-lg bg-black object-contain"
+          style={{ aspectRatio: aspectCss }}
           controls
           poster={video.thumbnailUrl}
           src={video.url}
