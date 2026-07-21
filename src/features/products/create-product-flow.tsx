@@ -13,13 +13,20 @@ import {
   VoteIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { ProductType } from "@/domain";
+import type { CommerceProvider, ProductType } from "@/domain";
 import { PageCanvas } from "@/components/layout/page-canvas";
 import {
   CatalogToolbar,
   type CatalogBreadcrumb,
 } from "@/features/products/catalog-toolbar";
 import { CreateProductButton } from "@/features/products/create-product-dialog";
+import {
+  AMAZON_UI,
+  BIGCOMMERCE_UI,
+  SQUARESPACE_UI,
+  WOOCOMMERCE_UI,
+} from "@/features/products/commerce-provider-ui";
+import { ImportCommerceDialog } from "@/features/products/import-commerce-dialog";
 import { ImportShopifyDialog } from "@/features/products/import-shopify-dialog";
 import {
   PRODUCT_TYPE_OPTIONS,
@@ -27,12 +34,37 @@ import {
 } from "@/lib/products/product-type";
 import { cn } from "@/lib/utils";
 
-const COMING_SOON = [
-  "WooCommerce",
-  "BigCommerce",
-  "Amazon",
-  "Squarespace",
-] as const;
+const COMMERCE_SOURCES: {
+  id: CommerceProvider;
+  label: string;
+  description: string;
+}[] = [
+  {
+    id: "shopify",
+    label: "Shopify",
+    description: "Sync products from your Shopify store",
+  },
+  {
+    id: "woocommerce",
+    label: "WooCommerce",
+    description: "Sync products from your WooCommerce store",
+  },
+  {
+    id: "bigcommerce",
+    label: "BigCommerce",
+    description: "Sync products from your BigCommerce store",
+  },
+  {
+    id: "amazon",
+    label: "Amazon",
+    description: "Sync listings from Amazon Seller Central",
+  },
+  {
+    id: "squarespace",
+    label: "Squarespace",
+    description: "Sync products from your Squarespace store",
+  },
+];
 
 const TYPE_ICONS: Record<ProductType, typeof ShoppingBagIcon> = {
   ecommerce: ShoppingBagIcon,
@@ -57,11 +89,28 @@ const optionCardClass =
 
 const optionGridClass = "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4";
 
+type CommerceStep = CommerceProvider;
+
 type Step =
   | { kind: "type" }
   | { kind: "ecommerce-source" }
   | { kind: "create"; productType: ProductType }
-  | { kind: "shopify" };
+  | { kind: "commerce"; provider: CommerceStep };
+
+const PROVIDER_LABEL: Record<CommerceProvider, string> = {
+  shopify: "Shopify",
+  woocommerce: "WooCommerce",
+  bigcommerce: "BigCommerce",
+  amazon: "Amazon",
+  squarespace: "Squarespace",
+};
+
+const OAUTH_QUERY_PARAMS: CommerceProvider[] = [
+  "shopify",
+  "bigcommerce",
+  "amazon",
+  "squarespace",
+];
 
 export function CreateProductFlow() {
   const router = useRouter();
@@ -83,26 +132,36 @@ export function CreateProductFlow() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    const status = params.get("shopify");
-    if (!status) return;
 
-    const shop = params.get("shop");
-    const reason = params.get("reason") ?? "unknown";
+    for (const provider of OAUTH_QUERY_PARAMS) {
+      const status = params.get(provider);
+      if (!status) continue;
 
-    params.delete("shopify");
-    params.delete("shop");
-    params.delete("reason");
-    const next = params.toString();
-    const path = `${window.location.pathname}${next ? `?${next}` : ""}`;
-    window.history.replaceState({}, "", path);
+      const shop = params.get("shop");
+      const reason = params.get("reason") ?? "unknown";
 
-    if (status === "connected") {
-      toast.success(shop ? `Connected to ${shop}` : "Shopify store connected");
-      startTransition(() => {
-        setStep({ kind: "shopify" });
-      });
-    } else if (status === "error") {
-      toast.error(`Shopify connection failed (${reason})`);
+      params.delete(provider);
+      params.delete("shop");
+      params.delete("reason");
+      const next = params.toString();
+      const path = `${window.location.pathname}${next ? `?${next}` : ""}`;
+      window.history.replaceState({}, "", path);
+
+      if (status === "connected") {
+        toast.success(
+          shop
+            ? `Connected to ${shop}`
+            : `${PROVIDER_LABEL[provider]} store connected`,
+        );
+        startTransition(() => {
+          setStep({ kind: "commerce", provider });
+        });
+      } else if (status === "error") {
+        toast.error(
+          `${PROVIDER_LABEL[provider]} connection failed (${reason})`,
+        );
+      }
+      break;
     }
   }, [startTransition]);
 
@@ -114,7 +173,7 @@ export function CreateProductFlow() {
     },
   ];
 
-  if (step.kind === "ecommerce-source" || step.kind === "shopify") {
+  if (step.kind === "ecommerce-source" || step.kind === "commerce") {
     crumbs.push({
       label: "Ecommerce",
       onClick:
@@ -137,8 +196,8 @@ export function CreateProductFlow() {
     }
   }
 
-  if (step.kind === "shopify") {
-    crumbs.push({ label: "Shopify" });
+  if (step.kind === "commerce") {
+    crumbs.push({ label: PROVIDER_LABEL[step.provider] });
   }
 
   const title =
@@ -146,11 +205,51 @@ export function CreateProductFlow() {
       ? "What are you selling?"
       : step.kind === "ecommerce-source"
         ? "Where do you sell your products?"
-        : step.kind === "shopify"
-          ? "Import from Shopify"
+        : step.kind === "commerce"
+          ? `Import from ${PROVIDER_LABEL[step.provider]}`
           : step.productType === "ecommerce"
             ? "Enter product details"
             : `Create your ${productTypeLabel(step.productType).toLowerCase()}`;
+
+  function renderCommerceImport(provider: CommerceProvider) {
+    const onOpenChange = (next: boolean) => {
+      if (next) {
+        setStep({ kind: "commerce", provider });
+        return;
+      }
+      setStep({ kind: "ecommerce-source" });
+    };
+
+    if (provider === "shopify") {
+      return (
+        <ImportShopifyDialog
+          embedded
+          open
+          onSuccess={closeFlow}
+          onOpenChange={onOpenChange}
+        />
+      );
+    }
+
+    const config =
+      provider === "woocommerce"
+        ? WOOCOMMERCE_UI
+        : provider === "bigcommerce"
+          ? BIGCOMMERCE_UI
+          : provider === "amazon"
+            ? AMAZON_UI
+            : SQUARESPACE_UI;
+
+    return (
+      <ImportCommerceDialog
+        config={config}
+        embedded
+        open
+        onSuccess={closeFlow}
+        onOpenChange={onOpenChange}
+      />
+    );
+  }
 
   return (
     <PageCanvas header={<CatalogToolbar breadcrumbs={crumbs} />}>
@@ -192,42 +291,31 @@ export function CreateProductFlow() {
 
         {step.kind === "ecommerce-source" ? (
           <div className={optionGridClass}>
-            <button
-              type="button"
-              className={optionCardClass}
-              onClick={() => setStep({ kind: "shopify" })}
-            >
-              <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-foreground">
-                <StoreIcon className="size-4" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-medium">Shopify</span>
-                <span className="mt-1.5 block text-xs leading-relaxed text-muted-foreground">
-                  Sync products from your Shopify store
-                </span>
-              </span>
-            </button>
-            {COMING_SOON.map((name) => (
+            {COMMERCE_SOURCES.map((source) => (
               <button
-                key={name}
+                key={source.id}
                 type="button"
-                disabled
-                className={cn(optionCardClass, "opacity-50")}
+                className={optionCardClass}
+                onClick={() =>
+                  setStep({ kind: "commerce", provider: source.id })
+                }
               >
                 <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-foreground">
                   <StoreIcon className="size-4" />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium">{name}</span>
+                  <span className="block text-sm font-medium">
+                    {source.label}
+                  </span>
                   <span className="mt-1.5 block text-xs leading-relaxed text-muted-foreground">
-                    Coming soon
+                    {source.description}
                   </span>
                 </span>
               </button>
             ))}
             <button
               type="button"
-              className={optionCardClass}
+              className={cn(optionCardClass)}
               onClick={() =>
                 setStep({ kind: "create", productType: "ecommerce" })
               }
@@ -266,20 +354,7 @@ export function CreateProductFlow() {
           />
         ) : null}
 
-        {step.kind === "shopify" ? (
-          <ImportShopifyDialog
-            embedded
-            open
-            onSuccess={closeFlow}
-            onOpenChange={(next) => {
-              if (next) {
-                setStep({ kind: "shopify" });
-                return;
-              }
-              setStep({ kind: "ecommerce-source" });
-            }}
-          />
-        ) : null}
+        {step.kind === "commerce" ? renderCommerceImport(step.provider) : null}
       </div>
     </PageCanvas>
   );

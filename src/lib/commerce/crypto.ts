@@ -7,10 +7,15 @@ import {
 
 function encryptionKey(): Buffer {
   const secret =
-    process.env.TOKEN_ENCRYPTION_KEY || process.env.SHOPIFY_API_SECRET;
+    process.env.TOKEN_ENCRYPTION_KEY ||
+    process.env.SHOPIFY_API_SECRET ||
+    process.env.WOOCOMMERCE_WEBHOOK_SECRET ||
+    process.env.BIGCOMMERCE_CLIENT_SECRET ||
+    process.env.AMAZON_LWA_CLIENT_SECRET ||
+    process.env.SQUARESPACE_CLIENT_SECRET;
   if (!secret) {
     throw new Error(
-      "TOKEN_ENCRYPTION_KEY or SHOPIFY_API_SECRET is required to encrypt store tokens.",
+      "TOKEN_ENCRYPTION_KEY (or a commerce provider secret) is required to encrypt store tokens.",
     );
   }
   return createHash("sha256").update(secret).digest();

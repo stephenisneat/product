@@ -1,6 +1,6 @@
 import type { CanonicalProduct } from "@/domain";
 import { mapShopifyProduct } from "./map";
-import type { ShopifyRemoteProductSummary } from "../../types";
+import type { RemoteProductSummary } from "../../types";
 import type { ShopifyGraphQLProduct } from "./types";
 
 const API_VERSION = "2025-01";
@@ -90,8 +90,8 @@ type ListProductsResult = {
 export async function listShopifyProducts(
   accessToken: string,
   shopDomain: string,
-): Promise<ShopifyRemoteProductSummary[]> {
-  const summaries: ShopifyRemoteProductSummary[] = [];
+): Promise<RemoteProductSummary[]> {
+  const summaries: RemoteProductSummary[] = [];
   let cursor: string | null = null;
   let hasNextPage = true;
 

@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
+import { randomBytes } from "node:crypto";
 import { getCurrentUser } from "@/lib/auth/session";
 import { cookieSecure } from "@/lib/commerce/oauth-cookie";
 import {
   buildAuthorizeUrl,
-  hasShopifyConfig,
-  normalizeShopDomain,
+  hasBigCommerceConfig,
+  normalizeStoreHash,
   STATE_COOKIE,
-} from "@/lib/commerce/providers/shopify";
-import { randomBytes } from "node:crypto";
+} from "@/lib/commerce/providers/bigcommerce";
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
@@ -15,34 +15,34 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!hasShopifyConfig()) {
+  if (!hasBigCommerceConfig()) {
     return NextResponse.json(
       {
         error:
-          "Shopify is not configured. Set SHOPIFY_API_KEY, SHOPIFY_API_SECRET, and NEXT_PUBLIC_APP_URL.",
+          "BigCommerce is not configured. Set BIGCOMMERCE_CLIENT_ID, BIGCOMMERCE_CLIENT_SECRET, and NEXT_PUBLIC_APP_URL.",
       },
       { status: 503 },
     );
   }
 
   const { searchParams } = new URL(request.url);
-  let shop: string;
+  let storeHash: string;
   try {
-    shop = normalizeShopDomain(searchParams.get("shop") ?? "");
+    storeHash = normalizeStoreHash(searchParams.get("shop") ?? "");
   } catch (error) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "Invalid shop domain",
+          error instanceof Error ? error.message : "Invalid store hash",
       },
       { status: 400 },
     );
   }
 
   const state = randomBytes(16).toString("hex");
-  const authorizeUrl = buildAuthorizeUrl(shop, state);
+  const authorizeUrl = buildAuthorizeUrl(storeHash, state);
   const response = NextResponse.redirect(authorizeUrl);
-  response.cookies.set(STATE_COOKIE, `${state}.${shop}`, {
+  response.cookies.set(STATE_COOKIE, `${state}.${storeHash}`, {
     httpOnly: true,
     sameSite: "lax",
     secure: cookieSecure(),
