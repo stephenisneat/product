@@ -72,10 +72,7 @@ import {
   isPaidPlan,
   normalizeWorkspacePlan,
 } from "@/lib/billing/entitlements";
-import {
-  openVisualizationTab,
-  upsertVisualization,
-} from "@/features/visualizer/visualization-store";
+import { upsertVisualization } from "@/features/visualizer/visualization-store";
 import type { Visualization } from "@/domain";
 import { useWalletOptional } from "@/features/wallet/wallet-context";
 import { userFacingErrorMessage } from "@/lib/errors";
@@ -598,7 +595,6 @@ export function AgentComposer({
       if (handledVizToolCallIds.current.has(result.toolCallId)) continue;
       handledVizToolCallIds.current.add(result.toolCallId);
       upsertVisualization(workspaceId, result.visualization);
-      openVisualizationTab(workspaceId, result.visualization.id);
       window.dispatchEvent(new Event("visualizations-changed"));
       router.push(result.href);
     }

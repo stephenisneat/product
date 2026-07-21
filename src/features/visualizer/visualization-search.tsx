@@ -19,10 +19,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { CatalogHeaderActions } from "@/features/products/catalog-toolbar";
-import {
-  listVisualizations,
-  openVisualizationTab,
-} from "@/features/visualizer/visualization-store";
+import { listVisualizations } from "@/features/visualizer/visualization-store";
 import { cn } from "@/lib/utils";
 
 const kindIcon: Record<VisualizationKind, IconComponent> = {
@@ -88,8 +85,6 @@ export function VisualizationSearch({
   }, [visualizations, query]);
 
   function openViz(viz: Visualization) {
-    openVisualizationTab(workspaceId, viz.id);
-    window.dispatchEvent(new Event("visualizations-changed"));
     setQuery("");
     setOpen(false);
     if (pathname !== `/visualizer/${viz.id}`) {

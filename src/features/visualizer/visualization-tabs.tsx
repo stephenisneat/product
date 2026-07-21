@@ -80,8 +80,6 @@ export function VisualizationTabs({
     }
   }
 
-  if (openTabs.length === 0) return null;
-
   return (
     <div className="flex h-10 items-stretch overflow-x-auto bg-canvas w-full">
       {openTabs.map((tab) => {
