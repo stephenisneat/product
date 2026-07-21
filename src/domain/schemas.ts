@@ -3,7 +3,13 @@ import { z } from "zod";
 export const productStatusSchema = z.enum(["draft", "active", "archived"]);
 export type ProductStatus = z.infer<typeof productStatusSchema>;
 
-export const commerceProviderSchema = z.enum(["shopify"]);
+export const commerceProviderSchema = z.enum([
+  "shopify",
+  "woocommerce",
+  "bigcommerce",
+  "amazon",
+  "squarespace",
+]);
 export type CommerceProvider = z.infer<typeof commerceProviderSchema>;
 
 export const adChannelProviderSchema = z.enum(["google"]);

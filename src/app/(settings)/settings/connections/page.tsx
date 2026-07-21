@@ -11,7 +11,7 @@ const OTHER_SECTIONS = [
   {
     title: "Commerce & APIs",
     description:
-      "Link Shopify and other commerce platforms to sync products and catalog data. Use product import to connect Shopify.",
+      "Link Shopify, WooCommerce, BigCommerce, Amazon, Squarespace, and other commerce platforms to sync products and catalog data.",
   },
   {
     title: "MCP",
