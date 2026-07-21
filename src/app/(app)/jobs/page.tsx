@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { JobRun } from "@/domain";
 import { PageCanvas } from "@/components/layout/page-canvas";
 import {
+  JOBS_PAGE_SIZE,
   JobsTable,
   type JobCreator,
 } from "@/features/jobs/jobs-table";
@@ -36,7 +37,7 @@ export default async function JobsPage() {
       getWorkspaceRepository(),
     ]);
     const [jobList, products, members] = await Promise.all([
-      jobsRepo.listByWorkspace(active.workspace.id, { limit: 100 }),
+      jobsRepo.listByWorkspace(active.workspace.id, { limit: JOBS_PAGE_SIZE }),
       productsRepo.listProducts(active.workspace.id),
       workspaceRepo.listMembers(active.workspace.id),
     ]);
@@ -57,21 +58,10 @@ export default async function JobsPage() {
   }
 
   return (
-    <PageCanvas
-      header={
-        <h1 className="font-heading text-sm font-semibold tracking-tight">
-          Jobs
-        </h1>
-      }
-      contentClassName="flex flex-col overflow-hidden"
-    >
+    <PageCanvas contentClassName="flex flex-col overflow-hidden">
       {loadError ? (
         <div className="m-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
           {loadError}
-        </div>
-      ) : jobs.length === 0 ? (
-        <div className="m-4 rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          No jobs yet. Ask the agent to create a campaign, or POST to /api/jobs.
         </div>
       ) : (
         <JobsTable
