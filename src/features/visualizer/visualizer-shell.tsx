@@ -28,7 +28,9 @@ export function VisualizerShell({
   return (
     <PageCanvas contentClassName="flex flex-col overflow-hidden">
       <VisualizationTabs workspaceId={workspaceId} />
-      <div className="min-h-0 flex-1 overflow-y-auto bg-neutral-900">{children}</div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-neutral-900">
+        {children}
+      </div>
     </PageCanvas>
   );
 }

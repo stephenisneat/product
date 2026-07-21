@@ -68,6 +68,7 @@ export function NewVisualizationScreen({
   }
 
   return (
+    <div className="h-full overflow-y-auto">
     <div className="mx-auto w-full max-w-4xl px-4 py-8">
       <div className="mb-8">
         <h1 className="text-lg font-medium tracking-tight">New visualization</h1>
@@ -133,6 +134,7 @@ export function NewVisualizationScreen({
           </ul>
         )}
       </section>
+    </div>
     </div>
   );
 }
