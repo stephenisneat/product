@@ -128,7 +128,8 @@ export function ProductCatalog({ products }: { products: Product[] }) {
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Create an ecommerce product, app, website, store, event, or election —
-            or import from Shopify to start building marketing intelligence.
+            or import from Shopify, WooCommerce, BigCommerce, Amazon, or
+            Squarespace to start building marketing intelligence.
           </p>
           <div className="mt-6 flex justify-center">
             <Button render={<Link href="/products/new" />} size="sm">

@@ -2,7 +2,7 @@ import type { CanonicalProduct, CommerceProvider } from "@/domain";
 
 export type { CanonicalProduct };
 
-export type ShopifyRemoteProductSummary = {
+export type RemoteProductSummary = {
   id: string;
   title: string;
   handle: string;
@@ -11,9 +11,15 @@ export type ShopifyRemoteProductSummary = {
   variantCount: number;
 };
 
+/** @deprecated Use RemoteProductSummary */
+export type ShopifyRemoteProductSummary = RemoteProductSummary;
+
 export interface CommerceImportAdapter {
   provider: CommerceProvider;
-  listProducts(accessToken: string, shopDomain: string): Promise<ShopifyRemoteProductSummary[]>;
+  listProducts(
+    accessToken: string,
+    shopDomain: string,
+  ): Promise<RemoteProductSummary[]>;
   fetchProducts(
     accessToken: string,
     shopDomain: string,

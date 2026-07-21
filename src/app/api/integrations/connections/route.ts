@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
+import { hasAmazonConfig } from "@/lib/commerce/providers/amazon";
+import { hasBigCommerceConfig } from "@/lib/commerce/providers/bigcommerce";
 import { hasShopifyConfig } from "@/lib/commerce/providers/shopify";
+import { hasSquarespaceConfig } from "@/lib/commerce/providers/squarespace";
+import { hasWooCommerceConfig } from "@/lib/commerce/providers/woocommerce";
 import { getProductRepository } from "@/repositories";
 
 export async function GET() {
@@ -20,6 +24,10 @@ export async function GET() {
     const connections = await products.listConnections(active.workspace.id);
     return NextResponse.json({
       shopifyConfigured: hasShopifyConfig(),
+      woocommerceConfigured: hasWooCommerceConfig(),
+      bigcommerceConfigured: hasBigCommerceConfig(),
+      amazonConfigured: hasAmazonConfig(),
+      squarespaceConfigured: hasSquarespaceConfig(),
       connections,
     });
   } catch (error) {

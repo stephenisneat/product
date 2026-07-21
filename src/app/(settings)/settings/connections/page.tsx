@@ -11,7 +11,7 @@ const SECTIONS = [
   {
     title: "Commerce & APIs",
     description:
-      "Link Shopify and other commerce platforms to sync products and catalog data.",
+      "Link Shopify, WooCommerce, BigCommerce, Amazon, Squarespace, and other commerce platforms to sync products and catalog data.",
   },
   {
     title: "MCP",
