@@ -17,7 +17,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import {
   COMING_SOON_CHANNELS,
@@ -33,6 +32,7 @@ type LiveChannelState = {
   logoSlug: string;
   connected: boolean;
   manageHref?: string;
+  installPath?: string;
 };
 
 type ChannelConnectionStatus = {
@@ -50,18 +50,40 @@ const CHANNELS_CACHE_TTL_MS = 30_000;
 const CONNECTION_ENDPOINTS: {
   id: string;
   path: string;
+  installPath: string;
   managePrefix?: string;
 }[] = [
   {
     id: "google",
     path: "/api/integrations/google-ads/connections",
+    installPath: "/api/integrations/google-ads/install",
     managePrefix: "/settings/connections/google-ads",
   },
-  { id: "meta", path: "/api/integrations/meta/connections" },
-  { id: "tiktok", path: "/api/integrations/tiktok/connections" },
-  { id: "amazon", path: "/api/integrations/amazon-ads/connections" },
-  { id: "x", path: "/api/integrations/x-ads/connections" },
+  {
+    id: "meta",
+    path: "/api/integrations/meta/connections",
+    installPath: "/api/integrations/meta/install",
+  },
+  {
+    id: "tiktok",
+    path: "/api/integrations/tiktok/connections",
+    installPath: "/api/integrations/tiktok/install",
+  },
+  {
+    id: "amazon",
+    path: "/api/integrations/amazon-ads/connections",
+    installPath: "/api/integrations/amazon-ads/install",
+  },
+  {
+    id: "x",
+    path: "/api/integrations/x-ads/connections",
+    installPath: "/api/integrations/x-ads/install",
+  },
 ];
+
+const INSTALL_PATH_BY_ID = Object.fromEntries(
+  CONNECTION_ENDPOINTS.map((e) => [e.id, e.installPath]),
+) as Record<string, string>;
 
 /** Survives AppShell remounts across settings ↔ app navigations. */
 let channelsCache: ChannelsCachePayload | null = null;
@@ -127,10 +149,14 @@ function ChannelLogo({
 
 function GroupLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="px-1.5 pt-1.5 pb-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+    <p className="px-1.5 pb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
       {children}
     </p>
   );
+}
+
+function rowStripeClass(index: number) {
+  return index % 2 === 1 ? "bg-muted/40" : undefined;
 }
 
 export function ChannelsMenu() {
@@ -222,6 +248,7 @@ export function ChannelsMenu() {
         ...channel,
         connected: status?.connected ?? false,
         manageHref: status?.href ?? "/settings/connections",
+        installPath: INSTALL_PATH_BY_ID[channel.id],
       };
     });
   }, [statuses]);
@@ -271,24 +298,40 @@ export function ChannelsMenu() {
           <ChevronDownIcon className="size-3 shrink-0 text-neutral-600 transition-[color,transform] duration-200 group-hover/button:text-neutral-300 group-aria-expanded/button:rotate-180 group-aria-expanded/button:text-neutral-300" />
         </PopoverTrigger>
         <PopoverContent align="start" className="w-80 p-2">
-          <div className="flex items-center gap-1.5 px-0.5 pb-1.5">
+          <div className="flex items-center gap-0.5 px-0.5 pb-1.5">
             <div className="relative min-w-0 flex-1">
-              <SearchIcon className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <SearchIcon className="pointer-events-none absolute top-1/2 left-1.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search channels…"
-                className="h-8 pl-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+                className="h-8 border-0 bg-transparent pl-7 shadow-none ring-0 outline-none focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
                 aria-label="Search channels"
               />
             </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Suggest a channel"
+              className="shrink-0 text-muted-foreground"
+              onClick={() => {
+                setMenuOpen(false);
+                setSuggestOpen(true);
+              }}
+            >
+              <span className="text-sm font-medium leading-none" aria-hidden>
+                ?
+              </span>
+            </Button>
             <Button
               render={<Link href="/settings/connections" />}
               type="button"
               variant="ghost"
               size="icon-sm"
               aria-label="Channel settings"
+              className="shrink-0"
             >
               <SettingsIcon className="size-3.5" />
             </Button>
@@ -300,14 +343,19 @@ export function ChannelsMenu() {
                 No matching channels
               </p>
             ) : (
-              <div className="pr-2">
+              <div className="space-y-4 pr-2">
                 {connected.length > 0 ? (
                   <div>
                     <GroupLabel>Connected</GroupLabel>
-                    <ul className="space-y-0.5">
-                      {connected.map((channel) => (
+                    <ul>
+                      {connected.map((channel, index) => (
                         <li key={channel.id}>
-                          <div className="flex items-center gap-2 rounded-md px-1.5 py-1 text-sm">
+                          <div
+                            className={cn(
+                              "flex items-center gap-2 rounded-md px-1.5 py-1 text-sm",
+                              rowStripeClass(index),
+                            )}
+                          >
                             <ChannelLogo
                               name={channel.name}
                               logoSlug={channel.logoSlug}
@@ -342,10 +390,15 @@ export function ChannelsMenu() {
                 {notConnected.length > 0 ? (
                   <div>
                     <GroupLabel>Not connected</GroupLabel>
-                    <ul className="space-y-0.5">
-                      {notConnected.map((channel) => (
+                    <ul>
+                      {notConnected.map((channel, index) => (
                         <li key={channel.id}>
-                          <div className="flex items-center gap-2 rounded-md px-1.5 py-1 text-sm">
+                          <div
+                            className={cn(
+                              "flex items-center gap-2 rounded-md px-1.5 py-1 text-sm",
+                              rowStripeClass(index),
+                            )}
+                          >
                             <ChannelLogo
                               name={channel.name}
                               logoSlug={channel.logoSlug}
@@ -354,11 +407,15 @@ export function ChannelsMenu() {
                               {channel.name}
                             </span>
                             <Button
-                              render={<Link href="/settings/connections" />}
                               type="button"
                               variant="outline"
                               size="xs"
                               className="shrink-0"
+                              onClick={() => {
+                                if (channel.installPath) {
+                                  window.location.href = channel.installPath;
+                                }
+                              }}
                             >
                               Connect
                             </Button>
@@ -372,40 +429,33 @@ export function ChannelsMenu() {
                 {comingSoon.length > 0 ? (
                   <div>
                     <GroupLabel>Coming soon</GroupLabel>
-                    <ul className="space-y-0.5">
-                      {comingSoon.map((channel: ChannelCatalogEntry) => (
-                        <li key={channel.id}>
-                          <div className="flex items-center gap-2 rounded-md px-1.5 py-1 text-sm text-muted-foreground">
-                            <ChannelLogo
-                              name={channel.name}
-                              logoSlug={channel.logoSlug}
-                            />
-                            <span className="min-w-0 flex-1 truncate">
-                              {channel.name}
-                            </span>
-                          </div>
-                        </li>
-                      ))}
+                    <ul>
+                      {comingSoon.map(
+                        (channel: ChannelCatalogEntry, index) => (
+                          <li key={channel.id}>
+                            <div
+                              className={cn(
+                                "flex items-center gap-2 rounded-md px-1.5 py-1 text-sm text-muted-foreground",
+                                rowStripeClass(index),
+                              )}
+                            >
+                              <ChannelLogo
+                                name={channel.name}
+                                logoSlug={channel.logoSlug}
+                              />
+                              <span className="min-w-0 flex-1 truncate">
+                                {channel.name}
+                              </span>
+                            </div>
+                          </li>
+                        ),
+                      )}
                     </ul>
                   </div>
                 ) : null}
               </div>
             )}
           </ScrollArea>
-
-          <Separator className="my-2" />
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-muted-foreground"
-            onClick={() => {
-              setMenuOpen(false);
-              setSuggestOpen(true);
-            }}
-          >
-            Missing something?
-          </Button>
         </PopoverContent>
       </Popover>
 
