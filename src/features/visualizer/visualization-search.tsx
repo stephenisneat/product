@@ -104,6 +104,7 @@ export function VisualizationSearch({
     <CatalogHeaderActions>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
+          nativeButton={false}
           render={
             <div className="relative w-44 sm:w-56" />
           }
