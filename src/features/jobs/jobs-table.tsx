@@ -494,8 +494,10 @@ export function JobsTable({
                       tabIndex={0}
                       aria-selected={isSelected}
                       className={cn(
-                        "cursor-pointer outline-none transition-colors hover:bg-muted/70 focus-visible:bg-muted/80",
-                        isSelected && "bg-muted/60 hover:bg-muted/70",
+                        "cursor-pointer outline-none transition-colors",
+                        isSelected
+                          ? "bg-muted/60 hover:bg-muted/70 focus-visible:bg-muted/80"
+                          : "odd:bg-muted/30 hover:bg-muted/70 focus-visible:bg-muted/80",
                       )}
                       onClick={() => setSelectedId(job.id)}
                       onKeyDown={(e) => {
