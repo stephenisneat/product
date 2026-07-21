@@ -1,9 +1,21 @@
 "use client";
 
+import type { MouseEvent } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import type { IconComponent } from "@/components/icons";
 import { runNavigationGuard } from "@/features/visualizer/navigation-guard";
 import { cn } from "@/lib/utils";
+
+function isPlainLeftClick(e: Pick<MouseEvent, "button" | "metaKey" | "ctrlKey" | "shiftKey" | "altKey">) {
+  return (
+    e.button === 0 &&
+    !e.metaKey &&
+    !e.ctrlKey &&
+    !e.shiftKey &&
+    !e.altKey
+  );
+}
 
 export function NavLink({
   href,
@@ -18,11 +30,26 @@ export function NavLink({
   isActive: boolean;
   prefetch?: boolean;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+
   return (
     <Link
       href={href}
       prefetch={prefetch}
       aria-current={isActive ? "page" : undefined}
+      onMouseDown={(e) => {
+        if (!isPlainLeftClick(e)) return;
+        if (pathname === href) return;
+        router.push(href);
+      }}
+      onClick={(e) => {
+        // Keyboard activation uses detail 0 — let Link handle it.
+        if (e.detail === 0) return;
+        if (!isPlainLeftClick(e)) return;
+        // Already navigated on mousedown; block the mouseup click.
+        e.preventDefault();
+      }}
       onNavigate={(event) => {
         if (!runNavigationGuard(href)) {
           event.preventDefault();
