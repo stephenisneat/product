@@ -468,14 +468,17 @@ export const sankeyDataSchema = z.object({
 });
 export type SankeyData = z.infer<typeof sankeyDataSchema>;
 
+/** Chart point with a primary value plus any extra numeric metrics coming through. */
+export const vizPointSchema = z
+  .object({
+    date: z.string(),
+    value: z.number(),
+  })
+  .passthrough();
+
 export const timeseriesSeriesSchema = z.object({
   name: z.string(),
-  points: z.array(
-    z.object({
-      date: z.string(),
-      value: z.number(),
-    }),
-  ),
+  points: z.array(vizPointSchema),
 });
 export const timeseriesDataSchema = z.object({
   metric: z.string(),
@@ -488,12 +491,7 @@ export const comparisonDataSchema = z.object({
   series: z.array(
     z.object({
       name: z.string(),
-      points: z.array(
-        z.object({
-          date: z.string(),
-          value: z.number(),
-        }),
-      ),
+      points: z.array(vizPointSchema),
     }),
   ),
 });
