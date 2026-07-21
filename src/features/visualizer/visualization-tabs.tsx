@@ -80,6 +80,16 @@ export function VisualizationTabs({
     }
   }
 
+  function handleTabMouseDown(e: MouseEvent, href: string) {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+      return;
+    }
+    e.preventDefault();
+    if (pathname !== href) {
+      router.push(href);
+    }
+  }
+
   return (
     <div className="flex h-10 items-stretch overflow-x-auto bg-canvas w-full">
       {openTabs.map((tab) => {
@@ -100,6 +110,19 @@ export function VisualizationTabs({
               href={href}
               className="flex min-w-0 flex-1 items-center gap-1.5 truncate py-1.5"
               title={tab.title}
+              onMouseDown={(e) => handleTabMouseDown(e, href)}
+              onClick={(e) => {
+                if (
+                  e.button !== 0 ||
+                  e.metaKey ||
+                  e.ctrlKey ||
+                  e.shiftKey ||
+                  e.altKey
+                ) {
+                  return;
+                }
+                e.preventDefault();
+              }}
             >
               <Icon className="size-3.5 shrink-0 opacity-70" />
               <span className="truncate">{tab.title}</span>
@@ -121,7 +144,7 @@ export function VisualizationTabs({
         );
       })}
       <div
-        onClick={() => router.push("/visualizer")}
+        onMouseDown={(e) => handleTabMouseDown(e, "/visualizer")}
         className={cn(
           "cursor-pointer h-10 w-10 shrink-0 border-t-0 border-l-0 border-r border-b border-border rounded-none flex items-center justify-center pt-1",
           isNewActive
