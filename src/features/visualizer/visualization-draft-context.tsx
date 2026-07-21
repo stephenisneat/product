@@ -85,14 +85,22 @@ export function VisualizationDraftProvider({
       viz: Visualization,
       config: VizExploreConfig,
     ): Visualization | null => {
-      const dataset = flattenVisualization(viz);
-      const data = rebuildChartData(dataset.rows, config);
-      const updated: Visualization = {
-        ...viz,
-        kind: config.chartKind,
-        data,
-        updatedAt: new Date().toISOString(),
-      };
+      const updated: Visualization =
+        config.chartKind === "table"
+          ? {
+              ...viz,
+              updatedAt: new Date().toISOString(),
+            }
+          : (() => {
+              const dataset = flattenVisualization(viz);
+              const data = rebuildChartData(dataset.rows, config);
+              return {
+                ...viz,
+                kind: config.chartKind,
+                data,
+                updatedAt: new Date().toISOString(),
+              };
+            })();
       saveVisualizationEdits(workspaceId, updated, config);
       setDrafts((prev) => {
         if (!Object.prototype.hasOwnProperty.call(prev, viz.id)) return prev;

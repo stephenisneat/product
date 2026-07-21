@@ -194,7 +194,12 @@ export function getVisualizationExplore(
   workspaceId: string,
   id: string,
 ): VizExploreConfig | null {
-  return loadVisualizationStore(workspaceId).explores[id] ?? null;
+  const explore = loadVisualizationStore(workspaceId).explores[id];
+  if (!explore) return null;
+  return {
+    ...explore,
+    dateRange: explore.dateRange ?? null,
+  };
 }
 
 export function saveVisualizationEdits(

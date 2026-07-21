@@ -11,6 +11,7 @@ import type {
 } from "@/domain";
 import { BarChart } from "@/features/visualizer/charts/bar-chart";
 import { ComparisonChart } from "@/features/visualizer/charts/comparison-chart";
+import { VisualizationDataTable } from "@/features/visualizer/charts/data-table";
 import { SankeyChart } from "@/features/visualizer/charts/sankey-chart";
 import { TimeseriesChart } from "@/features/visualizer/charts/timeseries-chart";
 import { defaultExploreConfig } from "@/features/visualizer/explore/defaults";
@@ -94,13 +95,13 @@ export function VisualizationCanvas({
     [viz, dataset],
   );
 
-  const filteredRowCount = useMemo(() => {
-    if (!dataset || !config) return 0;
-    return transformRows(dataset.rows, config).length;
+  const filteredRows = useMemo(() => {
+    if (!dataset || !config) return [];
+    return transformRows(dataset.rows, config);
   }, [dataset, config]);
 
   const chartData = useMemo(() => {
-    if (!dataset || !config) return null;
+    if (!dataset || !config || config.chartKind === "table") return null;
     return rebuildChartData(dataset.rows, config);
   }, [dataset, config]);
 
@@ -128,7 +129,17 @@ export function VisualizationCanvas({
     setBaseline(config);
   }
 
-  if (!viz || !dataset || !config || !defaults || !baseline || !chartData) {
+  if (!viz || !dataset || !config || !defaults || !baseline) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16 text-center">
+        <p className="text-sm text-muted-foreground">
+          Visualization not found. It may have been removed from this browser.
+        </p>
+      </div>
+    );
+  }
+
+  if (config.chartKind !== "table" && !chartData) {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
         <p className="text-sm text-muted-foreground">
@@ -144,7 +155,7 @@ export function VisualizationCanvas({
         dataset={dataset}
         config={config}
         defaults={defaults}
-        filteredRowCount={filteredRowCount}
+        filteredRowCount={filteredRows.length}
         canSave={canSave}
         title={viz.title}
         onChange={handleChange}
@@ -152,7 +163,11 @@ export function VisualizationCanvas({
         onSave={handleSave}
       />
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <ChartForKind kind={config.chartKind} data={chartData} />
+        {config.chartKind === "table" ? (
+          <VisualizationDataTable dataset={dataset} rows={filteredRows} />
+        ) : (
+          <ChartForKind kind={config.chartKind} data={chartData!} />
+        )}
       </div>
     </div>
   );

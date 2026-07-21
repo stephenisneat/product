@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createVisualization } from "@/features/visualizer/dummy-data";
+import { applyDateRange, resolveDateRangeBounds } from "@/features/visualizer/explore/date-range";
 import { defaultExploreConfig } from "@/features/visualizer/explore/defaults";
 import { flattenVisualization } from "@/features/visualizer/explore/flatten";
 import {
@@ -127,6 +128,7 @@ describe("visualization explore transform", () => {
         { id: "1", field: "series", op: "eq", value: "Meta" },
       ],
       sort: { field: "date", direction: "asc" },
+      dateRange: null,
     };
     const data = rebuildChartData(dataset.rows, config);
     expect("series" in data).toBe(true);
@@ -153,11 +155,60 @@ describe("visualization explore transform", () => {
       aggregate: "sum",
       filters: [],
       sort: null,
+      dateRange: null,
     };
     const data = rebuildChartData(dataset.rows, config);
     expect("categories" in data).toBe(true);
     if (!("categories" in data)) return;
     expect(data.categories).toContain("Meta");
     expect(data.series.map((s) => s.name)).toEqual(["Spend", "Revenue"]);
+  });
+});
+
+describe("visualization date range", () => {
+  it("keeps trailing last-N-days windows inclusive of today", () => {
+    const now = new Date(2026, 6, 21); // Jul 21, 2026 local
+    const bounds = resolveDateRangeBounds(
+      {
+        field: "date",
+        preset: "last_7_days",
+        start: null,
+        end: null,
+      },
+      now,
+    );
+    expect(bounds).not.toBeNull();
+    expect(bounds!.start.getFullYear()).toBe(2026);
+    expect(bounds!.start.getMonth()).toBe(6);
+    expect(bounds!.start.getDate()).toBe(15);
+    expect(bounds!.end.getDate()).toBe(21);
+
+    const rows = [
+      { date: "2026-07-14", value: 1 },
+      { date: "2026-07-15", value: 2 },
+      { date: "2026-07-21", value: 3 },
+      { date: "2026-07-22", value: 4 },
+    ];
+    const filtered = applyDateRange(
+      rows,
+      { field: "date", preset: "last_7_days", start: null, end: null },
+      now,
+    );
+    expect(filtered.map((r) => r.date)).toEqual(["2026-07-15", "2026-07-21"]);
+  });
+
+  it("supports fixed custom ranges", () => {
+    const rows = [
+      { date: "2026-01-01", value: 1 },
+      { date: "2026-01-15", value: 2 },
+      { date: "2026-02-01", value: 3 },
+    ];
+    const filtered = applyDateRange(rows, {
+      field: "date",
+      preset: "custom",
+      start: "2026-01-01",
+      end: "2026-01-31",
+    });
+    expect(filtered.map((r) => r.date)).toEqual(["2026-01-01", "2026-01-15"]);
   });
 });
