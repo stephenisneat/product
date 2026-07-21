@@ -42,6 +42,8 @@ create index if not exists ad_connections_provider_status_idx
 
 alter table public.ad_connections enable row level security;
 
+drop policy if exists "ad_connections_member_all" on public.ad_connections;
+
 create policy "ad_connections_member_all" on public.ad_connections
   for all using (public.is_workspace_member(workspace_id))
   with check (public.is_workspace_member(workspace_id));
