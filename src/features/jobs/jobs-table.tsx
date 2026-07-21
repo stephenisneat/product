@@ -27,6 +27,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { UserAvatar } from "@/features/avatars/user-avatar";
+import { JOBS_PAGE_SIZE } from "@/features/jobs/jobs-constants";
 import {
   JobsToolbar,
   type JobsDateRange,
@@ -40,7 +41,7 @@ export type JobCreator = {
   avatarUrl?: string | null;
 };
 
-export const JOBS_PAGE_SIZE = 50;
+export { JOBS_PAGE_SIZE };
 
 type SortKey =
   | "when"
@@ -315,6 +316,15 @@ export function JobsTable({
   const loadingMoreRef = useRef(false);
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const initialJobsKey = initialJobs.map((job) => job.id).join("|");
+  useEffect(() => {
+    setJobs(initialJobs);
+    offsetRef.current = initialJobs.length;
+    setHasMore(initialJobs.length >= JOBS_PAGE_SIZE);
+    // Sync when the server payload's job set changes (soft nav / refresh).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by id set, not array identity
+  }, [initialJobsKey]);
 
   const selected = jobs.find((j) => j.id === selectedId) ?? null;
   const selectedCreator = selected

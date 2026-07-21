@@ -947,7 +947,7 @@ export const jobRunTriggerSchema = z.enum(["agent", "api", "cron", "event"]);
 export type JobRunTrigger = z.infer<typeof jobRunTriggerSchema>;
 
 export const createCampaignJobInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.string().trim().min(1),
   name: z.string().trim().min(1).max(120),
   objective: z.string().trim().max(500).optional(),
   channels: z.array(z.string().trim().min(1)).max(20).optional(),
@@ -979,7 +979,7 @@ export type GenerateInsightJobInput = z.infer<
 export const jobRunSchema = z.object({
   id: z.string().uuid(),
   workspaceId: z.string().uuid(),
-  productId: z.string().uuid().nullable(),
+  productId: z.string().nullable(),
   type: jobRunTypeSchema,
   status: jobRunStatusSchema,
   trigger: jobRunTriggerSchema,

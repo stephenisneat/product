@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import type { JobRun } from "@/domain";
 import { PageCanvas } from "@/components/layout/page-canvas";
+import { JOBS_PAGE_SIZE } from "@/features/jobs/jobs-constants";
 import {
-  JOBS_PAGE_SIZE,
   JobsTable,
   type JobCreator,
 } from "@/features/jobs/jobs-table";
@@ -65,6 +65,7 @@ export default async function JobsPage() {
         </div>
       ) : (
         <JobsTable
+          key={active.workspace.id}
           initialJobs={jobs}
           productTitles={productTitles}
           creators={creators}
