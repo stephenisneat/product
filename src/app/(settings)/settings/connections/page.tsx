@@ -1,17 +1,17 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getActiveWorkspace } from "@/lib/auth/workspace";
+import {
+  canManageMembers,
+  getActiveWorkspace,
+} from "@/lib/auth/workspace";
+import { GoogleAdsConnectionsPanel } from "@/features/channels/google-ads-connections-panel";
 
-const SECTIONS = [
-  {
-    title: "Channels",
-    description:
-      "Connect ad and social channels like Google, Meta, TikTok, and Pinterest.",
-  },
+const OTHER_SECTIONS = [
   {
     title: "Commerce & APIs",
     description:
-      "Link Shopify and other commerce platforms to sync products and catalog data.",
+      "Link Shopify and other commerce platforms to sync products and catalog data. Use product import to connect Shopify.",
   },
   {
     title: "MCP",
@@ -36,6 +36,8 @@ export default async function ConnectionsSettingsPage() {
     redirect("/");
   }
 
+  const canManage = canManageMembers(active.role);
+
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-8">
       <div className="mb-8">
@@ -48,7 +50,25 @@ export default async function ConnectionsSettingsPage() {
       </div>
 
       <div className="space-y-4">
-        {SECTIONS.map((section) => (
+        <Suspense
+          fallback={
+            <section className="rounded-lg border border-border px-4 py-5">
+              <h2 className="text-sm font-medium">Google Ads</h2>
+              <p className="mt-3 text-sm text-muted-foreground">Loading…</p>
+            </section>
+          }
+        >
+          <GoogleAdsConnectionsPanel canManage={canManage} />
+        </Suspense>
+
+        <section className="rounded-lg border border-dashed border-border px-4 py-5">
+          <h2 className="text-sm font-medium">Other channels</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Meta, TikTok, and Pinterest connections are coming soon.
+          </p>
+        </section>
+
+        {OTHER_SECTIONS.map((section) => (
           <section
             key={section.title}
             className="rounded-lg border border-dashed border-border px-4 py-5"

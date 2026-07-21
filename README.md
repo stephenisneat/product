@@ -9,6 +9,7 @@ AI marketing workspace for commerce products — [product.ag](https://product.ag
 - Marketing site for logged-out visitors; product catalog when authenticated (server-side, no flash)
 - Manual product creation (title, handle, description, price, images, status, SKU, category)
 - Shopify OAuth connect + selective product import (variants, inventory, collections)
+- Google Ads OAuth connect (Search, Display, YouTube) with campaign management via the Google Ads API
 - Product workspace with intelligence, campaigns, performance chart, and reviewable agent artifacts
 - Streaming agent composer (OpenAI when configured; deterministic offline stream otherwise)
 - Multi-tenant workspaces with roles (owner/admin/member) and email invites via Resend
@@ -37,9 +38,15 @@ Next.js App Router · React · TypeScript · Tailwind · shadcn/ui · Supabase �
    - Create a Partner app and set the redirect URL to `http://localhost:3000/api/integrations/shopify/callback` (and production)
    - Scopes: `read_products`, `read_inventory`
    - Set `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`, and `NEXT_PUBLIC_APP_URL` in `.env.local`
-5. (Optional) Configure Resend for workspace invites:
+5. (Optional) Configure Google Ads:
+   - Create an OAuth 2.0 client in Google Cloud Console (Web application)
+   - Add redirect URI `http://localhost:3000/api/integrations/google-ads/callback` (and production)
+   - Enable the Google Ads API and obtain a developer token from [API Center](https://ads.google.com/aw/apicenter)
+   - Set `GOOGLE_ADS_CLIENT_ID`, `GOOGLE_ADS_CLIENT_SECRET`, `GOOGLE_ADS_DEVELOPER_TOKEN`, and `NEXT_PUBLIC_APP_URL`
+   - Apply migration `029_ad_connections.sql`
+6. (Optional) Configure Resend for workspace invites:
    - Set `RESEND_API_KEY` and optionally `RESEND_FROM` in `.env.local`
-6. Run:
+7. Run:
 
 ```bash
 pnpm install
@@ -64,7 +71,12 @@ Product images upload to the `product-assets` storage bucket created by migratio
 | `SHOPIFY_API_KEY` | Shopify Partner app Client ID (required for import) |
 | `SHOPIFY_API_SECRET` | Shopify Partner app Client secret (also used to encrypt stored tokens unless `TOKEN_ENCRYPTION_KEY` is set) |
 | `SHOPIFY_SCOPES` | OAuth scopes (default `read_products,read_inventory`) |
-| `TOKEN_ENCRYPTION_KEY` | Optional dedicated key for encrypting commerce access tokens |
+| `TOKEN_ENCRYPTION_KEY` | Optional dedicated key for encrypting commerce / ads tokens |
+| `GOOGLE_ADS_CLIENT_ID` | Google Cloud OAuth client ID (required for Google Ads connect) |
+| `GOOGLE_ADS_CLIENT_SECRET` | Google Cloud OAuth client secret |
+| `GOOGLE_ADS_DEVELOPER_TOKEN` | Google Ads API developer token from API Center |
+| `GOOGLE_ADS_REDIRECT_URI` | Optional OAuth redirect (default `${NEXT_PUBLIC_APP_URL}/api/integrations/google-ads/callback`) |
+| `GOOGLE_ADS_API_VERSION` | Optional REST API version (default `v19`) |
 | `RESEND_API_KEY` | Resend API key for workspace invite emails |
 | `RESEND_FROM` | Optional From address for invite emails |
 | `TRIGGER_SECRET_KEY` | Trigger.dev secret key for enqueueing background jobs (Vercel + local) |
@@ -106,7 +118,7 @@ Modular monolith under `src/`:
 - `features/` — product, auth, agent, marketing UI
 - `domain/` — Zod schemas
 - `repositories/` — Supabase adapters
-- `lib/` — auth, env helpers, Supabase clients, commerce adapters (`lib/commerce`)
+- `lib/` — auth, env helpers, Supabase clients, commerce adapters (`lib/commerce`), ad channels (`lib/channels`)
 
 ## License
 

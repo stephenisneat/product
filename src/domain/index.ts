@@ -1,4 +1,6 @@
 export type {
+  AdChannelProvider,
+  AdConnection,
   AppUser,
   Artifact,
   ArtifactStatus,
@@ -27,6 +29,7 @@ export type {
   GoalMetric,
   GoalScope,
   GoalStatus,
+  GoogleAdsChannelType,
   Insight,
   InsightAction,
   InsightActionType,
@@ -81,6 +84,8 @@ export type {
 } from "./schemas";
 
 export {
+  adChannelProviderSchema,
+  adConnectionSchema,
   adCopyPayloadSchema,
   appUserSchema,
   artifactPayloadSchema,
@@ -114,6 +119,7 @@ export {
   goalSchema,
   goalScopeSchema,
   goalStatusSchema,
+  googleAdsChannelTypeSchema,
   imageAvgColorSchema,
   insightActionSchema,
   insightActionTypeSchema,

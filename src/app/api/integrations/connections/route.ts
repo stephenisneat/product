@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
+import { hasGoogleAdsConfig } from "@/lib/channels/providers/google-ads";
 import { hasShopifyConfig } from "@/lib/commerce/providers/shopify";
-import { getProductRepository } from "@/repositories";
+import { getAdConnectionRepository, getProductRepository } from "@/repositories";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -16,11 +17,19 @@ export async function GET() {
   }
 
   try {
-    const products = await getProductRepository();
-    const connections = await products.listConnections(active.workspace.id);
+    const [products, ads] = await Promise.all([
+      getProductRepository(),
+      getAdConnectionRepository(),
+    ]);
+    const [connections, adConnections] = await Promise.all([
+      products.listConnections(active.workspace.id),
+      ads.listConnections(active.workspace.id),
+    ]);
     return NextResponse.json({
       shopifyConfigured: hasShopifyConfig(),
+      googleAdsConfigured: hasGoogleAdsConfig(),
       connections,
+      adConnections,
     });
   } catch (error) {
     const message =
