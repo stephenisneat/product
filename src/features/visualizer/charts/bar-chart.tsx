@@ -13,23 +13,23 @@ export function BarChart({ data }: { data: BarData }) {
     tooltip: {
       trigger: "axis",
       axisPointer: { type: "shadow" },
-      backgroundColor: "oklch(0.18 0 0)",
-      borderColor: "oklch(1 0 0 / 12%)",
-      textStyle: { color: "oklch(0.92 0 0)", fontSize: 12 },
+      backgroundColor: "#242424",
+      borderColor: "rgba(255,255,255,0.12)",
+      textStyle: { color: "#ebebeb", fontSize: 12 },
     },
     xAxis: {
       type: "category",
       data: data.categories,
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: { color: "oklch(0.65 0 0)", fontSize: 11 },
+      axisLabel: { color: "#a6a6a6", fontSize: 11 },
     },
     yAxis: {
       type: "value",
       name: data.metric,
-      nameTextStyle: { color: "oklch(0.65 0 0)", fontSize: 11 },
-      splitLine: { lineStyle: { color: "oklch(1 0 0 / 8%)" } },
-      axisLabel: { color: "oklch(0.65 0 0)", fontSize: 11 },
+      nameTextStyle: { color: "#a6a6a6", fontSize: 11 },
+      splitLine: { lineStyle: { color: "rgba(255,255,255,0.08)" } },
+      axisLabel: { color: "#a6a6a6", fontSize: 11 },
     },
     series: data.series.map((s, i) => ({
       name: s.name,
@@ -39,6 +39,12 @@ export function BarChart({ data }: { data: BarData }) {
       itemStyle: {
         color: chartColors[i % chartColors.length],
         borderRadius: [4, 4, 0, 0],
+      },
+      emphasis: {
+        focus: "none" as const,
+        itemStyle: {
+          color: chartColors[i % chartColors.length],
+        },
       },
     })),
   };

@@ -12,9 +12,9 @@ export function SankeyChart({ data }: { data: SankeyData }) {
     ...baseChartOption(),
     tooltip: {
       trigger: "item",
-      backgroundColor: "oklch(0.18 0 0)",
-      borderColor: "oklch(1 0 0 / 12%)",
-      textStyle: { color: "oklch(0.92 0 0)", fontSize: 12 },
+      backgroundColor: "#242424",
+      borderColor: "rgba(255,255,255,0.12)",
+      textStyle: { color: "#ebebeb", fontSize: 12 },
     },
     series: [
       {
@@ -29,7 +29,7 @@ export function SankeyChart({ data }: { data: SankeyData }) {
         lineStyle: { color: "gradient", curveness: 0.5, opacity: 0.35 },
         itemStyle: { borderWidth: 0 },
         label: {
-          color: "oklch(0.85 0 0)",
+          color: "#d9d9d9",
           fontSize: 12,
         },
         levels: chartColors.map((color, depth) => ({
