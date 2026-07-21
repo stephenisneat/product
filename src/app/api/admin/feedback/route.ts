@@ -27,17 +27,13 @@ export async function POST(req: Request) {
 
   const { kind, title, body } = parsed.data;
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("admin_feedback")
-    .insert({
-      user_id: user.id,
-      user_email: user.email,
-      kind,
-      title,
-      body: body?.trim() ? body.trim() : null,
-    })
-    .select("id, created_at")
-    .single();
+  const { error } = await supabase.from("admin_feedback").insert({
+    user_id: user.id,
+    user_email: user.email,
+    kind,
+    title,
+    body: body?.trim() ? body.trim() : null,
+  });
 
   if (error) {
     return NextResponse.json(
@@ -46,8 +42,5 @@ export async function POST(req: Request) {
     );
   }
 
-  return NextResponse.json(
-    { id: data.id, createdAt: data.created_at },
-    { status: 201 },
-  );
+  return NextResponse.json({ ok: true }, { status: 201 });
 }

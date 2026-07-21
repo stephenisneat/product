@@ -217,8 +217,11 @@ function GroupLabel({ children }: { children: ReactNode }) {
   );
 }
 
-function rowStripeClass(index: number) {
-  return index % 2 === 1 ? "bg-muted/40" : undefined;
+function rowToneClass(index: number) {
+  // Four distinct shades: light, light-hover, dark, dark-hover.
+  return index % 2 === 0
+    ? "bg-transparent hover:bg-muted/25"
+    : "bg-muted/45 hover:bg-muted/70";
 }
 
 function ChannelRow({
@@ -237,9 +240,9 @@ function ChannelRow({
   return (
     <div
       className={cn(
-        "flex h-12 items-center gap-2.5 rounded-md px-1.5 text-sm transition-colors hover:bg-muted/50",
+        "flex h-12 items-center gap-2.5 rounded-md px-1.5 text-sm transition-colors",
         muted && "text-muted-foreground",
-        rowStripeClass(index),
+        rowToneClass(index),
       )}
     >
       <ChannelLogo
