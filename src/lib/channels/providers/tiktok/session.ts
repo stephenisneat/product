@@ -1,23 +1,19 @@
 import { decryptSecret, encryptSecret } from "@/lib/commerce/crypto";
-import {
-  GoogleAdsClient,
-  refreshGoogleAdsAccessToken,
-  type GoogleAdsClientCredentials,
-} from "@/lib/channels/providers/google-ads";
+import { TikTokClient, type TikTokClientCredentials } from "./client";
+import { refreshTikTokAccessToken } from "./oauth";
 import type { AdConnectionRecord } from "@/repositories/ad-connections";
 import { getAdConnectionRepository } from "@/repositories";
 
 export { toPublicAdConnection } from "@/lib/channels/ad-connection";
 
-/** Build an authenticated Google Ads client from a stored connection. */
-export async function createGoogleAdsClientFromConnection(
+export async function createTikTokClientFromConnection(
   connection: AdConnectionRecord,
-): Promise<GoogleAdsClient> {
+): Promise<TikTokClient> {
   if (!connection.externalAccountId) {
-    throw new Error("Google Ads connection has no customer account selected.");
+    throw new Error("TikTok connection has no advertiser selected.");
   }
   if (connection.status !== "active") {
-    throw new Error("Google Ads connection is not active.");
+    throw new Error("TikTok connection is not active.");
   }
 
   const refreshToken = decryptSecret(connection.refreshToken);
@@ -43,7 +39,7 @@ export async function createGoogleAdsClientFromConnection(
   };
 
   if (needsRefresh) {
-    const refreshed = await refreshGoogleAdsAccessToken(refreshToken);
+    const refreshed = await refreshTikTokAccessToken(refreshToken);
     accessToken = refreshed.accessToken;
     await persistTokens({
       accessToken: refreshed.accessToken,
@@ -51,15 +47,14 @@ export async function createGoogleAdsClientFromConnection(
     });
   }
 
-  const creds: GoogleAdsClientCredentials = {
+  const creds: TikTokClientCredentials = {
     accessToken,
     refreshToken,
-    customerId: connection.externalAccountId,
-    loginCustomerId: connection.loginCustomerId,
+    advertiserId: connection.externalAccountId,
     onTokenRefresh: async (tokens) => {
       await persistTokens(tokens);
     },
   };
 
-  return new GoogleAdsClient(creds);
+  return new TikTokClient(creds);
 }

@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
+import { hasAmazonAdsConfig } from "@/lib/channels/providers/amazon-ads";
 import { hasGoogleAdsConfig } from "@/lib/channels/providers/google-ads";
+import { hasMetaConfig } from "@/lib/channels/providers/meta";
+import { hasTikTokConfig } from "@/lib/channels/providers/tiktok";
+import { hasXAdsConfig } from "@/lib/channels/providers/x-ads";
 import { hasAmazonConfig } from "@/lib/commerce/providers/amazon";
 import { hasBigCommerceConfig } from "@/lib/commerce/providers/bigcommerce";
 import { hasShopifyConfig } from "@/lib/commerce/providers/shopify";
@@ -36,6 +40,10 @@ export async function GET() {
       amazonConfigured: hasAmazonConfig(),
       squarespaceConfigured: hasSquarespaceConfig(),
       googleAdsConfigured: hasGoogleAdsConfig(),
+      metaConfigured: hasMetaConfig(),
+      tiktokConfigured: hasTikTokConfig(),
+      amazonAdsConfigured: hasAmazonAdsConfig(),
+      xAdsConfigured: hasXAdsConfig(),
       connections,
       adConnections,
     });

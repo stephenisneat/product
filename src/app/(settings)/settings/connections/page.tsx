@@ -5,6 +5,13 @@ import {
   canManageMembers,
   getActiveWorkspace,
 } from "@/lib/auth/workspace";
+import {
+  AdChannelConnectionsPanel,
+  AMAZON_ADS_PANEL_CONFIG,
+  META_ADS_PANEL_CONFIG,
+  TIKTOK_ADS_PANEL_CONFIG,
+  X_ADS_PANEL_CONFIG,
+} from "@/features/channels/ad-channel-connections-panel";
 import { GoogleAdsConnectionsPanel } from "@/features/channels/google-ads-connections-panel";
 
 const OTHER_SECTIONS = [
@@ -24,6 +31,22 @@ const OTHER_SECTIONS = [
       "Configure outbound webhooks for events in this workspace.",
   },
 ] as const;
+
+const AD_PANEL_CONFIGS = [
+  META_ADS_PANEL_CONFIG,
+  TIKTOK_ADS_PANEL_CONFIG,
+  AMAZON_ADS_PANEL_CONFIG,
+  X_ADS_PANEL_CONFIG,
+] as const;
+
+function PanelFallback({ title }: { title: string }) {
+  return (
+    <section className="rounded-lg border border-border px-4 py-5">
+      <h2 className="text-sm font-medium">{title}</h2>
+      <p className="mt-3 text-sm text-muted-foreground">Loading…</p>
+    </section>
+  );
+}
 
 export default async function ConnectionsSettingsPage() {
   const user = await getCurrentUser();
@@ -50,21 +73,20 @@ export default async function ConnectionsSettingsPage() {
       </div>
 
       <div className="space-y-4">
-        <Suspense
-          fallback={
-            <section className="rounded-lg border border-border px-4 py-5">
-              <h2 className="text-sm font-medium">Google Ads</h2>
-              <p className="mt-3 text-sm text-muted-foreground">Loading…</p>
-            </section>
-          }
-        >
+        <Suspense fallback={<PanelFallback title="Google Ads" />}>
           <GoogleAdsConnectionsPanel canManage={canManage} />
         </Suspense>
+
+        {AD_PANEL_CONFIGS.map((config) => (
+          <Suspense key={config.queryParam} fallback={<PanelFallback title={config.name} />}>
+            <AdChannelConnectionsPanel canManage={canManage} config={config} />
+          </Suspense>
+        ))}
 
         <section className="rounded-lg border border-dashed border-border px-4 py-5">
           <h2 className="text-sm font-medium">Other channels</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Meta, TikTok, and Pinterest connections are coming soon.
+            Pinterest and additional retail media connections are coming soon.
           </p>
         </section>
 

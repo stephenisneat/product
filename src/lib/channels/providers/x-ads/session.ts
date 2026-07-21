@@ -1,26 +1,22 @@
 import { decryptSecret, encryptSecret } from "@/lib/commerce/crypto";
-import {
-  GoogleAdsClient,
-  refreshGoogleAdsAccessToken,
-  type GoogleAdsClientCredentials,
-} from "@/lib/channels/providers/google-ads";
+import { XAdsClient, type XAdsClientCredentials } from "./client";
+import { refreshXAdsAccessToken } from "./oauth";
 import type { AdConnectionRecord } from "@/repositories/ad-connections";
 import { getAdConnectionRepository } from "@/repositories";
 
 export { toPublicAdConnection } from "@/lib/channels/ad-connection";
 
-/** Build an authenticated Google Ads client from a stored connection. */
-export async function createGoogleAdsClientFromConnection(
+export async function createXAdsClientFromConnection(
   connection: AdConnectionRecord,
-): Promise<GoogleAdsClient> {
+): Promise<XAdsClient> {
   if (!connection.externalAccountId) {
-    throw new Error("Google Ads connection has no customer account selected.");
+    throw new Error("X Ads connection has no account selected.");
   }
   if (connection.status !== "active") {
-    throw new Error("Google Ads connection is not active.");
+    throw new Error("X Ads connection is not active.");
   }
 
-  const refreshToken = decryptSecret(connection.refreshToken);
+  let refreshToken = decryptSecret(connection.refreshToken);
   let accessToken = connection.accessToken
     ? decryptSecret(connection.accessToken)
     : "";
@@ -35,31 +31,44 @@ export async function createGoogleAdsClientFromConnection(
   const persistTokens = async (tokens: {
     accessToken: string;
     expiresAt: string;
+    refreshToken?: string;
   }) => {
     await repo.updateTokens(connection.id, {
       accessToken: encryptSecret(tokens.accessToken),
       tokenExpiresAt: tokens.expiresAt,
     });
+    if (tokens.refreshToken) {
+      // X rotates refresh tokens; persist via upsert of encrypted refresh.
+      await repo.upsertConnection({
+        ...connection,
+        refreshToken: encryptSecret(tokens.refreshToken),
+        accessToken: encryptSecret(tokens.accessToken),
+        tokenExpiresAt: tokens.expiresAt,
+        updatedAt: new Date().toISOString(),
+      });
+      refreshToken = tokens.refreshToken;
+    }
   };
 
   if (needsRefresh) {
-    const refreshed = await refreshGoogleAdsAccessToken(refreshToken);
+    const refreshed = await refreshXAdsAccessToken(refreshToken);
     accessToken = refreshed.accessToken;
+    refreshToken = refreshed.refreshToken;
     await persistTokens({
       accessToken: refreshed.accessToken,
       expiresAt: new Date(Date.now() + refreshed.expiresIn * 1000).toISOString(),
+      refreshToken: refreshed.refreshToken,
     });
   }
 
-  const creds: GoogleAdsClientCredentials = {
+  const creds: XAdsClientCredentials = {
     accessToken,
     refreshToken,
-    customerId: connection.externalAccountId,
-    loginCustomerId: connection.loginCustomerId,
+    accountId: connection.externalAccountId,
     onTokenRefresh: async (tokens) => {
       await persistTokens(tokens);
     },
   };
 
-  return new GoogleAdsClient(creds);
+  return new XAdsClient(creds);
 }

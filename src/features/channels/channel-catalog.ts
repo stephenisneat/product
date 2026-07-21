@@ -8,6 +8,10 @@ export type ChannelCatalogEntry = {
 /** Channels with a real connect flow in the product today. */
 export const LIVE_CHANNELS: ChannelCatalogEntry[] = [
   { id: "google", name: "Google Ads", logoSlug: "googleads" },
+  { id: "meta", name: "Meta Ads", logoSlug: "meta" },
+  { id: "tiktok", name: "TikTok Ads", logoSlug: "tiktok" },
+  { id: "amazon", name: "Amazon Ads", logoSlug: "amazon" },
+  { id: "x", name: "X Ads", logoSlug: "x" },
 ];
 
 /**
@@ -16,14 +20,10 @@ export const LIVE_CHANNELS: ChannelCatalogEntry[] = [
  */
 export const COMING_SOON_CHANNELS: ChannelCatalogEntry[] = [
   // Ad channels & retail media
-  { id: "meta", name: "Meta Ads", logoSlug: "meta" },
-  { id: "tiktok", name: "TikTok Ads", logoSlug: "tiktok" },
   { id: "pinterest", name: "Pinterest Ads", logoSlug: "pinterest" },
-  { id: "amazon-ads", name: "Amazon Ads", logoSlug: "amazon" },
   { id: "microsoft-ads", name: "Microsoft Advertising", logoSlug: "microsoftadvertising" },
   { id: "snapchat", name: "Snapchat Ads", logoSlug: "snapchat" },
   { id: "linkedin", name: "LinkedIn Ads", logoSlug: "linkedin" },
-  { id: "x-ads", name: "X Ads", logoSlug: "x" },
   { id: "reddit", name: "Reddit Ads", logoSlug: "reddit" },
   { id: "apple-search", name: "Apple Search Ads", logoSlug: "apple" },
   { id: "spotify", name: "Spotify Ads", logoSlug: "spotify" },

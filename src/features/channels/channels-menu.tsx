@@ -35,13 +35,33 @@ type LiveChannelState = {
   manageHref?: string;
 };
 
+type ChannelConnectionStatus = {
+  connected: boolean;
+  href: string;
+};
+
 type ChannelsCachePayload = {
-  googleConnected: boolean;
-  googleHref: string | undefined;
+  statuses: Record<string, ChannelConnectionStatus>;
   fetchedAt: number;
 };
 
 const CHANNELS_CACHE_TTL_MS = 30_000;
+
+const CONNECTION_ENDPOINTS: {
+  id: string;
+  path: string;
+  managePrefix?: string;
+}[] = [
+  {
+    id: "google",
+    path: "/api/integrations/google-ads/connections",
+    managePrefix: "/settings/connections/google-ads",
+  },
+  { id: "meta", path: "/api/integrations/meta/connections" },
+  { id: "tiktok", path: "/api/integrations/tiktok/connections" },
+  { id: "amazon", path: "/api/integrations/amazon-ads/connections" },
+  { id: "x", path: "/api/integrations/x-ads/connections" },
+];
 
 /** Survives AppShell remounts across settings ↔ app navigations. */
 let channelsCache: ChannelsCachePayload | null = null;
@@ -115,12 +135,9 @@ function GroupLabel({ children }: { children: ReactNode }) {
 
 export function ChannelsMenu() {
   const cached = readFreshChannelsCache();
-  const [googleConnected, setGoogleConnected] = useState(
-    cached?.googleConnected ?? false,
-  );
-  const [googleHref, setGoogleHref] = useState<string | undefined>(
-    cached?.googleHref,
-  );
+  const [statuses, setStatuses] = useState<
+    Record<string, ChannelConnectionStatus>
+  >(cached?.statuses ?? {});
   const [loaded, setLoaded] = useState(Boolean(cached));
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -128,31 +145,49 @@ export function ChannelsMenu() {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch("/api/integrations/google-ads/connections");
-      if (!res.ok) {
-        setLoaded(true);
-        return;
-      }
-      const body = (await res.json()) as {
-        connections?: {
-          id: string;
-          status: string;
-          externalAccountId: string | null;
-        }[];
-      };
-      const active = (body.connections ?? []).filter(
-        (c) => c.status === "active" && c.externalAccountId,
+      const results = await Promise.all(
+        CONNECTION_ENDPOINTS.map(async (endpoint) => {
+          try {
+            const res = await fetch(endpoint.path);
+            if (!res.ok) {
+              return [
+                endpoint.id,
+                { connected: false, href: "/settings/connections" },
+              ] as const;
+            }
+            const body = (await res.json()) as {
+              connections?: {
+                id: string;
+                status: string;
+                externalAccountId: string | null;
+              }[];
+            };
+            const active = (body.connections ?? []).filter(
+              (c) => c.status === "active" && c.externalAccountId,
+            );
+            const href =
+              active[0] && endpoint.managePrefix
+                ? `${endpoint.managePrefix}/${active[0].id}`
+                : "/settings/connections";
+            return [
+              endpoint.id,
+              { connected: active.length > 0, href },
+            ] as const;
+          } catch {
+            return [
+              endpoint.id,
+              { connected: false, href: "/settings/connections" },
+            ] as const;
+          }
+        }),
       );
-      const nextConnected = active.length > 0;
-      const nextHref = active[0]
-        ? `/settings/connections/google-ads/${active[0].id}`
-        : "/settings/connections";
-      setGoogleConnected(nextConnected);
-      setGoogleHref(nextHref);
-      writeChannelsCache({
-        googleConnected: nextConnected,
-        googleHref: nextHref,
-      });
+
+      const next: Record<string, ChannelConnectionStatus> = {};
+      for (const [id, status] of results) {
+        next[id] = status;
+      }
+      setStatuses(next);
+      writeChannelsCache({ statuses: next });
     } catch {
       // Keep defaults when offline / unauthenticated.
     } finally {
@@ -182,16 +217,14 @@ export function ChannelsMenu() {
 
   const liveChannels: LiveChannelState[] = useMemo(() => {
     return LIVE_CHANNELS.map((channel) => {
-      if (channel.id === "google") {
-        return {
-          ...channel,
-          connected: googleConnected,
-          manageHref: googleHref ?? "/settings/connections",
-        };
-      }
-      return { ...channel, connected: false };
+      const status = statuses[channel.id];
+      return {
+        ...channel,
+        connected: status?.connected ?? false,
+        manageHref: status?.href ?? "/settings/connections",
+      };
     });
-  }, [googleConnected, googleHref]);
+  }, [statuses]);
 
   const connected = liveChannels.filter(
     (c) => c.connected && matchesQuery(c.name, query),

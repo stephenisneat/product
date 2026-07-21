@@ -12,7 +12,13 @@ export const commerceProviderSchema = z.enum([
 ]);
 export type CommerceProvider = z.infer<typeof commerceProviderSchema>;
 
-export const adChannelProviderSchema = z.enum(["google"]);
+export const adChannelProviderSchema = z.enum([
+  "google",
+  "meta",
+  "tiktok",
+  "amazon",
+  "x",
+]);
 export type AdChannelProvider = z.infer<typeof adChannelProviderSchema>;
 
 export const connectionStatusSchema = z.enum([
