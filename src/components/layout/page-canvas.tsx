@@ -5,17 +5,24 @@ export function PageCanvas({
   header,
   children,
   contentClassName,
+  headerClassName,
   className,
 }: {
   header?: ReactNode;
   children: ReactNode;
   contentClassName?: string;
+  headerClassName?: string;
   className?: string;
 }) {
   return (
     <div className={cn("relative h-full min-h-0", className)}>
       {header ? (
-        <div className="absolute top-0 z-10 flex h-12 w-full items-center border-b border-border bg-canvas/95 px-4 backdrop-blur supports-backdrop-filter:bg-canvas/80">
+        <div
+          className={cn(
+            "absolute top-0 z-10 flex h-12 w-full items-center border-b border-border bg-canvas/95 px-4 backdrop-blur supports-backdrop-filter:bg-canvas/80",
+            headerClassName,
+          )}
+        >
           {header}
         </div>
       ) : null}

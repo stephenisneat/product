@@ -8,7 +8,7 @@ import { AgentContextProvider } from "@/features/agent/agent-context";
 export function CreativeShell({ children }: { children: ReactNode }) {
   return (
     <AgentContextProvider>
-      <div className="flex h-svh w-full overflow-hidden bg-canvas">
+      <div className="flex h-svh w-full overflow-hidden bg-black">
         <main className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>
       </div>
     </AgentContextProvider>
