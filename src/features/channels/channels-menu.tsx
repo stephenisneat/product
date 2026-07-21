@@ -86,7 +86,7 @@ export function ChannelsMenu() {
   return (
     <Popover>
       <PopoverTrigger
-        render={<Button type="button" variant="ghost" size="sm" className="text-xs" />}
+        render={<Button type="button" variant="ghost" size="sm" className="text-xs text-neutral-400" />}
       >
         <span
           className={cn(

@@ -72,7 +72,7 @@ export function ProductPluginMenu() {
     <Popover>
       <PopoverTrigger
         render={
-          <Button type="button" variant="ghost" size="sm" className="text-xs" />
+          <Button type="button" variant="ghost" size="sm" className="text-xs text-neutral-400" />
         }
       >
         <span

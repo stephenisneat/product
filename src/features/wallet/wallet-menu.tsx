@@ -163,7 +163,7 @@ function WalletPopoverShell({
   return (
     <Popover>
       <PopoverTrigger
-        render={<Button type="button" variant="ghost" size="sm" className="text-xs" />}
+        render={<Button type="button" variant="ghost" size="sm" className="text-xs text-neutral-400" />}
       >
         {trigger}
         <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-aria-expanded/button:rotate-180" />
