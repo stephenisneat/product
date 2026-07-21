@@ -50,6 +50,7 @@ import {
   PinIcon as PinSolidIcon,
   PuzzleIcon as PuzzleSolidIcon,
   RefreshIcon,
+  SaveIcon as SaveSolidIcon,
   Search01Icon,
   SecurityIcon,
   SentIcon,
@@ -150,6 +151,7 @@ export const PlusIcon = Plus;
 export const PuzzleIcon = createIcon(PuzzleSolidIcon);
 export const RefreshCwIcon = createIcon(RefreshIcon);
 export const RotateCcwIcon = createIcon(Undo03Icon);
+export const SaveIcon = createIcon(SaveSolidIcon);
 export const Search = createIcon(Search01Icon);
 export const SearchIcon = Search;
 export const Send = createIcon(SentIcon);

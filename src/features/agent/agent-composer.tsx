@@ -19,7 +19,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import type { AppUser } from "@/domain";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
@@ -73,6 +73,7 @@ import {
   normalizeWorkspacePlan,
 } from "@/lib/billing/entitlements";
 import { upsertVisualization } from "@/features/visualizer/visualization-store";
+import { useVisualizationDraftOptional } from "@/features/visualizer/visualization-draft-context";
 import type { Visualization } from "@/domain";
 import { useWalletOptional } from "@/features/wallet/wallet-context";
 import { userFacingErrorMessage } from "@/lib/errors";
@@ -446,6 +447,8 @@ export function AgentComposer({
   workspaceId?: string | null;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const vizDraft = useVisualizationDraftOptional();
   const { route } = useAgentContext();
   const walletCtx = useWalletOptional();
   const productId = route.mode === "product" ? route.productId : undefined;
@@ -594,11 +597,21 @@ export function AgentComposer({
     for (const result of results) {
       if (handledVizToolCallIds.current.has(result.toolCallId)) continue;
       handledVizToolCallIds.current.add(result.toolCallId);
+      const currentMatch = pathname.match(/^\/visualizer\/([^/]+)$/);
+      const currentId = currentMatch?.[1] ?? null;
+      if (
+        vizDraft &&
+        currentId &&
+        currentId !== result.visualization.id &&
+        !vizDraft.confirmDiscardIfDirty(currentId)
+      ) {
+        continue;
+      }
       upsertVisualization(workspaceId, result.visualization);
       window.dispatchEvent(new Event("visualizations-changed"));
       router.push(result.href);
     }
-  }, [messages, router, status, workspaceId]);
+  }, [messages, pathname, router, status, vizDraft, workspaceId]);
 
   const hasOlderMessages = messages.length > visibleCount;
   const visibleMessages = hasOlderMessages

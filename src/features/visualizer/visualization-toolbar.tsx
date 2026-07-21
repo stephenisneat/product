@@ -8,6 +8,7 @@ import {
   ListFilterIcon,
   PlusIcon,
   RotateCcwIcon,
+  SaveIcon,
   TableIcon,
   XIcon,
 } from "@/components/icons";
@@ -493,15 +494,19 @@ export function VisualizationToolbar({
   config,
   defaults,
   filteredRowCount,
+  canSave,
   onChange,
   onReset,
+  onSave,
 }: {
   dataset: VizDataset;
   config: VizExploreConfig;
   defaults: VizExploreConfig;
   filteredRowCount: number;
+  canSave: boolean;
   onChange: (next: VizExploreConfig) => void;
   onReset: () => void;
+  onSave: () => void;
 }) {
   const [dataOpen, setDataOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -702,6 +707,17 @@ export function VisualizationToolbar({
               Reset
             </Button>
           ) : null}
+          <Button
+            type="button"
+            variant={canSave ? "default" : "outline"}
+            size="sm"
+            disabled={!canSave}
+            onClick={onSave}
+            aria-label="Save visualization"
+          >
+            <SaveIcon data-icon="inline-start" />
+            Save
+          </Button>
         </div>
       </div>
     </div>

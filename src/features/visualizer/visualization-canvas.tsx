@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   BarData,
   ComparisonData,
@@ -20,9 +20,11 @@ import {
   transformRows,
 } from "@/features/visualizer/explore/transform";
 import type { VizExploreConfig } from "@/features/visualizer/explore/types";
+import { useVisualizationDraft } from "@/features/visualizer/visualization-draft-context";
 import { VisualizationToolbar } from "@/features/visualizer/visualization-toolbar";
 import {
   getVisualization,
+  getVisualizationExplore,
   openVisualizationTab,
 } from "@/features/visualizer/visualization-store";
 
@@ -52,8 +54,12 @@ export function VisualizationCanvas({
   workspaceId: string;
   visualizationId: string;
 }) {
+  const { getDraft, setDraft, saveDraft } = useVisualizationDraft();
+  const getDraftRef = useRef(getDraft);
+  getDraftRef.current = getDraft;
   // SSR-safe default; localStorage is read after mount to avoid hydration mismatch.
   const [viz, setViz] = useState<Visualization | null>(null);
+  const [baseline, setBaseline] = useState<VizExploreConfig | null>(null);
   const [config, setConfig] = useState<VizExploreConfig | null>(null);
 
   useEffect(() => {
@@ -62,10 +68,20 @@ export function VisualizationCanvas({
       openVisualizationTab(workspaceId, found.id);
       window.dispatchEvent(new Event("visualizations-changed"));
     }
+    const nextDataset = found ? flattenVisualization(found) : null;
+    const savedExplore = found
+      ? getVisualizationExplore(workspaceId, found.id)
+      : null;
+    const nextBaseline =
+      found && nextDataset
+        ? (savedExplore ?? defaultExploreConfig(found, nextDataset))
+        : null;
+    const draft = getDraftRef.current(visualizationId);
     // Sync canvas when navigating between visualization ids.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate-from-storage
     setViz(found);
-    setConfig(found ? defaultExploreConfig(found) : null);
+    setBaseline(nextBaseline);
+    setConfig(draft ?? nextBaseline);
   }, [workspaceId, visualizationId]);
 
   const dataset = useMemo(
@@ -88,7 +104,31 @@ export function VisualizationCanvas({
     return rebuildChartData(dataset.rows, config);
   }, [dataset, config]);
 
-  if (!viz || !dataset || !config || !defaults || !chartData) {
+  const canSave =
+    Boolean(viz && config && baseline) &&
+    JSON.stringify(config) !== JSON.stringify(baseline);
+
+  function handleChange(next: VizExploreConfig) {
+    setConfig(next);
+    if (baseline) setDraft(visualizationId, next, baseline);
+  }
+
+  function handleReset() {
+    if (!viz || !dataset || !baseline) return;
+    const next = defaultExploreConfig(viz, dataset);
+    setConfig(next);
+    setDraft(visualizationId, next, baseline);
+  }
+
+  function handleSave() {
+    if (!viz || !config) return;
+    const updated = saveDraft(workspaceId, viz, config);
+    if (!updated) return;
+    setViz(updated);
+    setBaseline(config);
+  }
+
+  if (!viz || !dataset || !config || !defaults || !baseline || !chartData) {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
         <p className="text-sm text-muted-foreground">
@@ -105,8 +145,10 @@ export function VisualizationCanvas({
         config={config}
         defaults={defaults}
         filteredRowCount={filteredRowCount}
-        onChange={setConfig}
-        onReset={() => setConfig(defaultExploreConfig(viz, dataset))}
+        canSave={canSave}
+        onChange={handleChange}
+        onReset={handleReset}
+        onSave={handleSave}
       />
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <ChartForKind kind={config.chartKind} data={chartData} />
