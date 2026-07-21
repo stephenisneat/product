@@ -38,6 +38,7 @@ import {
   ImageAdd02Icon,
   InformationCircleIcon,
   LayoutThreeColumnIcon,
+  LifebuoyIcon as LifebuoySolidIcon,
   Link02Icon,
   Loading03Icon,
   Moon02Icon,
@@ -129,6 +130,7 @@ export const History = createIcon(Clock01Icon);
 export const ImagePlusIcon = createIcon(ImageAdd02Icon);
 export const InfoIcon = createIcon(InformationCircleIcon);
 export const LightbulbIcon = createIcon(Idea01Icon);
+export const LifebuoyIcon = createIcon(LifebuoySolidIcon);
 export const Link2Icon = createIcon(Link02Icon);
 export const ListFilterIcon = createIcon(FilterIcon);
 export const Loader2 = createIcon(Loading03Icon);

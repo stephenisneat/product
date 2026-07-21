@@ -237,3 +237,24 @@ export function closeVisualizationTab(
   saveVisualizationStore(workspaceId, next);
   return next;
 }
+
+export function reorderVisualizationTabs(
+  workspaceId: string,
+  orderedIds: string[],
+): VisualizationStore {
+  const store = loadVisualizationStore(workspaceId);
+  const allowed = new Set(store.openTabIds);
+  const openTabIds = orderedIds.filter((id) => allowed.has(id));
+  for (const id of store.openTabIds) {
+    if (!openTabIds.includes(id)) openTabIds.push(id);
+  }
+  if (
+    openTabIds.length === store.openTabIds.length &&
+    openTabIds.every((id, i) => id === store.openTabIds[i])
+  ) {
+    return store;
+  }
+  const next = { ...store, openTabIds };
+  saveVisualizationStore(workspaceId, next);
+  return next;
+}

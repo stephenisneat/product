@@ -12,7 +12,13 @@ export const commerceProviderSchema = z.enum([
 ]);
 export type CommerceProvider = z.infer<typeof commerceProviderSchema>;
 
-export const adChannelProviderSchema = z.enum(["google"]);
+export const adChannelProviderSchema = z.enum([
+  "google",
+  "meta",
+  "tiktok",
+  "amazon",
+  "x",
+]);
 export type AdChannelProvider = z.infer<typeof adChannelProviderSchema>;
 
 export const connectionStatusSchema = z.enum([
@@ -580,6 +586,27 @@ export const appUserSchema = z.object({
 
 export type AppUser = z.infer<typeof appUserSchema>;
 
+export const adminFeedbackKindSchema = z.enum(["channel_request"]);
+export type AdminFeedbackKind = z.infer<typeof adminFeedbackKindSchema>;
+
+export const createAdminFeedbackSchema = z.object({
+  kind: adminFeedbackKindSchema,
+  title: z.string().trim().min(1).max(200),
+  body: z.string().trim().max(2000).optional(),
+});
+export type CreateAdminFeedbackInput = z.infer<typeof createAdminFeedbackSchema>;
+
+export const adminFeedbackSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  userEmail: z.string().nullable(),
+  kind: adminFeedbackKindSchema,
+  title: z.string(),
+  body: z.string().nullable(),
+  createdAt: z.string().datetime(),
+});
+export type AdminFeedback = z.infer<typeof adminFeedbackSchema>;
+
 export const notificationPreferencesSchema = z.object({
   productUpdates: z.boolean(),
   jobCompletions: z.boolean(),
@@ -947,7 +974,7 @@ export const jobRunTriggerSchema = z.enum(["agent", "api", "cron", "event"]);
 export type JobRunTrigger = z.infer<typeof jobRunTriggerSchema>;
 
 export const createCampaignJobInputSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.string().trim().min(1),
   name: z.string().trim().min(1).max(120),
   objective: z.string().trim().max(500).optional(),
   channels: z.array(z.string().trim().min(1)).max(20).optional(),
@@ -979,7 +1006,7 @@ export type GenerateInsightJobInput = z.infer<
 export const jobRunSchema = z.object({
   id: z.string().uuid(),
   workspaceId: z.string().uuid(),
-  productId: z.string().uuid().nullable(),
+  productId: z.string().nullable(),
   type: jobRunTypeSchema,
   status: jobRunStatusSchema,
   trigger: jobRunTriggerSchema,

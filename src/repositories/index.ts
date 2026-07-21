@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { createServiceClient } from "@/lib/supabase/service";
+import { createServiceClient, hasServiceRole } from "@/lib/supabase/service";
 import {
   SupabaseAdConnectionRepository,
   type AdConnectionRepository,
@@ -79,8 +79,21 @@ export async function getWorkspaceRepository(): Promise<WorkspaceRepository> {
   return new SupabaseWorkspaceRepository(client);
 }
 
-/** Read path uses the user session (RLS). */
+/**
+ * Job reads after workspace membership is already established.
+ * Prefer service role: job_runs has no authenticated write policies, and
+ * member SELECT via RLS has returned empty in production for workspaces
+ * that can still read sibling tables (creatives/products).
+ */
+export function getJobReadRepository(): JobRepository {
+  return new SupabaseJobRepository(createServiceClient());
+}
+
+/** Membership-gated job reads (page/API). Uses service role when configured. */
 export async function getJobRepository(): Promise<JobRepository> {
+  if (hasServiceRole()) {
+    return getJobReadRepository();
+  }
   const client = await createClient();
   return new SupabaseJobRepository(client);
 }

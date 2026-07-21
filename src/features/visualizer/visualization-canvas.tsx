@@ -108,16 +108,8 @@ export function VisualizationCanvas({
         onChange={setConfig}
         onReset={() => setConfig(defaultExploreConfig(viz, dataset))}
       />
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4">
-        <div className="mb-3 shrink-0">
-          <h1 className="text-base font-medium tracking-tight">{viz.title}</h1>
-          {viz.prompt ? (
-            <p className="mt-0.5 text-xs text-muted-foreground">{viz.prompt}</p>
-          ) : null}
-        </div>
-        <div className="min-h-[420px] flex-1 rounded-lg border border-border bg-background/30 p-2">
-          <ChartForKind kind={config.chartKind} data={chartData} />
-        </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <ChartForKind kind={config.chartKind} data={chartData} />
       </div>
     </div>
   );

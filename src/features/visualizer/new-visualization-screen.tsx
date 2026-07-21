@@ -10,7 +10,6 @@ import {
 } from "@/features/visualizer/dummy-data";
 import {
   listRecents,
-  openVisualizationTab,
   upsertVisualization,
 } from "@/features/visualizer/visualization-store";
 
@@ -45,7 +44,6 @@ export function NewVisualizationScreen({
 
   function openViz(viz: Visualization) {
     upsertVisualization(workspaceId, viz);
-    openVisualizationTab(workspaceId, viz.id);
     window.dispatchEvent(new Event("visualizations-changed"));
     router.push(`/visualizer/${viz.id}`);
   }
@@ -62,8 +60,6 @@ export function NewVisualizationScreen({
   }
 
   function openRecent(viz: Visualization) {
-    openVisualizationTab(workspaceId, viz.id);
-    window.dispatchEvent(new Event("visualizations-changed"));
     router.push(`/visualizer/${viz.id}`);
   }
 

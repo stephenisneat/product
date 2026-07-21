@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { NewVisualizationScreen } from "@/features/visualizer/new-visualization-screen";
-import { VisualizerShell } from "@/features/visualizer/visualizer-shell";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 
@@ -16,11 +15,9 @@ export default async function VisualizerPage() {
   }
 
   return (
-    <VisualizerShell workspaceId={active.workspace.id}>
-      <NewVisualizationScreen
-        key={active.workspace.id}
-        workspaceId={active.workspace.id}
-      />
-    </VisualizerShell>
+    <NewVisualizationScreen
+      key={active.workspace.id}
+      workspaceId={active.workspace.id}
+    />
   );
 }

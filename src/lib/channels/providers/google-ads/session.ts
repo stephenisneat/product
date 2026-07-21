@@ -1,5 +1,4 @@
 import { decryptSecret, encryptSecret } from "@/lib/commerce/crypto";
-import type { AdConnection } from "@/domain";
 import {
   GoogleAdsClient,
   refreshGoogleAdsAccessToken,
@@ -7,6 +6,8 @@ import {
 } from "@/lib/channels/providers/google-ads";
 import type { AdConnectionRecord } from "@/repositories/ad-connections";
 import { getAdConnectionRepository } from "@/repositories";
+
+export { toPublicAdConnection } from "@/lib/channels/ad-connection";
 
 /** Build an authenticated Google Ads client from a stored connection. */
 export async function createGoogleAdsClientFromConnection(
@@ -61,26 +62,4 @@ export async function createGoogleAdsClientFromConnection(
   };
 
   return new GoogleAdsClient(creds);
-}
-
-export function toPublicAdConnection(
-  connection: AdConnectionRecord | AdConnection,
-): AdConnection {
-  return {
-    id: connection.id,
-    workspaceId: connection.workspaceId,
-    provider: connection.provider,
-    externalAccountId: connection.externalAccountId,
-    loginCustomerId: connection.loginCustomerId,
-    accountName: connection.accountName,
-    currencyCode: connection.currencyCode,
-    timeZone: connection.timeZone,
-    isManager: connection.isManager,
-    scope: connection.scope,
-    status: connection.status,
-    connectedBy: connection.connectedBy,
-    metadata: connection.metadata,
-    createdAt: connection.createdAt,
-    updatedAt: connection.updatedAt,
-  };
 }
