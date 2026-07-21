@@ -55,6 +55,9 @@ export function WorkspaceProfilePanel({
   const [domainJoinEnabled, setDomainJoinEnabled] = useState(
     initialWorkspace.domainJoinEnabled,
   );
+  const [requireMfa, setRequireMfa] = useState(
+    initialWorkspace.requireMfa ?? false,
+  );
   const [joinDomain, setJoinDomain] = useState(
     initialWorkspace.joinDomain ??
       workEmailDomainFromAddress(currentUserEmail) ??
@@ -88,6 +91,7 @@ export function WorkspaceProfilePanel({
         setPrimaryDomain(data.workspace.primaryDomain ?? "");
         setPlan(data.workspace.plan ?? "free");
         setDomainJoinEnabled(data.workspace.domainJoinEnabled);
+        setRequireMfa(data.workspace.requireMfa ?? false);
         setJoinDomain(
           data.workspace.joinDomain ??
             workEmailDomainFromAddress(currentUserEmail) ??
@@ -304,6 +308,43 @@ export function WorkspaceProfilePanel({
           <p className="text-xs text-muted-foreground">
             Open plans to upgrade or manage your subscription.
           </p>
+        </section>
+      ) : null}
+
+      {isOwner ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-medium">Security</h2>
+          <div className="space-y-3 rounded-lg border border-border p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="settings-require-mfa">
+                  Require two-factor authentication
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Members must enable 2FA in Security settings before they can
+                  use this workspace. Optional by default.
+                </p>
+              </div>
+              <Switch
+                id="settings-require-mfa"
+                checked={requireMfa}
+                disabled={busy}
+                onCheckedChange={(checked) => {
+                  const previous = requireMfa;
+                  setRequireMfa(checked);
+                  void (async () => {
+                    const ok = await patchWorkspace(
+                      { requireMfa: checked },
+                      checked
+                        ? "Two-factor authentication is now required."
+                        : "Two-factor authentication is optional again.",
+                    );
+                    if (!ok) setRequireMfa(previous);
+                  })();
+                }}
+              />
+            </div>
+          </div>
         </section>
       ) : null}
 

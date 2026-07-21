@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { getMfaStatus } from "@/lib/auth/mfa";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
   WORKSPACE_COOKIE,
   workspaceCookieOptions,
 } from "@/lib/auth/workspace";
+import { createClient } from "@/lib/supabase/server";
 import {
   emailDomainFromAddress,
   isConsumerEmailDomain,
@@ -48,6 +50,32 @@ export async function POST(_req: Request, { params }: Params) {
         { error: "Domain join not allowed" },
         { status: 403 },
       );
+    }
+
+    if (target.requireMfa) {
+      const supabase = await createClient();
+      const status = await getMfaStatus(supabase);
+      if (!status.hasVerifiedFactor) {
+        return NextResponse.json(
+          {
+            error:
+              "This workspace requires two-factor authentication. Enable 2FA in Security settings first.",
+            code: "MFA_ENROLL",
+            redirectTo: "/settings/security?required=1",
+          },
+          { status: 403 },
+        );
+      }
+      if (status.needsChallenge) {
+        return NextResponse.json(
+          {
+            error: "Confirm your two-factor code to continue.",
+            code: "MFA_CHALLENGE",
+            redirectTo: "/auth/mfa",
+          },
+          { status: 403 },
+        );
+      }
     }
 
     await repo.joinWorkspaceByDomain(id);

@@ -33,8 +33,15 @@ export function AcceptInviteClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
       });
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        redirectTo?: string;
+      };
       if (!res.ok) {
+        if (body.redirectTo) {
+          router.push(body.redirectTo);
+          return;
+        }
         throw new Error(body.error || "Failed to accept invite");
       }
       router.push("/");

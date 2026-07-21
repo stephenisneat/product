@@ -96,6 +96,7 @@ describe("domain schemas", () => {
       primaryDomain: "acme.com",
       joinDomain: "acme.com",
       domainJoinEnabled: true,
+      requireMfa: true,
       createdBy: "user_1",
       createdAt: "2026-07-14T00:00:00.000Z",
       updatedAt: "2026-07-14T00:00:00.000Z",
@@ -104,6 +105,7 @@ describe("domain schemas", () => {
     expect(workspace.plan).toBe("pro");
     expect(workspace.primaryDomain).toBe("acme.com");
     expect(workspace.joinDomain).toBe("acme.com");
+    expect(workspace.requireMfa).toBe(true);
 
     const member = workspaceMemberSchema.parse({
       workspaceId: workspace.id,

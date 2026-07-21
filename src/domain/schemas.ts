@@ -35,6 +35,7 @@ export const workspaceSchema = z.object({
   primaryDomain: z.string().nullable().optional(),
   joinDomain: z.string().nullable().optional(),
   domainJoinEnabled: z.boolean().default(false),
+  requireMfa: z.boolean().default(false),
   createdBy: z.string(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
