@@ -173,7 +173,7 @@ export function AgentEmptySuggestions({
             onMouseEnter={() => setSelectedIndex(index)}
             onClick={() => onSelect(suggestion)}
             className={cn(
-              "flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[15px] font-medium transition-colors",
+              "flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] font-medium transition-colors",
               "text-muted-foreground hover:bg-neutral-700 hover:text-foreground",
               selected && "bg-neutral-700 text-foreground",
               disabled && "pointer-events-none opacity-50",

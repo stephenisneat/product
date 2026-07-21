@@ -23,7 +23,7 @@ export function NavLink({
       prefetch={prefetch}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "relative inline-flex h-full items-center gap-1.5 overflow-hidden px-3 text-sm font-medium whitespace-nowrap transition-colors",
+        "relative inline-flex h-full items-center gap-1.5 overflow-hidden px-3 text-[13px] font-medium whitespace-nowrap transition-colors",
         "text-muted-foreground hover:text-foreground",
         isActive && "text-foreground",
         "after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-white after:transition-transform after:duration-200",
