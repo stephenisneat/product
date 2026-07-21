@@ -101,7 +101,7 @@ export function ChannelsMenu() {
           {loaded ? connectedCount : "–"}
         </span>
         Channels
-        <ChevronDownIcon className="size-3 shrink-0 text-neutral-600 transition-transform duration-200 group-aria-expanded/button:rotate-180" />
+        <ChevronDownIcon className="size-3 shrink-0 text-neutral-600 transition-[color,transform] duration-200 group-hover/button:text-neutral-300 group-aria-expanded/button:rotate-180 group-aria-expanded/button:text-neutral-300" />
       </PopoverTrigger>
       <PopoverContent align="start" className="min-w-56 p-2">
         <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">

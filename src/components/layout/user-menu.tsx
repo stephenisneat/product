@@ -44,7 +44,7 @@ export function UserMenu({
             size="sm"
             className={cn(
               "text-xs",
-              showLabel && "text-neutral-400",
+              showLabel && "h-8 text-neutral-400",
               !showLabel && "rounded-full px-1.5",
             )}
           />
@@ -59,7 +59,7 @@ export function UserMenu({
         {showLabel ? (
           <>
             <span className="max-w-40 truncate">{label}</span>
-            <ChevronDownIcon className="size-3 shrink-0 text-neutral-600 transition-transform duration-200 group-aria-expanded/button:rotate-180" />
+            <ChevronDownIcon className="size-3 shrink-0 text-neutral-600 transition-[color,transform] duration-200 group-hover/button:text-neutral-300 group-aria-expanded/button:rotate-180 group-aria-expanded/button:text-neutral-300" />
           </>
         ) : null}
         <span className="sr-only">Open account menu</span>

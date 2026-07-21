@@ -50,6 +50,7 @@ export function AppHeader({
           variant="ghost"
           size="icon-sm"
           aria-label="Settings"
+          className="text-neutral-400"
         >
           <SettingsIcon />
         </Button>
