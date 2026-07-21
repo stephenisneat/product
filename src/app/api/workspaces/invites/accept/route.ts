@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getMfaStatus } from "@/lib/auth/mfa";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
   WORKSPACE_COOKIE,
   workspaceCookieOptions,
 } from "@/lib/auth/workspace";
+import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceRepository } from "@/repositories";
 
 const bodySchema = z.object({
@@ -38,6 +40,33 @@ export async function POST(req: Request) {
         },
         { status: 403 },
       );
+    }
+
+    const workspace = await repo.getWorkspace(invite.workspaceId);
+    if (workspace?.requireMfa) {
+      const supabase = await createClient();
+      const status = await getMfaStatus(supabase);
+      if (!status.hasVerifiedFactor) {
+        return NextResponse.json(
+          {
+            error:
+              "This workspace requires two-factor authentication. Enable 2FA in Security settings first.",
+            code: "MFA_ENROLL",
+            redirectTo: "/settings/security?required=1",
+          },
+          { status: 403 },
+        );
+      }
+      if (status.needsChallenge) {
+        return NextResponse.json(
+          {
+            error: "Confirm your two-factor code to continue.",
+            code: "MFA_CHALLENGE",
+            redirectTo: "/auth/mfa",
+          },
+          { status: 403 },
+        );
+      }
     }
 
     const membership = await repo.acceptInvite(parsed.data.token, user.id);

@@ -56,7 +56,18 @@ export function LoginForm() {
       setError(signInError.message);
       return;
     }
-    router.push(searchParams.get("next") || "/");
+
+    const { getMfaStatus } = await import("@/lib/auth/mfa");
+    const { safeNextPath } = await import("@/lib/auth/redirect");
+    const next = safeNextPath(searchParams.get("next"));
+    const status = await getMfaStatus(supabase);
+    if (status.needsChallenge) {
+      router.push(`/auth/mfa?next=${encodeURIComponent(next)}`);
+      router.refresh();
+      return;
+    }
+
+    router.push(next);
     router.refresh();
   }
 

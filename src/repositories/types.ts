@@ -53,6 +53,7 @@ export type WorkspaceUpdateInput = {
   primaryDomain?: string | null;
   joinDomain?: string | null;
   domainJoinEnabled?: boolean;
+  requireMfa?: boolean;
   stripeSubscriptionId?: string | null;
   stripeSubscriptionStatus?: string | null;
 };

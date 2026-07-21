@@ -31,6 +31,7 @@ const patchSchema = z
     primaryDomain: z.string().trim().nullable().optional(),
     joinDomain: z.string().trim().nullable().optional(),
     domainJoinEnabled: z.boolean().optional(),
+    requireMfa: z.boolean().optional(),
   })
   .refine(
     (data) =>
@@ -40,7 +41,8 @@ const patchSchema = z
       data.plan !== undefined ||
       data.primaryDomain !== undefined ||
       data.joinDomain !== undefined ||
-      data.domainJoinEnabled !== undefined,
+      data.domainJoinEnabled !== undefined ||
+      data.requireMfa !== undefined,
     { message: "At least one field is required" },
   );
 
@@ -99,11 +101,15 @@ export async function PATCH(req: Request, { params }: Params) {
     if (
       (body.plan !== undefined ||
         body.joinDomain !== undefined ||
-        body.domainJoinEnabled !== undefined) &&
+        body.domainJoinEnabled !== undefined ||
+        body.requireMfa !== undefined) &&
       !isOwner
     ) {
       return NextResponse.json(
-        { error: "Only the owner can change plan or domain join settings." },
+        {
+          error:
+            "Only the owner can change plan, domain join, or 2FA requirements.",
+        },
         { status: 403 },
       );
     }
@@ -203,6 +209,7 @@ export async function PATCH(req: Request, { params }: Params) {
           : undefined,
       domainJoinEnabled:
         body.domainJoinEnabled !== undefined ? domainJoinEnabled : undefined,
+      requireMfa: body.requireMfa,
     });
 
     return NextResponse.json({ workspace });

@@ -108,10 +108,16 @@ export function WorkspacePicker({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ workspaceId }),
         });
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          code?: string;
+          redirectTo?: string;
+        };
         if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as {
-            error?: string;
-          };
+          if (body.redirectTo) {
+            router.push(body.redirectTo);
+            return;
+          }
           throw new Error(body.error || "Failed to switch workspace");
         }
         router.refresh();
@@ -128,8 +134,15 @@ export function WorkspacePicker({
       const res = await fetch(`/api/workspaces/${workspaceId}/join`, {
         method: "POST",
       });
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        redirectTo?: string;
+      };
       if (!res.ok) {
+        if (body.redirectTo) {
+          router.push(body.redirectTo);
+          return;
+        }
         throw new Error(body.error || "Failed to join workspace");
       }
       setDiscoverable((prev) => prev.filter((ws) => ws.id !== workspaceId));

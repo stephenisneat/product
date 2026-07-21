@@ -26,6 +26,7 @@ type DbWorkspace = {
   primary_domain: string | null;
   join_domain: string | null;
   domain_join_enabled: boolean;
+  require_mfa?: boolean;
   stripe_subscription_id: string | null;
   stripe_subscription_status: string | null;
   created_by: string;
@@ -68,6 +69,7 @@ function mapWorkspace(row: DbWorkspace): Workspace {
     primaryDomain: row.primary_domain ?? null,
     joinDomain: row.join_domain ?? null,
     domainJoinEnabled: Boolean(row.domain_join_enabled),
+    requireMfa: Boolean(row.require_mfa),
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -187,6 +189,9 @@ export class SupabaseWorkspaceRepository implements WorkspaceRepository {
     if (input.joinDomain !== undefined) patch.join_domain = input.joinDomain;
     if (input.domainJoinEnabled !== undefined) {
       patch.domain_join_enabled = input.domainJoinEnabled;
+    }
+    if (input.requireMfa !== undefined) {
+      patch.require_mfa = input.requireMfa;
     }
     if (input.stripeSubscriptionId !== undefined) {
       patch.stripe_subscription_id = input.stripeSubscriptionId;
