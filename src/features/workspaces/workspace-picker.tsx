@@ -168,7 +168,7 @@ export function WorkspacePicker({
               className={cn(
                 "gap-1.5",
                 variant === "header" &&
-                  "h-8 px-1.5 text-xs text-foreground hover:bg-white/5 aria-expanded:bg-white/5",
+                  "h-8 px-1.5 text-xs text-neutral-400 hover:bg-white/5 aria-expanded:bg-white/5",
               )}
             />
           }
@@ -198,7 +198,7 @@ export function WorkspacePicker({
             {planDisplayName(plan)}
           </Badge>
           {variant === "header" ? (
-            <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-aria-expanded/button:rotate-180" />
+            <ChevronDownIcon className="size-3 shrink-0 text-neutral-600 transition-transform duration-200 group-aria-expanded/button:rotate-180" />
           ) : (
             <ChevronsUpDownIcon data-icon="inline-end" />
           )}
