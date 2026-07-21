@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   ArrowUpDownIcon,
   Columns3Icon,
+  DownloadIcon,
   GitCompareArrowsIcon,
   ListFilterIcon,
   PlusIcon,
@@ -35,8 +36,9 @@ import {
   FILTER_OP_OPTIONS,
   exploreConfigIsActive,
 } from "@/features/visualizer/explore/defaults";
+import { downloadCsv, rowsToCsv } from "@/features/visualizer/explore/csv";
 import { uniqueValues } from "@/features/visualizer/explore/flatten";
-import { newFilterId } from "@/features/visualizer/explore/transform";
+import { newFilterId, transformRows } from "@/features/visualizer/explore/transform";
 import type {
   VizDataset,
   VizExploreConfig,
@@ -495,6 +497,7 @@ export function VisualizationToolbar({
   defaults,
   filteredRowCount,
   canSave,
+  title,
   onChange,
   onReset,
   onSave,
@@ -504,6 +507,7 @@ export function VisualizationToolbar({
   defaults: VizExploreConfig;
   filteredRowCount: number;
   canSave: boolean;
+  title: string;
   onChange: (next: VizExploreConfig) => void;
   onReset: () => void;
   onSave: () => void;
@@ -707,6 +711,20 @@ export function VisualizationToolbar({
               Reset
             </Button>
           ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={filteredRowCount === 0}
+            aria-label="Download CSV"
+            onClick={() => {
+              const rows = transformRows(dataset.rows, config);
+              downloadCsv(title, rowsToCsv(dataset.fields, rows));
+            }}
+          >
+            <DownloadIcon data-icon="inline-start" />
+            CSV
+          </Button>
           <Button
             type="button"
             variant={canSave ? "default" : "outline"}

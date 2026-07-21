@@ -28,6 +28,7 @@ import {
   ComputerIcon,
   Copy01Icon,
   CreditCardIcon as CreditCardSolidIcon,
+  Download01Icon,
   Edit02Icon,
   FilterIcon,
   File02Icon,
@@ -122,6 +123,7 @@ export const Columns3Icon = createIcon(LayoutThreeColumnIcon);
 export const CopyIcon = createIcon(Copy01Icon);
 export const CornerDownLeft = createIcon(ArrowTurnBackwardIcon);
 export const CreditCardIcon = createIcon(CreditCardSolidIcon);
+export const DownloadIcon = createIcon(Download01Icon);
 export const Ellipsis = createIcon(MoreHorizontalIcon);
 export const FileTextIcon = createIcon(File02Icon);
 export const GitBranchIcon = createIcon(GitBranchSolidIcon);

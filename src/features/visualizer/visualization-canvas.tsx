@@ -146,6 +146,7 @@ export function VisualizationCanvas({
         defaults={defaults}
         filteredRowCount={filteredRowCount}
         canSave={canSave}
+        title={viz.title}
         onChange={handleChange}
         onReset={handleReset}
         onSave={handleSave}
