@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -13,11 +14,17 @@ import type { Visualization } from "@/domain";
 import { flattenVisualization } from "@/features/visualizer/explore/flatten";
 import { rebuildChartData } from "@/features/visualizer/explore/transform";
 import type { VizExploreConfig } from "@/features/visualizer/explore/types";
+import {
+  installNavigationGuards,
+  setNavigationGuard,
+} from "@/features/visualizer/navigation-guard";
 import { saveVisualizationEdits } from "@/features/visualizer/visualization-store";
 
 export function configsEqual(a: VizExploreConfig, b: VizExploreConfig) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
+
+const LEAVE_MESSAGE = "You have unsaved changes. Leave without saving?";
 
 type VisualizationDraftContextValue = {
   isDirty: (id: string) => boolean;
@@ -47,6 +54,16 @@ export function VisualizationDraftProvider({
   children: ReactNode;
 }) {
   const [drafts, setDrafts] = useState<Record<string, VizExploreConfig>>({});
+  const draftsRef = useRef(drafts);
+  draftsRef.current = drafts;
+  const bypassUntilRef = useRef(0);
+
+  const discardAllSync = useCallback(() => {
+    draftsRef.current = {};
+    setDrafts({});
+    // Avoid a second confirm from history/Navigation API after Link click.
+    bypassUntilRef.current = Date.now() + 1000;
+  }, []);
 
   const isDirty = useCallback(
     (id: string) => Object.prototype.hasOwnProperty.call(drafts, id),
@@ -60,12 +77,16 @@ export function VisualizationDraftProvider({
   const setDraft = useCallback(
     (id: string, config: VizExploreConfig, baseline: VizExploreConfig) => {
       setDrafts((prev) => {
+        let next: Record<string, VizExploreConfig>;
         if (configsEqual(config, baseline)) {
           if (!Object.prototype.hasOwnProperty.call(prev, id)) return prev;
           const { [id]: _, ...rest } = prev;
-          return rest;
+          next = rest;
+        } else {
+          next = { ...prev, [id]: config };
         }
-        return { ...prev, [id]: config };
+        draftsRef.current = next;
+        return next;
       });
     },
     [],
@@ -75,6 +96,7 @@ export function VisualizationDraftProvider({
     setDrafts((prev) => {
       if (!Object.prototype.hasOwnProperty.call(prev, id)) return prev;
       const { [id]: _, ...rest } = prev;
+      draftsRef.current = rest;
       return rest;
     });
   }, []);
@@ -105,6 +127,7 @@ export function VisualizationDraftProvider({
       setDrafts((prev) => {
         if (!Object.prototype.hasOwnProperty.call(prev, viz.id)) return prev;
         const { [viz.id]: _, ...rest } = prev;
+        draftsRef.current = rest;
         return rest;
       });
       window.dispatchEvent(new Event("visualizations-changed"));
@@ -115,30 +138,46 @@ export function VisualizationDraftProvider({
 
   const confirmDiscardIfDirty = useCallback(
     (id: string | null | undefined) => {
-      if (!id || !Object.prototype.hasOwnProperty.call(drafts, id)) return true;
-      const ok = window.confirm(
-        "You have unsaved changes. Leave without saving?",
-      );
+      if (!id || !Object.prototype.hasOwnProperty.call(draftsRef.current, id)) {
+        return true;
+      }
+      const ok = window.confirm(LEAVE_MESSAGE);
       if (ok) {
-        setDrafts((prev) => {
-          const { [id]: _, ...rest } = prev;
-          return rest;
-        });
+        const { [id]: _, ...rest } = draftsRef.current;
+        draftsRef.current = rest;
+        setDrafts(rest);
+        bypassUntilRef.current = Date.now() + 1000;
       }
       return ok;
     },
-    [drafts],
+    [],
   );
 
   useEffect(() => {
-    if (dirtyCount === 0) return;
+    function confirmLeave(): boolean {
+      if (Date.now() < bypassUntilRef.current) return true;
+      if (Object.keys(draftsRef.current).length === 0) return true;
+      const ok = window.confirm(LEAVE_MESSAGE);
+      if (ok) discardAllSync();
+      return ok;
+    }
+
+    setNavigationGuard((_nextUrl) => confirmLeave());
+    const uninstall = installNavigationGuards();
+
     function onBeforeUnload(e: BeforeUnloadEvent) {
+      if (Object.keys(draftsRef.current).length === 0) return;
       e.preventDefault();
       e.returnValue = "";
     }
     window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [dirtyCount]);
+
+    return () => {
+      setNavigationGuard(null);
+      uninstall();
+      window.removeEventListener("beforeunload", onBeforeUnload);
+    };
+  }, [discardAllSync]);
 
   const value = useMemo<VisualizationDraftContextValue>(
     () => ({
