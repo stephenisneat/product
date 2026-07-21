@@ -12,12 +12,24 @@ export const commerceProviderSchema = z.enum([
 ]);
 export type CommerceProvider = z.infer<typeof commerceProviderSchema>;
 
+export const adChannelProviderSchema = z.enum(["google"]);
+export type AdChannelProvider = z.infer<typeof adChannelProviderSchema>;
+
 export const connectionStatusSchema = z.enum([
   "active",
   "disconnected",
   "error",
+  "pending",
 ]);
 export type ConnectionStatus = z.infer<typeof connectionStatusSchema>;
+
+/** Advertising channels supported for Google Ads campaign types. */
+export const googleAdsChannelTypeSchema = z.enum([
+  "SEARCH",
+  "DISPLAY",
+  "VIDEO",
+]);
+export type GoogleAdsChannelType = z.infer<typeof googleAdsChannelTypeSchema>;
 
 export const workspaceRoleSchema = z.enum(["owner", "admin", "member"]);
 export type WorkspaceRole = z.infer<typeof workspaceRoleSchema>;
@@ -87,6 +99,26 @@ export const commerceConnectionSchema = z.object({
 });
 
 export type CommerceConnection = z.infer<typeof commerceConnectionSchema>;
+
+export const adConnectionSchema = z.object({
+  id: z.string(),
+  workspaceId: z.string(),
+  provider: adChannelProviderSchema,
+  externalAccountId: z.string().nullable(),
+  loginCustomerId: z.string().nullable().optional(),
+  accountName: z.string().default(""),
+  currencyCode: z.string().nullable().optional(),
+  timeZone: z.string().nullable().optional(),
+  isManager: z.boolean().default(false),
+  scope: z.string().default(""),
+  status: connectionStatusSchema,
+  connectedBy: z.string().nullable().optional(),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export type AdConnection = z.infer<typeof adConnectionSchema>;
 
 export const productOptionSchema = z.object({
   id: z.string(),

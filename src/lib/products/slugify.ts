@@ -30,3 +30,7 @@ export function createCollectionId(): string {
 export function createConnectionId(): string {
   return shortId("conn");
 }
+
+export function createAdConnectionId(): string {
+  return shortId("adconn");
+}

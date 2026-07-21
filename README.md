@@ -9,6 +9,7 @@ AI marketing workspace for commerce products — [product.ag](https://product.ag
 - Marketing site for logged-out visitors; product catalog when authenticated (server-side, no flash)
 - Manual product creation (title, handle, description, price, images, status, SKU, category)
 - Shopify, WooCommerce, BigCommerce, Amazon, and Squarespace connect + selective product import (variants, inventory, collections)
+- Google Ads OAuth connect (Search, Display, YouTube) with campaign management via the Google Ads API
 - Product workspace with intelligence, campaigns, performance chart, and reviewable agent artifacts
 - Streaming agent composer (OpenAI when configured; deterministic offline stream otherwise)
 - Multi-tenant workspaces with roles (owner/admin/member) and email invites via Resend
@@ -29,7 +30,7 @@ Next.js App Router · React · TypeScript · Tailwind · shadcn/ui · Supabase �
    - `supabase/migrations/005_commerce_catalog.sql`
    - `supabase/migrations/006_image_avg_colors.sql`
    - `supabase/migrations/007_workspaces.sql`
-   - …through latest, including `029_commerce_providers.sql`
+   - …through latest, including `029_commerce_providers.sql` and `030_ad_connections.sql`
 3. In the Supabase dashboard under **Authentication**:
    - Add redirect URLs: `http://localhost:3000/auth/callback` and your production `https://…/auth/callback`
    - Enable the **Google** provider (OAuth client ID/secret from Google Cloud Console)
@@ -40,9 +41,15 @@ Next.js App Router · React · TypeScript · Tailwind · shadcn/ui · Supabase �
    - **BigCommerce**: app callback `…/api/integrations/bigcommerce/callback`; set `BIGCOMMERCE_CLIENT_ID`, `BIGCOMMERCE_CLIENT_SECRET`, `NEXT_PUBLIC_APP_URL`
    - **Amazon**: SP-API + LWA redirect `…/api/integrations/amazon/callback`; set `AMAZON_LWA_CLIENT_ID`, `AMAZON_LWA_CLIENT_SECRET`, `AMAZON_SP_API_APP_ID`, `NEXT_PUBLIC_APP_URL`
    - **Squarespace**: OAuth redirect `…/api/integrations/squarespace/callback`; set `SQUARESPACE_CLIENT_ID`, `SQUARESPACE_CLIENT_SECRET`, `NEXT_PUBLIC_APP_URL`
-5. (Optional) Configure Resend for workspace invites:
+5. (Optional) Configure Google Ads:
+   - Create an OAuth 2.0 client in Google Cloud Console (Web application)
+   - Add redirect URI `http://localhost:3000/api/integrations/google-ads/callback` (and production)
+   - Enable the Google Ads API and obtain a developer token from [API Center](https://ads.google.com/aw/apicenter)
+   - Set `GOOGLE_ADS_CLIENT_ID`, `GOOGLE_ADS_CLIENT_SECRET`, `GOOGLE_ADS_DEVELOPER_TOKEN`, and `NEXT_PUBLIC_APP_URL`
+   - Apply migration `030_ad_connections.sql`
+6. (Optional) Configure Resend for workspace invites:
    - Set `RESEND_API_KEY` and optionally `RESEND_FROM` in `.env.local`
-6. Run:
+7. Run:
 
 ```bash
 pnpm install
@@ -74,7 +81,12 @@ Product images upload to the `product-assets` storage bucket created by migratio
 | `AMAZON_SP_API_APP_ID` | Amazon SP-API application ID |
 | `SQUARESPACE_CLIENT_ID` | Squarespace app Client ID |
 | `SQUARESPACE_CLIENT_SECRET` | Squarespace app Client secret |
-| `TOKEN_ENCRYPTION_KEY` | Optional dedicated key for encrypting commerce access tokens / API keys |
+| `TOKEN_ENCRYPTION_KEY` | Optional dedicated key for encrypting commerce / ads tokens |
+| `GOOGLE_ADS_CLIENT_ID` | Google Cloud OAuth client ID (required for Google Ads connect) |
+| `GOOGLE_ADS_CLIENT_SECRET` | Google Cloud OAuth client secret |
+| `GOOGLE_ADS_DEVELOPER_TOKEN` | Google Ads API developer token from API Center |
+| `GOOGLE_ADS_REDIRECT_URI` | Optional OAuth redirect (default `${NEXT_PUBLIC_APP_URL}/api/integrations/google-ads/callback`) |
+| `GOOGLE_ADS_API_VERSION` | Optional REST API version (default `v19`) |
 | `RESEND_API_KEY` | Resend API key for workspace invite emails |
 | `RESEND_FROM` | Optional From address for invite emails |
 | `TRIGGER_SECRET_KEY` | Trigger.dev secret key for enqueueing background jobs (Vercel + local) |
@@ -116,7 +128,7 @@ Modular monolith under `src/`:
 - `features/` — product, auth, agent, marketing UI
 - `domain/` — Zod schemas
 - `repositories/` — Supabase adapters
-- `lib/` — auth, env helpers, Supabase clients, commerce adapters (`lib/commerce`)
+- `lib/` — auth, env helpers, Supabase clients, commerce adapters (`lib/commerce`), ad channels (`lib/channels`)
 
 ## License
 
