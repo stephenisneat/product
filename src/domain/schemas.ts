@@ -580,6 +580,27 @@ export const appUserSchema = z.object({
 
 export type AppUser = z.infer<typeof appUserSchema>;
 
+export const adminFeedbackKindSchema = z.enum(["channel_request"]);
+export type AdminFeedbackKind = z.infer<typeof adminFeedbackKindSchema>;
+
+export const createAdminFeedbackSchema = z.object({
+  kind: adminFeedbackKindSchema,
+  title: z.string().trim().min(1).max(200),
+  body: z.string().trim().max(2000).optional(),
+});
+export type CreateAdminFeedbackInput = z.infer<typeof createAdminFeedbackSchema>;
+
+export const adminFeedbackSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  userEmail: z.string().nullable(),
+  kind: adminFeedbackKindSchema,
+  title: z.string(),
+  body: z.string().nullable(),
+  createdAt: z.string().datetime(),
+});
+export type AdminFeedback = z.infer<typeof adminFeedbackSchema>;
+
 export const notificationPreferencesSchema = z.object({
   productUpdates: z.boolean(),
   jobCompletions: z.boolean(),
