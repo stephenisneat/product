@@ -6,7 +6,7 @@ import {
   ArrowLeft,
   Ellipsis,
   Loader2,
-} from "lucide-react";
+} from "@/components/icons";
 import { useEffect, useState, useTransition } from "react";
 import type { Creative, PerformancePoint, Product } from "@/domain";
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
@@ -229,7 +229,7 @@ function ReviewBar({
   if (creative.status !== "awaiting_review") return null;
 
   return (
-    <div className="shrink-0 border-t border-border bg-canvas/95 px-4 py-3 backdrop-blur supports-backdrop-filter:bg-canvas/80">
+    <div className="shrink-0 border-t border-border bg-black px-4 py-3">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-2">
         {error ? (
           <p className="text-xs text-destructive">{error}</p>
@@ -439,6 +439,8 @@ export function CreativeWorkspace({
       className="h-full gap-0"
     >
       <PageCanvas
+        headerClassName="border-border bg-black backdrop-blur-none supports-backdrop-filter:bg-black"
+        contentClassName="flex flex-col overflow-hidden bg-black"
         header={
           <div className="relative flex w-full items-center">
             <div className="z-10 flex min-w-0 max-w-[28%] items-center gap-2">
@@ -543,9 +545,8 @@ export function CreativeWorkspace({
             </div>
           </div>
         }
-        contentClassName="flex flex-col overflow-hidden"
       >
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col bg-black">
           {(product || creative.brief) && tab !== "screenplay" ? (
             <div className="shrink-0 border-b border-border px-4 py-2">
               <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-2">
@@ -573,10 +574,10 @@ export function CreativeWorkspace({
             </div>
           ) : null}
 
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto bg-black">
             <TabsContent value="screenplay" className="mt-0 h-full">
               {creative.screenplay ? (
-                <div className="min-h-full bg-[#e8e6e1] px-3 py-8 dark:bg-zinc-950 sm:px-6">
+                <div className="min-h-full bg-black px-3 py-8 sm:px-6">
                   <ScreenplayDocument screenplay={creative.screenplay} />
                 </div>
               ) : (

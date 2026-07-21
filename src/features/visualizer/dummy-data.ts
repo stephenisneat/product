@@ -18,18 +18,40 @@ function isoDaysAgo(days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+type WavePoint = {
+  date: string;
+  value: number;
+  revenue: number;
+  spend: number;
+  conversions: number;
+  clicks: number;
+  impressions: number;
+};
+
 function waveSeries(
   days: number,
   base: number,
   amp: number,
   phase = 0,
-): Array<{ date: string; value: number }> {
+): WavePoint[] {
   return Array.from({ length: days }, (_, i) => {
     const t = i / Math.max(days - 1, 1);
-    const value = Math.round(
-      base + amp * Math.sin((t * Math.PI * 2) + phase) + amp * 0.25 * t,
+    const revenue = Math.round(
+      base + amp * Math.sin(t * Math.PI * 2 + phase) + amp * 0.25 * t,
     );
-    return { date: isoDaysAgo(days - 1 - i), value: Math.max(0, value) };
+    const spend = Math.round(revenue * (0.32 + 0.08 * Math.sin(t * 4 + phase)));
+    const clicks = Math.round(spend * (1.1 + 0.2 * Math.cos(t * 3)));
+    const impressions = Math.round(clicks * (28 + 6 * Math.sin(t * 2 + phase)));
+    const conversions = Math.round(clicks * (0.08 + 0.03 * Math.sin(t * 5)));
+    return {
+      date: isoDaysAgo(days - 1 - i),
+      value: Math.max(0, revenue),
+      revenue: Math.max(0, revenue),
+      spend: Math.max(0, spend),
+      conversions: Math.max(0, conversions),
+      clicks: Math.max(0, clicks),
+      impressions: Math.max(0, impressions),
+    };
   });
 }
 
@@ -67,8 +89,20 @@ export function buildTimeseriesData(
     metric,
     series: [
       {
-        name: "All campaigns",
-        points: waveSeries(28, 4200, 900, 0.2),
+        name: "Meta",
+        points: waveSeries(28, 1800, 420, 0.8),
+      },
+      {
+        name: "Google",
+        points: waveSeries(28, 1500, 380, 1.4),
+      },
+      {
+        name: "Email",
+        points: waveSeries(28, 900, 220, 2.1),
+      },
+      {
+        name: "TikTok",
+        points: waveSeries(28, 1100, 310, 0.4),
       },
     ],
   };
@@ -114,6 +148,14 @@ export function buildBarData(metric = "Spend ($)"): BarData {
       {
         name: "Revenue",
         values: [31200, 24600, 9100, 14200, 6800],
+      },
+      {
+        name: "Conversions",
+        values: [840, 620, 410, 290, 150],
+      },
+      {
+        name: "Clicks",
+        values: [12800, 9400, 5100, 4300, 2100],
       },
     ],
   };
@@ -218,6 +260,12 @@ export function seedRecents(): Visualization[] {
       title: "Channel mix",
       kind: "bar",
       prompt: "Break down spend and revenue by channel",
+    }),
+    createVisualization({
+      id: "viz_seed_campaigns",
+      title: "Campaign performance",
+      kind: "timeseries",
+      prompt: "Revenue trend across recent campaigns",
     }),
   ].map((viz, i) => {
     const createdAt = new Date(base - (i + 1) * 86_400_000).toISOString();

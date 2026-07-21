@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { SearchIcon, XIcon } from "lucide-react";
+import { SearchIcon, XIcon } from "@/components/icons";
 import type { Creative } from "@/domain";
 import { Input } from "@/components/ui/input";
 import { CreativeCard } from "@/features/creatives/creative-card";

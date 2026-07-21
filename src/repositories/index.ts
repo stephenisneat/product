@@ -1,5 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import {
+  SupabaseAdConnectionRepository,
+  type AdConnectionRepository,
+} from "./ad-connections";
 import { SupabaseCreativeRepository } from "./creatives";
 import { SupabaseGoalRepository } from "./goals";
 import { SupabaseInsightRepository } from "./insights";
@@ -14,6 +18,16 @@ import type {
   ProductRepository,
   WorkspaceRepository,
 } from "./types";
+
+export async function getAdConnectionRepository(): Promise<AdConnectionRepository> {
+  const client = await createClient();
+  return new SupabaseAdConnectionRepository(client);
+}
+
+/** Service-role ad connection writes for token refresh from background jobs. */
+export function getAdConnectionWriteRepository(): AdConnectionRepository {
+  return new SupabaseAdConnectionRepository(createServiceClient());
+}
 
 export async function getProductRepository(): Promise<ProductRepository> {
   const client = await createClient();
@@ -95,6 +109,10 @@ export type {
   WorkspaceRepository,
   WorkspaceWithRole,
 } from "./types";
+export type {
+  AdConnectionRecord,
+  AdConnectionRepository,
+} from "./ad-connections";
 export type { SupabaseWalletRepository } from "./wallet";
 export type { SupabaseJobRepository } from "./jobs";
 export type { SupabaseGoalRepository } from "./goals";

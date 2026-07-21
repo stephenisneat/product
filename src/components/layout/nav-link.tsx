@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { LucideIcon } from "lucide-react";
+import type { IconComponent } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 export function NavLink({
@@ -9,15 +9,18 @@ export function NavLink({
   label,
   icon: Icon,
   isActive,
+  prefetch = true,
 }: {
   href: string;
   label: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   isActive: boolean;
+  prefetch?: boolean;
 }) {
   return (
     <Link
       href={href}
+      prefetch={prefetch}
       aria-current={isActive ? "page" : undefined}
       className={cn(
         "relative inline-flex h-full items-center gap-1.5 overflow-hidden px-3 text-sm font-medium whitespace-nowrap transition-colors",

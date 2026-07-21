@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "@/components/icons";
 import { useEffect, useState, useTransition } from "react";
 import type { Insight } from "@/domain";
 import { Badge } from "@/components/ui/badge";

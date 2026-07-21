@@ -9,8 +9,8 @@ import {
   GitBranchIcon,
   PlusIcon,
   XIcon,
-  type LucideIcon,
-} from "lucide-react";
+  type IconComponent,
+} from "@/components/icons";
 import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import type { Visualization, VisualizationKind } from "@/domain";
 import {
@@ -21,7 +21,7 @@ import {
 } from "@/features/visualizer/visualization-store";
 import { cn } from "@/lib/utils";
 
-const kindIcon: Record<VisualizationKind, LucideIcon> = {
+const kindIcon: Record<VisualizationKind, IconComponent> = {
   sankey: GitBranchIcon,
   timeseries: ChartLineIcon,
   comparison: ChartNoAxesCombinedIcon,

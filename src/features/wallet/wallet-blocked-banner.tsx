@@ -1,6 +1,6 @@
 "use client";
 
-import { XIcon } from "lucide-react";
+import { XIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useUpgradeOptional } from "@/features/billing/upgrade-context";
 import { useWallet } from "@/features/wallet/wallet-context";

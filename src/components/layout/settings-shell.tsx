@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { UpgradeProvider } from "@/features/billing/upgrade-context";
 import { getSettingsReturnPath } from "@/features/settings/return-path";

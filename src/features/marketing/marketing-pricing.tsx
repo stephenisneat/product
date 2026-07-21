@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon } from "@/components/icons";
 import type { WorkspacePlan } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

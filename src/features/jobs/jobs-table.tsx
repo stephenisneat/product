@@ -1,7 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  ChevronsUpDownIcon,
+  Loader2Icon,
+} from "@/components/icons";
 import type { JobRun } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +27,11 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { UserAvatar } from "@/features/avatars/user-avatar";
+import {
+  JobsToolbar,
+  type JobsDateRange,
+  type JobsStatusFilter,
+} from "@/features/jobs/jobs-toolbar";
 import { cn } from "@/lib/utils";
 
 export type JobCreator = {
@@ -21,6 +39,29 @@ export type JobCreator = {
   email?: string;
   avatarUrl?: string | null;
 };
+
+export const JOBS_PAGE_SIZE = 50;
+
+type SortKey =
+  | "when"
+  | "type"
+  | "status"
+  | "user"
+  | "product"
+  | "trigger"
+  | "result";
+
+type SortDir = "asc" | "desc";
+
+const COLUMNS: { key: SortKey; label: string }[] = [
+  { key: "when", label: "When" },
+  { key: "type", label: "Type" },
+  { key: "status", label: "Status" },
+  { key: "user", label: "User" },
+  { key: "product", label: "Product" },
+  { key: "trigger", label: "Trigger" },
+  { key: "result", label: "Result" },
+];
 
 function typeLabel(type: JobRun["type"]): string {
   switch (type) {
@@ -138,6 +179,81 @@ function creatorDisplay(
   };
 }
 
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function dateRangeStart(range: JobsDateRange): Date | null {
+  if (range === "all") return null;
+  if (range === "today") return startOfToday();
+  const days =
+    range === "last_7_days" ? 7 : range === "last_30_days" ? 30 : 90;
+  const d = startOfToday();
+  d.setDate(d.getDate() - (days - 1));
+  return d;
+}
+
+function matchesDateRange(job: JobRun, range: JobsDateRange): boolean {
+  const start = dateRangeStart(range);
+  if (!start) return true;
+  const created = new Date(job.createdAt);
+  if (Number.isNaN(created.getTime())) return false;
+  return created >= start;
+}
+
+function compareJobs(
+  a: JobRun,
+  b: JobRun,
+  key: SortKey,
+  dir: SortDir,
+  productTitles: Record<string, string>,
+  creators: Record<string, JobCreator>,
+): number {
+  const mul = dir === "asc" ? 1 : -1;
+  let left = "";
+  let right = "";
+
+  switch (key) {
+    case "when": {
+      const at = new Date(a.createdAt).getTime();
+      const bt = new Date(b.createdAt).getTime();
+      return mul * ((Number.isNaN(at) ? 0 : at) - (Number.isNaN(bt) ? 0 : bt));
+    }
+    case "type":
+      left = typeLabel(a.type);
+      right = typeLabel(b.type);
+      break;
+    case "status":
+      left = a.status;
+      right = b.status;
+      break;
+    case "user":
+      left = creatorDisplay(a.createdBy, creators).name;
+      right = creatorDisplay(b.createdBy, creators).name;
+      break;
+    case "product":
+      left = a.productId
+        ? (productTitles[a.productId] ?? a.productId)
+        : "";
+      right = b.productId
+        ? (productTitles[b.productId] ?? b.productId)
+        : "";
+      break;
+    case "trigger":
+      left = a.trigger;
+      right = b.trigger;
+      break;
+    case "result":
+      left = resultSummary(a);
+      right = resultSummary(b);
+      break;
+  }
+
+  return mul * left.localeCompare(right, undefined, { sensitivity: "base" });
+}
+
 function DetailRow({
   label,
   children,
@@ -161,6 +277,19 @@ function JsonBlock({ value }: { value: unknown }) {
   );
 }
 
+function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
+  if (!active) {
+    return (
+      <ChevronsUpDownIcon className="size-3.5 shrink-0 opacity-40" aria-hidden />
+    );
+  }
+  return dir === "asc" ? (
+    <ChevronUpIcon className="size-3.5 shrink-0" aria-hidden />
+  ) : (
+    <ChevronDownIcon className="size-3.5 shrink-0" aria-hidden />
+  );
+}
+
 export function JobsTable({
   initialJobs,
   productTitles,
@@ -175,12 +304,88 @@ export function JobsTable({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<JobsStatusFilter>("all");
+  const [dateRange, setDateRange] = useState<JobsDateRange>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("when");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [hasMore, setHasMore] = useState(initialJobs.length >= JOBS_PAGE_SIZE);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [, startTransition] = useTransition();
+  const offsetRef = useRef(initialJobs.length);
+  const loadingMoreRef = useRef(false);
+  const scrollRootRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const selected = jobs.find((j) => j.id === selectedId) ?? null;
   const selectedCreator = selected
     ? creatorDisplay(selected.createdBy, creators)
     : null;
+
+  const visibleJobs = jobs
+    .filter((job) =>
+      statusFilter === "all" ? true : job.status === statusFilter,
+    )
+    .filter((job) => matchesDateRange(job, dateRange))
+    .sort((a, b) =>
+      compareJobs(a, b, sortKey, sortDir, productTitles, creators),
+    );
+
+  const loadMore = useCallback(async () => {
+    if (loadingMoreRef.current || !hasMore) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(
+        `/api/jobs?limit=${JOBS_PAGE_SIZE}&offset=${offsetRef.current}`,
+      );
+      if (!res.ok) return;
+      const body = (await res.json()) as { jobs?: JobRun[] };
+      const next = body.jobs ?? [];
+      offsetRef.current += next.length;
+      setHasMore(next.length >= JOBS_PAGE_SIZE);
+      if (next.length === 0) return;
+      setJobs((prev) => {
+        const seen = new Set(prev.map((j) => j.id));
+        return [...prev, ...next.filter((j) => !seen.has(j.id))];
+      });
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [hasMore]);
+
+  useEffect(() => {
+    const root = scrollRootRef.current;
+    const sentinel = sentinelRef.current;
+    if (!root || !sentinel || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          void loadMore();
+        }
+      },
+      { root, rootMargin: "160px 0px" },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore, visibleJobs.length]);
+
+  // Keep fetching while filters hide every loaded row and more pages exist.
+  useEffect(() => {
+    if (jobs.length === 0 || visibleJobs.length > 0 || !hasMore) return;
+    void loadMore();
+  }, [jobs.length, visibleJobs.length, hasMore, loadMore]);
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    setSortDir(key === "when" ? "desc" : "asc");
+  }
 
   async function cancelJob(jobId: string) {
     setError(null);
@@ -208,97 +413,136 @@ export function JobsTable({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      <JobsToolbar
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+      />
+
       {error ? (
         <div className="border-b border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">
           {error}
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-auto">
-        <table className="w-full min-w-[880px] border-separate border-spacing-0 text-sm">
-          <thead>
-            <tr className="text-left text-xs text-muted-foreground">
-              {(
-                [
-                  "When",
-                  "Type",
-                  "Status",
-                  "User",
-                  "Product",
-                  "Trigger",
-                  "Result",
-                ] as const
-              ).map((label) => (
-                <th
-                  key={label}
-                  className="sticky top-0 z-10 border-b bg-canvas/95 px-4 py-2.5 font-medium backdrop-blur supports-backdrop-filter:bg-canvas/80"
-                >
-                  {label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {jobs.map((job) => {
-              const creator = creatorDisplay(job.createdBy, creators);
-              const isSelected = job.id === selectedId;
-              return (
-                <tr
-                  key={job.id}
-                  tabIndex={0}
-                  aria-selected={isSelected}
-                  className={cn(
-                    "cursor-pointer outline-none hover:bg-muted/40 focus-visible:bg-muted/50",
-                    isSelected && "bg-muted/50",
-                  )}
-                  onClick={() => setSelectedId(job.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setSelectedId(job.id);
-                    }
-                  }}
-                >
-                  <td className="whitespace-nowrap border-b border-border/60 px-4 py-3 text-muted-foreground">
-                    {formatWhen(job.createdAt)}
-                  </td>
-                  <td className="border-b border-border/60 px-4 py-3">
-                    {typeLabel(job.type)}
-                  </td>
-                  <td className="border-b border-border/60 px-4 py-3">
-                    <Badge variant={statusVariant(job.status)}>
-                      {statusLabel(job.status)}
-                    </Badge>
-                  </td>
-                  <td className="border-b border-border/60 px-4 py-3">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <UserAvatar
-                        name={creator.name}
-                        email={creator.email}
-                        avatarUrl={creator.avatarUrl}
-                        size="sm"
-                      />
-                      <span className="truncate">{creator.name}</span>
-                    </div>
-                  </td>
-                  <td className="max-w-[180px] truncate border-b border-border/60 px-4 py-3 text-muted-foreground">
-                    {job.productId
-                      ? (productTitles[job.productId] ??
-                        job.productId.slice(0, 8))
-                      : "—"}
-                  </td>
-                  <td className="border-b border-border/60 px-4 py-3 text-muted-foreground">
-                    {triggerLabel(job.trigger)}
-                  </td>
-                  <td className="max-w-[220px] truncate border-b border-border/60 px-4 py-3 text-muted-foreground">
-                    {resultSummary(job)}
-                  </td>
+      {jobs.length === 0 ? (
+        <div className="m-4 rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+          No jobs yet. Ask the agent to create a campaign, or POST to /api/jobs.
+        </div>
+      ) : (
+        <div ref={scrollRootRef} className="min-h-0 flex-1 overflow-auto">
+          {visibleJobs.length === 0 ? (
+            <div className="m-4 rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+              {loadingMore || hasMore
+                ? "Looking for matching jobs…"
+                : "No jobs match the current filters."}
+            </div>
+          ) : (
+            <table className="w-full min-w-[880px] border-separate border-spacing-0 text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground">
+                  {COLUMNS.map((col) => {
+                    const active = sortKey === col.key;
+                    return (
+                      <th
+                        key={col.key}
+                        className="sticky top-0 z-10 border-b bg-canvas/95 px-4 py-2.5 font-medium backdrop-blur supports-backdrop-filter:bg-canvas/80"
+                        aria-sort={
+                          active
+                            ? sortDir === "asc"
+                              ? "ascending"
+                              : "descending"
+                            : "none"
+                        }
+                      >
+                        <button
+                          type="button"
+                          className="-mx-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-muted/60 hover:text-foreground"
+                          onClick={() => toggleSort(col.key)}
+                        >
+                          {col.label}
+                          <SortIcon active={active} dir={sortDir} />
+                        </button>
+                      </th>
+                    );
+                  })}
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody>
+                {visibleJobs.map((job) => {
+                  const creator = creatorDisplay(job.createdBy, creators);
+                  const isSelected = job.id === selectedId;
+                  return (
+                    <tr
+                      key={job.id}
+                      tabIndex={0}
+                      aria-selected={isSelected}
+                      className={cn(
+                        "cursor-pointer outline-none transition-colors hover:bg-muted/70 focus-visible:bg-muted/80",
+                        isSelected && "bg-muted/60 hover:bg-muted/70",
+                      )}
+                      onClick={() => setSelectedId(job.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setSelectedId(job.id);
+                        }
+                      }}
+                    >
+                      <td className="whitespace-nowrap border-b border-border/60 px-4 py-3 text-muted-foreground">
+                        {formatWhen(job.createdAt)}
+                      </td>
+                      <td className="border-b border-border/60 px-4 py-3">
+                        {typeLabel(job.type)}
+                      </td>
+                      <td className="border-b border-border/60 px-4 py-3">
+                        <Badge variant={statusVariant(job.status)}>
+                          {statusLabel(job.status)}
+                        </Badge>
+                      </td>
+                      <td className="border-b border-border/60 px-4 py-3">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <UserAvatar
+                            name={creator.name}
+                            email={creator.email}
+                            avatarUrl={creator.avatarUrl}
+                            size="sm"
+                          />
+                          <span className="truncate">{creator.name}</span>
+                        </div>
+                      </td>
+                      <td className="max-w-[180px] truncate border-b border-border/60 px-4 py-3 text-muted-foreground">
+                        {job.productId
+                          ? (productTitles[job.productId] ??
+                            job.productId.slice(0, 8))
+                          : "—"}
+                      </td>
+                      <td className="border-b border-border/60 px-4 py-3 text-muted-foreground">
+                        {triggerLabel(job.trigger)}
+                      </td>
+                      <td className="max-w-[220px] truncate border-b border-border/60 px-4 py-3 text-muted-foreground">
+                        {resultSummary(job)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+          {hasMore ? (
+            <div
+              ref={sentinelRef}
+              className="flex justify-center py-3"
+              aria-hidden
+            >
+              {loadingMore ? (
+                <Loader2Icon className="size-4 animate-spin text-muted-foreground" />
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      )}
 
       <Sheet
         open={selectedId !== null}

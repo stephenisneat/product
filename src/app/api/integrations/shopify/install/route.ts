@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
+import { cookieSecure } from "@/lib/commerce/oauth-cookie";
 import {
   buildAuthorizeUrl,
   hasShopifyConfig,
@@ -7,14 +8,6 @@ import {
   STATE_COOKIE,
 } from "@/lib/commerce/providers/shopify";
 import { randomBytes } from "node:crypto";
-
-function cookieSecure() {
-  return (
-    process.env.COOKIE_SECURE === "true" ||
-    process.env.VERCEL === "1" ||
-    process.env.NODE_ENV === "production"
-  );
-}
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();

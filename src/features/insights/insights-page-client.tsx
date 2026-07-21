@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LockIcon } from "lucide-react";
+import { LockIcon } from "@/components/icons";
 import type { Goal, Insight, WorkspacePlan } from "@/domain";
 import { UpgradeButton } from "@/features/billing/upgrade-button";
 import { InsightsList } from "@/features/insights/insights-list";

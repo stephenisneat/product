@@ -17,7 +17,7 @@ import {
   LightbulbIcon,
   PackageIcon,
   PaletteIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import { NavLink } from "@/components/layout/nav-link";
 import { getLastVisualizerPath } from "@/features/visualizer/visualization-store";
 import { cn } from "@/lib/utils";
@@ -49,6 +49,9 @@ const catalogPages = [
     icon: BriefcaseIcon,
   },
 ] as const;
+
+/** Stable roots for idle `router.prefetch` from AppShell. */
+export const CATALOG_PREFETCH_HREFS = catalogPages.map((page) => page.href);
 
 const CatalogHeaderActionsContext = createContext<HTMLElement | null>(null);
 
@@ -121,6 +124,7 @@ export function CatalogNav({
           label={label}
           icon={icon}
           isActive={isCatalogNavActive(pathname, href)}
+          prefetch
         />
       ))}
       {children}

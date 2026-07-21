@@ -9,7 +9,7 @@ import {
   PlusIcon,
   SettingsIcon,
   SparklesIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import type { Workspace, WorkspacePlan, WorkspaceRole } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -108,10 +108,16 @@ export function WorkspacePicker({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ workspaceId }),
         });
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          code?: string;
+          redirectTo?: string;
+        };
         if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as {
-            error?: string;
-          };
+          if (body.redirectTo) {
+            router.push(body.redirectTo);
+            return;
+          }
           throw new Error(body.error || "Failed to switch workspace");
         }
         router.refresh();
@@ -128,8 +134,15 @@ export function WorkspacePicker({
       const res = await fetch(`/api/workspaces/${workspaceId}/join`, {
         method: "POST",
       });
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        redirectTo?: string;
+      };
       if (!res.ok) {
+        if (body.redirectTo) {
+          router.push(body.redirectTo);
+          return;
+        }
         throw new Error(body.error || "Failed to join workspace");
       }
       setDiscoverable((prev) => prev.filter((ws) => ws.id !== workspaceId));
@@ -155,7 +168,7 @@ export function WorkspacePicker({
               className={cn(
                 "gap-1.5",
                 variant === "header" &&
-                  "h-8 px-1.5 text-xs text-foreground hover:bg-white/5 aria-expanded:bg-white/5",
+                  "h-8 px-1.5 text-xs text-neutral-400",
               )}
             />
           }
@@ -185,7 +198,7 @@ export function WorkspacePicker({
             {planDisplayName(plan)}
           </Badge>
           {variant === "header" ? (
-            <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-aria-expanded/button:rotate-180" />
+            <ChevronDownIcon className="size-3 shrink-0 text-neutral-600 transition-[color,transform] duration-200 group-hover/button:text-neutral-300 group-aria-expanded/button:rotate-180 group-aria-expanded/button:text-neutral-300" />
           ) : (
             <ChevronsUpDownIcon data-icon="inline-end" />
           )}

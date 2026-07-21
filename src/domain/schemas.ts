@@ -3,15 +3,33 @@ import { z } from "zod";
 export const productStatusSchema = z.enum(["draft", "active", "archived"]);
 export type ProductStatus = z.infer<typeof productStatusSchema>;
 
-export const commerceProviderSchema = z.enum(["shopify"]);
+export const commerceProviderSchema = z.enum([
+  "shopify",
+  "woocommerce",
+  "bigcommerce",
+  "amazon",
+  "squarespace",
+]);
 export type CommerceProvider = z.infer<typeof commerceProviderSchema>;
+
+export const adChannelProviderSchema = z.enum(["google"]);
+export type AdChannelProvider = z.infer<typeof adChannelProviderSchema>;
 
 export const connectionStatusSchema = z.enum([
   "active",
   "disconnected",
   "error",
+  "pending",
 ]);
 export type ConnectionStatus = z.infer<typeof connectionStatusSchema>;
+
+/** Advertising channels supported for Google Ads campaign types. */
+export const googleAdsChannelTypeSchema = z.enum([
+  "SEARCH",
+  "DISPLAY",
+  "VIDEO",
+]);
+export type GoogleAdsChannelType = z.infer<typeof googleAdsChannelTypeSchema>;
 
 export const workspaceRoleSchema = z.enum(["owner", "admin", "member"]);
 export type WorkspaceRole = z.infer<typeof workspaceRoleSchema>;
@@ -35,6 +53,7 @@ export const workspaceSchema = z.object({
   primaryDomain: z.string().nullable().optional(),
   joinDomain: z.string().nullable().optional(),
   domainJoinEnabled: z.boolean().default(false),
+  requireMfa: z.boolean().default(false),
   createdBy: z.string(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
@@ -80,6 +99,26 @@ export const commerceConnectionSchema = z.object({
 });
 
 export type CommerceConnection = z.infer<typeof commerceConnectionSchema>;
+
+export const adConnectionSchema = z.object({
+  id: z.string(),
+  workspaceId: z.string(),
+  provider: adChannelProviderSchema,
+  externalAccountId: z.string().nullable(),
+  loginCustomerId: z.string().nullable().optional(),
+  accountName: z.string().default(""),
+  currencyCode: z.string().nullable().optional(),
+  timeZone: z.string().nullable().optional(),
+  isManager: z.boolean().default(false),
+  scope: z.string().default(""),
+  status: connectionStatusSchema,
+  connectedBy: z.string().nullable().optional(),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export type AdConnection = z.infer<typeof adConnectionSchema>;
 
 export const productOptionSchema = z.object({
   id: z.string(),
@@ -468,14 +507,17 @@ export const sankeyDataSchema = z.object({
 });
 export type SankeyData = z.infer<typeof sankeyDataSchema>;
 
+/** Chart point with a primary value plus any extra numeric metrics coming through. */
+export const vizPointSchema = z
+  .object({
+    date: z.string(),
+    value: z.number(),
+  })
+  .passthrough();
+
 export const timeseriesSeriesSchema = z.object({
   name: z.string(),
-  points: z.array(
-    z.object({
-      date: z.string(),
-      value: z.number(),
-    }),
-  ),
+  points: z.array(vizPointSchema),
 });
 export const timeseriesDataSchema = z.object({
   metric: z.string(),
@@ -488,12 +530,7 @@ export const comparisonDataSchema = z.object({
   series: z.array(
     z.object({
       name: z.string(),
-      points: z.array(
-        z.object({
-          date: z.string(),
-          value: z.number(),
-        }),
-      ),
+      points: z.array(vizPointSchema),
     }),
   ),
 });

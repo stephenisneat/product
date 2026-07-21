@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckIcon, ChevronDownIcon, CopyIcon, SettingsIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, CopyIcon, SettingsIcon } from "@/components/icons";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,11 +20,44 @@ const FALLBACK_SNIPPET = `<script
   async
 ></script>`;
 
+type PluginCachePayload = {
+  snippet: string;
+  status: PluginInstallStatus | null;
+  fetchedAt: number;
+};
+
+const PLUGIN_CACHE_TTL_MS = 30_000;
+
+/** Survives AppShell remounts across settings ↔ app navigations. */
+let pluginCache: PluginCachePayload | null = null;
+
+function readFreshPluginCache(): PluginCachePayload | null {
+  if (!pluginCache) return null;
+  if (Date.now() - pluginCache.fetchedAt > PLUGIN_CACHE_TTL_MS) return null;
+  return pluginCache;
+}
+
+function writePluginCache(payload: Omit<PluginCachePayload, "fetchedAt">) {
+  pluginCache = { ...payload, fetchedAt: Date.now() };
+}
+
+function scheduleIdle(fn: () => void): () => void {
+  const ric = window.requestIdleCallback?.(fn, { timeout: 2000 });
+  if (ric !== undefined) {
+    return () => window.cancelIdleCallback?.(ric);
+  }
+  const timeout = window.setTimeout(fn, 300);
+  return () => window.clearTimeout(timeout);
+}
+
 export function ProductPluginMenu() {
+  const cached = readFreshPluginCache();
   const [copied, setCopied] = useState(false);
-  const [snippet, setSnippet] = useState(FALLBACK_SNIPPET);
-  const [status, setStatus] = useState<PluginInstallStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [snippet, setSnippet] = useState(cached?.snippet ?? FALLBACK_SNIPPET);
+  const [status, setStatus] = useState<PluginInstallStatus | null>(
+    cached?.status ?? null,
+  );
+  const [loading, setLoading] = useState(!cached);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -34,16 +67,24 @@ export function ProductPluginMenu() {
         fetch("/api/plugin/container/install-status"),
       ]);
 
+      const prior = pluginCache;
+      let nextSnippet = prior?.snippet ?? FALLBACK_SNIPPET;
+      let nextStatus = prior?.status ?? null;
+
       if (containerRes.ok) {
         const data = await containerRes.json();
         if (typeof data.installSnippet === "string" && data.installSnippet) {
-          setSnippet(data.installSnippet);
+          nextSnippet = data.installSnippet;
         }
       }
 
       if (statusRes.ok) {
-        setStatus(await statusRes.json());
+        nextStatus = (await statusRes.json()) as PluginInstallStatus;
       }
+
+      setSnippet(nextSnippet);
+      setStatus(nextStatus);
+      writePluginCache({ snippet: nextSnippet, status: nextStatus });
     } catch {
       // Keep fallback snippet; status stays null.
     } finally {
@@ -52,8 +93,22 @@ export function ProductPluginMenu() {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    if (readFreshPluginCache()) return;
+    let cancelled = false;
+    const cancelIdle = scheduleIdle(() => {
+      if (!cancelled) void refresh();
+    });
+    return () => {
+      cancelled = true;
+      cancelIdle();
+    };
   }, [refresh]);
+
+  function handleOpenChange(open: boolean) {
+    if (open && !readFreshPluginCache()) {
+      void refresh();
+    }
+  }
 
   const connected = Boolean(status?.has_ever_received);
 
@@ -69,10 +124,10 @@ export function ProductPluginMenu() {
   }
 
   return (
-    <Popover>
+    <Popover onOpenChange={handleOpenChange}>
       <PopoverTrigger
         render={
-          <Button type="button" variant="ghost" size="sm" className="text-xs" />
+          <Button type="button" variant="ghost" size="sm" className="text-xs text-neutral-400" />
         }
       >
         <span
@@ -89,7 +144,7 @@ export function ProductPluginMenu() {
           }
         />
         Plugin
-        <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-aria-expanded/button:rotate-180" />
+        <ChevronDownIcon className="size-3 shrink-0 text-neutral-600 transition-[color,transform] duration-200 group-hover/button:text-neutral-300 group-aria-expanded/button:rotate-180 group-aria-expanded/button:text-neutral-300" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 p-0">
         <div className="space-y-2 p-3">

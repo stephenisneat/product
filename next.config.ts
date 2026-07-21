@@ -40,6 +40,12 @@ const nextConfig: NextConfig = {
   // `next build` page-data collection (vercel/next.js#82723).
   experimental: {
     turbopackScopeHoisting: false,
+    // Keep dynamic RSC payloads briefly so catalog tab switches reuse the
+    // client router cache instead of refetching on every click.
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
   },
   // Remotion renderer/bundler are Node-only (used by creative video jobs).
   serverExternalPackages: [
@@ -69,6 +75,31 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "cdn.shopifycdn.net",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn11.bigcommerce.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "images.squarespace-cdn.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "static.squarespace.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "m.media-amazon.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "images-na.ssl-images-amazon.com",
         pathname: "/**",
       },
       ...(supabasePattern ? [supabasePattern] : []),
