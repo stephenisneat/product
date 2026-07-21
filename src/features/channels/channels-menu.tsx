@@ -20,16 +20,53 @@ type ChannelRow = {
   manageHref?: string;
 };
 
+type ChannelsCachePayload = {
+  googleConnected: boolean;
+  googleHref: string | undefined;
+  fetchedAt: number;
+};
+
+const CHANNELS_CACHE_TTL_MS = 30_000;
+
+/** Survives AppShell remounts across settings ↔ app navigations. */
+let channelsCache: ChannelsCachePayload | null = null;
+
+function readFreshChannelsCache(): ChannelsCachePayload | null {
+  if (!channelsCache) return null;
+  if (Date.now() - channelsCache.fetchedAt > CHANNELS_CACHE_TTL_MS) return null;
+  return channelsCache;
+}
+
+function writeChannelsCache(
+  payload: Omit<ChannelsCachePayload, "fetchedAt">,
+) {
+  channelsCache = { ...payload, fetchedAt: Date.now() };
+}
+
 const STATIC_CHANNELS: ChannelRow[] = [
   { id: "meta", name: "Meta", connected: false },
   { id: "tiktok", name: "TikTok Ads", connected: false },
   { id: "pinterest", name: "Pinterest", connected: false },
 ];
 
+function scheduleIdle(fn: () => void): () => void {
+  const ric = window.requestIdleCallback?.(fn, { timeout: 2000 });
+  if (ric !== undefined) {
+    return () => window.cancelIdleCallback?.(ric);
+  }
+  const timeout = window.setTimeout(fn, 300);
+  return () => window.clearTimeout(timeout);
+}
+
 export function ChannelsMenu() {
-  const [googleConnected, setGoogleConnected] = useState(false);
-  const [googleHref, setGoogleHref] = useState<string | undefined>();
-  const [loaded, setLoaded] = useState(false);
+  const cached = readFreshChannelsCache();
+  const [googleConnected, setGoogleConnected] = useState(
+    cached?.googleConnected ?? false,
+  );
+  const [googleHref, setGoogleHref] = useState<string | undefined>(
+    cached?.googleHref,
+  );
+  const [loaded, setLoaded] = useState(Boolean(cached));
 
   const refresh = useCallback(async () => {
     try {
@@ -48,12 +85,16 @@ export function ChannelsMenu() {
       const active = (body.connections ?? []).filter(
         (c) => c.status === "active" && c.externalAccountId,
       );
-      setGoogleConnected(active.length > 0);
-      setGoogleHref(
-        active[0]
-          ? `/settings/connections/google-ads/${active[0].id}`
-          : "/settings/connections",
-      );
+      const nextConnected = active.length > 0;
+      const nextHref = active[0]
+        ? `/settings/connections/google-ads/${active[0].id}`
+        : "/settings/connections";
+      setGoogleConnected(nextConnected);
+      setGoogleHref(nextHref);
+      writeChannelsCache({
+        googleConnected: nextConnected,
+        googleHref: nextHref,
+      });
     } catch {
       // Keep defaults when offline / unauthenticated.
     } finally {
@@ -62,14 +103,22 @@ export function ChannelsMenu() {
   }, []);
 
   useEffect(() => {
+    if (readFreshChannelsCache()) return;
     let cancelled = false;
-    void Promise.resolve().then(() => {
+    const cancelIdle = scheduleIdle(() => {
       if (!cancelled) void refresh();
     });
     return () => {
       cancelled = true;
+      cancelIdle();
     };
   }, [refresh]);
+
+  function handleOpenChange(open: boolean) {
+    if (open && !readFreshChannelsCache()) {
+      void refresh();
+    }
+  }
 
   const channels: ChannelRow[] = [
     {
@@ -84,7 +133,7 @@ export function ChannelsMenu() {
   const connectedCount = channels.filter((c) => c.connected).length;
 
   return (
-    <Popover>
+    <Popover onOpenChange={handleOpenChange}>
       <PopoverTrigger
         render={<Button type="button" variant="ghost" size="sm" className="text-xs text-neutral-400" />}
       >

@@ -40,6 +40,12 @@ const nextConfig: NextConfig = {
   // `next build` page-data collection (vercel/next.js#82723).
   experimental: {
     turbopackScopeHoisting: false,
+    // Keep dynamic RSC payloads briefly so catalog tab switches reuse the
+    // client router cache instead of refetching on every click.
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
   },
   // Remotion renderer/bundler are Node-only (used by creative video jobs).
   serverExternalPackages: [

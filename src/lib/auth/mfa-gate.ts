@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getMfaStatus } from "@/lib/auth/mfa";
+import { getMfaAssurance } from "@/lib/auth/mfa";
 import { safeNextPath } from "@/lib/auth/redirect";
 import { WORKSPACE_COOKIE } from "@/lib/auth/workspace";
 
@@ -121,13 +121,20 @@ export async function enforceMfaGate(
     return null;
   }
 
-  const status = await getMfaStatus(supabase);
+  // AAL only — skip listFactors on every soft nav. Challenge and "has a
+  // verified factor" both follow from current/next assurance levels.
+  const assurance = await getMfaAssurance(supabase);
 
-  if (status.needsChallenge) {
+  if (assurance.needsChallenge) {
     return mfaRedirect(request, "/auth/mfa", "challenge");
   }
 
   if (isMfaEnrollAllowlisted(pathname)) {
+    return null;
+  }
+
+  // Already enrolled (aal2 possible or active) → enroll gate does not apply.
+  if (assurance.hasVerifiedFactor) {
     return null;
   }
 
@@ -136,7 +143,7 @@ export async function enforceMfaGate(
     request,
     userId,
   );
-  if (requires && !status.hasVerifiedFactor) {
+  if (requires) {
     return mfaRedirect(request, "/settings/security", "enroll");
   }
 

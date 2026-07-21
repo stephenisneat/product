@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { AppUser, WorkspaceRole } from "@/domain";
 import { AppHeader } from "@/components/layout/app-header";
 import { AgentContextProvider } from "@/features/agent/agent-context";
@@ -12,6 +12,7 @@ import { UpgradeProvider } from "@/features/billing/upgrade-context";
 import {
   CatalogHeaderActionsProvider,
   CatalogNav,
+  CATALOG_PREFETCH_HREFS,
   isCatalogNavPath,
 } from "@/features/products/catalog-toolbar";
 import { rememberSettingsReturnPath } from "@/features/settings/return-path";
@@ -68,6 +69,7 @@ function AppShellFrame({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [catalogActionsNode, setCatalogActionsNode] =
     useState<HTMLElement | null>(null);
   const showCatalogNav = isCatalogNavPath(pathname);
@@ -81,6 +83,27 @@ function AppShellFrame({
   useEffect(() => {
     if (!showCatalogNav) setCatalogActionsNode(null);
   }, [showCatalogNav]);
+
+  // Warm catalog RSC payloads on idle so the first tab click is often a cache hit.
+  useEffect(() => {
+    let cancelled = false;
+    const prefetchAll = () => {
+      if (cancelled) return;
+      for (const href of CATALOG_PREFETCH_HREFS) {
+        void router.prefetch(href);
+      }
+    };
+
+    const ric = window.requestIdleCallback?.(prefetchAll, { timeout: 2500 });
+    const timeout =
+      ric === undefined ? window.setTimeout(prefetchAll, 400) : undefined;
+
+    return () => {
+      cancelled = true;
+      if (ric !== undefined) window.cancelIdleCallback?.(ric);
+      if (timeout !== undefined) window.clearTimeout(timeout);
+    };
+  }, [router]);
 
   return (
     <div className="flex h-svh flex-col overflow-hidden bg-black">

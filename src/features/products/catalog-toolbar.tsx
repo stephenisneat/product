@@ -50,6 +50,9 @@ const catalogPages = [
   },
 ] as const;
 
+/** Stable roots for idle `router.prefetch` from AppShell. */
+export const CATALOG_PREFETCH_HREFS = catalogPages.map((page) => page.href);
+
 const CatalogHeaderActionsContext = createContext<HTMLElement | null>(null);
 
 export function isCatalogNavPath(pathname: string) {
@@ -121,6 +124,7 @@ export function CatalogNav({
           label={label}
           icon={icon}
           isActive={isCatalogNavActive(pathname, href)}
+          prefetch
         />
       ))}
       {children}

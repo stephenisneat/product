@@ -32,6 +32,41 @@ function mapFactor(factor: {
   };
 }
 
+export type MfaAssurance = {
+  currentLevel: MfaAssuranceLevel | null;
+  nextLevel: MfaAssuranceLevel | null;
+  needsChallenge: boolean;
+  /** True when AAL says a verified factor is enrolled (next or current is aal2). */
+  hasVerifiedFactor: boolean;
+};
+
+/**
+ * Lightweight AAL-only read for the request proxy. Avoids listFactors on the
+ * hot navigation path; enroll/challenge decisions can be derived from AAL.
+ */
+export async function getMfaAssurance(
+  supabase: SupabaseClient,
+): Promise<MfaAssurance> {
+  try {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    const currentLevel = (aal?.currentLevel as MfaAssuranceLevel | null) ?? null;
+    const nextLevel = (aal?.nextLevel as MfaAssuranceLevel | null) ?? null;
+    return {
+      currentLevel,
+      nextLevel,
+      needsChallenge: currentLevel === "aal1" && nextLevel === "aal2",
+      hasVerifiedFactor: currentLevel === "aal2" || nextLevel === "aal2",
+    };
+  } catch {
+    return {
+      currentLevel: null,
+      nextLevel: null,
+      needsChallenge: false,
+      hasVerifiedFactor: false,
+    };
+  }
+}
+
 export async function getMfaStatus(
   supabase: SupabaseClient,
 ): Promise<MfaStatus> {

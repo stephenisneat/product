@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   isMfaEnrollAllowlisted,
   isMfaExemptPath,
@@ -23,6 +23,44 @@ describe("mfa-gate paths", () => {
   it("allowlists security settings for enrollment", () => {
     expect(isMfaEnrollAllowlisted("/settings/security")).toBe(true);
     expect(isMfaEnrollAllowlisted("/settings/workspace")).toBe(false);
+  });
+});
+
+describe("getMfaAssurance", () => {
+  it("derives challenge and verified-factor from AAL only", async () => {
+    const { getMfaAssurance } = await import("@/lib/auth/mfa");
+    const getAal = vi.fn(async () => ({
+      data: { currentLevel: "aal1", nextLevel: "aal2" },
+      error: null,
+    }));
+    const listFactors = vi.fn();
+    const supabase = {
+      auth: { mfa: { getAuthenticatorAssuranceLevel: getAal, listFactors } },
+    };
+    // @ts-expect-error minimal mock
+    const status = await getMfaAssurance(supabase);
+    expect(status.needsChallenge).toBe(true);
+    expect(status.hasVerifiedFactor).toBe(true);
+    expect(listFactors).not.toHaveBeenCalled();
+  });
+
+  it("treats aal1/aal1 as no verified factor", async () => {
+    const { getMfaAssurance } = await import("@/lib/auth/mfa");
+    const supabase = {
+      auth: {
+        mfa: {
+          getAuthenticatorAssuranceLevel: async () => ({
+            data: { currentLevel: "aal1", nextLevel: "aal1" },
+            error: null,
+          }),
+          listFactors: vi.fn(),
+        },
+      },
+    };
+    // @ts-expect-error minimal mock
+    const status = await getMfaAssurance(supabase);
+    expect(status.needsChallenge).toBe(false);
+    expect(status.hasVerifiedFactor).toBe(false);
   });
 });
 
