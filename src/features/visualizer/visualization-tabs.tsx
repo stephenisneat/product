@@ -11,12 +11,20 @@ import {
   XIcon,
   type IconComponent,
 } from "@/components/icons";
-import { useCallback, useEffect, useState, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type DragEvent,
+  type MouseEvent,
+} from "react";
 import type { Visualization, VisualizationKind } from "@/domain";
 import {
   closeVisualizationTab,
   getVisualization,
   loadVisualizationStore,
+  reorderVisualizationTabs,
   type VisualizationStore,
 } from "@/features/visualizer/visualization-store";
 import { cn } from "@/lib/utils";
@@ -28,6 +36,18 @@ const kindIcon: Record<VisualizationKind, IconComponent> = {
   bar: BarChart3Icon,
 };
 
+function moveIdBefore(ids: string[], fromId: string, toId: string) {
+  if (fromId === toId) return ids;
+  const from = ids.indexOf(fromId);
+  if (from < 0 || ids.indexOf(toId) < 0) return ids;
+  const next = [...ids];
+  next.splice(from, 1);
+  const insertAt = next.indexOf(toId);
+  if (insertAt < 0) return ids;
+  next.splice(insertAt, 0, fromId);
+  return next;
+}
+
 export function VisualizationTabs({
   workspaceId,
 }: {
@@ -37,6 +57,9 @@ export function VisualizationTabs({
   const router = useRouter();
   // SSR-safe default; localStorage is read after mount to avoid hydration mismatch.
   const [store, setStore] = useState<VisualizationStore | null>(null);
+  const [draftOrder, setDraftOrder] = useState<string[] | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const draggingIdRef = useRef<string | null>(null);
 
   const refresh = useCallback(() => {
     setStore(loadVisualizationStore(workspaceId));
@@ -55,10 +78,10 @@ export function VisualizationTabs({
     };
   }, [refresh, workspaceId]);
 
-  const openTabs: Visualization[] =
-    store?.openTabIds
-      .map((id) => getVisualization(workspaceId, id))
-      .filter((v): v is Visualization => v != null) ?? [];
+  const openTabIds = draftOrder ?? store?.openTabIds ?? [];
+  const openTabs: Visualization[] = openTabIds
+    .map((id) => getVisualization(workspaceId, id))
+    .filter((v): v is Visualization => v != null);
 
   const isNewActive =
     pathname === "/visualizer" || pathname === "/visualizer/";
@@ -69,6 +92,9 @@ export function VisualizationTabs({
     const next = closeVisualizationTab(workspaceId, id);
     window.dispatchEvent(new Event("visualizations-changed"));
     setStore(next);
+    setDraftOrder(null);
+    draggingIdRef.current = null;
+    setDraggingId(null);
 
     if (pathname === `/visualizer/${id}`) {
       const remaining = next.openTabIds;
@@ -84,10 +110,48 @@ export function VisualizationTabs({
     if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
       return;
     }
+    // Active tab has no navigation — keeps mousedown from fighting drag-reorder.
+    if (pathname === href) return;
+    router.push(href);
+  }
+
+  function handleDragStart(e: DragEvent, id: string) {
+    draggingIdRef.current = id;
+    setDraggingId(id);
+    setDraftOrder(openTabIds);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", id);
+    // Transparent drag image keeps the tab strip readable while reordering.
+    const ghost = document.createElement("div");
+    ghost.style.width = "1px";
+    ghost.style.height = "1px";
+    ghost.style.opacity = "0";
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, 0, 0);
+    requestAnimationFrame(() => ghost.remove());
+  }
+
+  function handleDragOver(e: DragEvent, overId: string) {
     e.preventDefault();
-    if (pathname !== href) {
-      router.push(href);
+    e.dataTransfer.dropEffect = "move";
+    const fromId = draggingIdRef.current;
+    if (!fromId || fromId === overId) return;
+    setDraftOrder((prev) => {
+      const ids = prev ?? openTabIds;
+      const next = moveIdBefore(ids, fromId, overId);
+      return next === ids || next.every((id, i) => id === ids[i]) ? prev : next;
+    });
+  }
+
+  function handleDragEnd() {
+    if (draftOrder) {
+      const next = reorderVisualizationTabs(workspaceId, draftOrder);
+      setStore(next);
+      window.dispatchEvent(new Event("visualizations-changed"));
     }
+    draggingIdRef.current = null;
+    setDraftOrder(null);
+    setDraggingId(null);
   }
 
   return (
@@ -96,39 +160,67 @@ export function VisualizationTabs({
         const href = `/visualizer/${tab.id}`;
         const active = pathname === href;
         const Icon = kindIcon[tab.kind];
+        const isDragging = draggingId === tab.id;
+        const label = (
+          <>
+            <Icon className="size-3.5 shrink-0 opacity-70" />
+            <span className="truncate">{tab.title}</span>
+          </>
+        );
         return (
           <div
             key={tab.id}
+            draggable
+            onDragStart={(e) => handleDragStart(e, tab.id)}
+            onDragOver={(e) => handleDragOver(e, tab.id)}
+            onDragEnd={handleDragEnd}
+            onMouseDown={(e) => {
+              if (active) return;
+              if ((e.target as HTMLElement).closest("[data-tab-close]")) return;
+              handleTabMouseDown(e, href);
+            }}
             className={cn(
               "group relative flex max-w-[200px] items-center gap-1 px-2 text-xs font-medium border-r border-b border-border pt-1 cursor-pointer",
               active
                 ? "bg-neutral-900 text-foreground border-b-neutral-900"
                 : "bg-canvas hover:bg-neutral-700/20 text-muted-foreground",
+              isDragging && "opacity-50",
+              draggingId && "cursor-grabbing",
             )}
           >
-            <Link
-              href={href}
-              className="flex min-w-0 flex-1 items-center gap-1.5 truncate py-1.5"
-              title={tab.title}
-              onMouseDown={(e) => handleTabMouseDown(e, href)}
-              onClick={(e) => {
-                if (
-                  e.button !== 0 ||
-                  e.metaKey ||
-                  e.ctrlKey ||
-                  e.shiftKey ||
-                  e.altKey
-                ) {
-                  return;
-                }
-                e.preventDefault();
-              }}
-            >
-              <Icon className="size-3.5 shrink-0 opacity-70" />
-              <span className="truncate">{tab.title}</span>
-            </Link>
+            {active ? (
+              <span
+                className="flex min-w-0 flex-1 items-center gap-1.5 truncate py-1.5"
+                title={tab.title}
+                aria-current="page"
+              >
+                {label}
+              </span>
+            ) : (
+              <Link
+                href={href}
+                draggable={false}
+                className="flex min-w-0 flex-1 items-center gap-1.5 truncate py-1.5"
+                title={tab.title}
+                onClick={(e) => {
+                  if (
+                    e.button !== 0 ||
+                    e.metaKey ||
+                    e.ctrlKey ||
+                    e.shiftKey ||
+                    e.altKey
+                  ) {
+                    return;
+                  }
+                  e.preventDefault();
+                }}
+              >
+                {label}
+              </Link>
+            )}
             <button
               type="button"
+              data-tab-close
               aria-label={`Close ${tab.title}`}
               className={cn(
                 "rounded p-0.5 hover:bg-neutral-700/20 hover:opacity-100",
@@ -137,6 +229,7 @@ export function VisualizationTabs({
                   : "opacity-0 group-hover:opacity-60 focus-visible:opacity-60",
               )}
               onClick={(e) => handleClose(e, tab.id)}
+              onMouseDown={(e) => e.stopPropagation()}
             >
               <XIcon className="size-3.5" />
             </button>
@@ -144,7 +237,10 @@ export function VisualizationTabs({
         );
       })}
       <div
-        onMouseDown={(e) => handleTabMouseDown(e, "/visualizer")}
+        onMouseDown={(e) => {
+          if (isNewActive) return;
+          handleTabMouseDown(e, "/visualizer");
+        }}
         className={cn(
           "cursor-pointer h-10 w-10 shrink-0 border-t-0 border-l-0 border-r border-b border-border rounded-none flex items-center justify-center pt-1",
           isNewActive
