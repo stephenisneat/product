@@ -1,0 +1,4 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "echo \"//npm.hugeicons.com/:_authToken=${HUGEICONS_LICENSE_KEY}\" >> .npmrc && pnpm install"
+}
