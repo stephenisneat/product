@@ -20,6 +20,7 @@ import {
   type MouseEvent,
 } from "react";
 import type { Visualization, VisualizationKind } from "@/domain";
+import { useVisualizationDraft } from "@/features/visualizer/visualization-draft-context";
 import {
   closeVisualizationTab,
   getVisualization,
@@ -48,6 +49,11 @@ function moveIdBefore(ids: string[], fromId: string, toId: string) {
   return next;
 }
 
+function activeVisualizationId(pathname: string): string | null {
+  const match = pathname.match(/^\/visualizer\/([^/]+)$/);
+  return match?.[1] ?? null;
+}
+
 export function VisualizationTabs({
   workspaceId,
 }: {
@@ -55,6 +61,8 @@ export function VisualizationTabs({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { isDirty, confirmDiscardIfDirty, discardDraft } =
+    useVisualizationDraft();
   // SSR-safe default; localStorage is read after mount to avoid hydration mismatch.
   const [store, setStore] = useState<VisualizationStore | null>(null);
   const [draftOrder, setDraftOrder] = useState<string[] | null>(null);
@@ -85,10 +93,20 @@ export function VisualizationTabs({
 
   const isNewActive =
     pathname === "/visualizer" || pathname === "/visualizer/";
+  const currentId = activeVisualizationId(pathname);
+
+  function navigateTo(href: string) {
+    if (pathname === href) return;
+    if (!confirmDiscardIfDirty(currentId)) return;
+    router.push(href);
+  }
 
   function handleClose(e: MouseEvent, id: string) {
     e.preventDefault();
     e.stopPropagation();
+    if (!confirmDiscardIfDirty(id)) return;
+
+    discardDraft(id);
     const next = closeVisualizationTab(workspaceId, id);
     window.dispatchEvent(new Event("visualizations-changed"));
     setStore(next);
@@ -112,7 +130,7 @@ export function VisualizationTabs({
     }
     // Active tab has no navigation — keeps mousedown from fighting drag-reorder.
     if (pathname === href) return;
-    router.push(href);
+    navigateTo(href);
   }
 
   function handleDragStart(e: DragEvent, id: string) {
@@ -161,6 +179,7 @@ export function VisualizationTabs({
         const active = pathname === href;
         const Icon = kindIcon[tab.kind];
         const isDragging = draggingId === tab.id;
+        const dirty = isDirty(tab.id);
         const label = (
           <>
             <Icon className="size-3.5 shrink-0 opacity-70" />
@@ -221,17 +240,31 @@ export function VisualizationTabs({
             <button
               type="button"
               data-tab-close
-              aria-label={`Close ${tab.title}`}
+              aria-label={
+                dirty ? `Close ${tab.title} (unsaved)` : `Close ${tab.title}`
+              }
               className={cn(
-                "rounded p-0.5 hover:bg-neutral-700/20 hover:opacity-100",
-                active
-                  ? "opacity-60"
-                  : "opacity-0 group-hover:opacity-60 focus-visible:opacity-60",
+                "group/close relative flex size-5 shrink-0 items-center justify-center rounded p-0.5 hover:bg-neutral-700/20 hover:opacity-100",
+                dirty
+                  ? "opacity-100"
+                  : active
+                    ? "opacity-60"
+                    : "opacity-0 group-hover:opacity-60 focus-visible:opacity-60",
               )}
               onClick={(e) => handleClose(e, tab.id)}
               onMouseDown={(e) => e.stopPropagation()}
             >
-              <XIcon className="size-3.5" />
+              {dirty ? (
+                <>
+                  <span
+                    aria-hidden
+                    className="size-1.5 rounded-full bg-current group-hover/close:hidden"
+                  />
+                  <XIcon className="hidden size-3.5 group-hover/close:block" />
+                </>
+              ) : (
+                <XIcon className="size-3.5" />
+              )}
             </button>
           </div>
         );
@@ -239,7 +272,10 @@ export function VisualizationTabs({
       <div
         onMouseDown={(e) => {
           if (isNewActive) return;
-          handleTabMouseDown(e, "/visualizer");
+          if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+            return;
+          }
+          navigateTo("/visualizer");
         }}
         className={cn(
           "cursor-pointer h-10 w-10 shrink-0 border-t-0 border-l-0 border-r border-b border-border rounded-none flex items-center justify-center pt-1",

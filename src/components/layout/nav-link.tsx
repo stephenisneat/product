@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { IconComponent } from "@/components/icons";
+import { runNavigationGuard } from "@/features/visualizer/navigation-guard";
 import { cn } from "@/lib/utils";
 
 export function NavLink({
@@ -22,6 +23,11 @@ export function NavLink({
       href={href}
       prefetch={prefetch}
       aria-current={isActive ? "page" : undefined}
+      onNavigate={(event) => {
+        if (!runNavigationGuard(href)) {
+          event.preventDefault();
+        }
+      }}
       className={cn(
         "relative inline-flex h-full items-center gap-1.5 overflow-hidden px-3 text-[13px] font-medium whitespace-nowrap transition-colors",
         "text-muted-foreground hover:text-foreground",

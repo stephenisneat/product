@@ -28,6 +28,7 @@ import {
   ComputerIcon,
   Copy01Icon,
   CreditCardIcon as CreditCardSolidIcon,
+  Download01Icon,
   Edit02Icon,
   FilterIcon,
   File02Icon,
@@ -50,6 +51,7 @@ import {
   PinIcon as PinSolidIcon,
   PuzzleIcon as PuzzleSolidIcon,
   RefreshIcon,
+  SaveIcon as SaveSolidIcon,
   Search01Icon,
   SecurityIcon,
   SentIcon,
@@ -121,6 +123,7 @@ export const Columns3Icon = createIcon(LayoutThreeColumnIcon);
 export const CopyIcon = createIcon(Copy01Icon);
 export const CornerDownLeft = createIcon(ArrowTurnBackwardIcon);
 export const CreditCardIcon = createIcon(CreditCardSolidIcon);
+export const DownloadIcon = createIcon(Download01Icon);
 export const Ellipsis = createIcon(MoreHorizontalIcon);
 export const FileTextIcon = createIcon(File02Icon);
 export const GitBranchIcon = createIcon(GitBranchSolidIcon);
@@ -150,6 +153,7 @@ export const PlusIcon = Plus;
 export const PuzzleIcon = createIcon(PuzzleSolidIcon);
 export const RefreshCwIcon = createIcon(RefreshIcon);
 export const RotateCcwIcon = createIcon(Undo03Icon);
+export const SaveIcon = createIcon(SaveSolidIcon);
 export const Search = createIcon(Search01Icon);
 export const SearchIcon = Search;
 export const Send = createIcon(SentIcon);

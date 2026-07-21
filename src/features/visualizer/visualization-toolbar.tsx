@@ -3,15 +3,16 @@
 import { useMemo, useState } from "react";
 import {
   ArrowUpDownIcon,
+  CalendarDaysIcon,
   Columns3Icon,
+  DownloadIcon,
   GitCompareArrowsIcon,
   ListFilterIcon,
   PlusIcon,
   RotateCcwIcon,
-  TableIcon,
+  SaveIcon,
   XIcon,
 } from "@/components/icons";
-import type { VisualizationKind } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -34,8 +35,14 @@ import {
   FILTER_OP_OPTIONS,
   exploreConfigIsActive,
 } from "@/features/visualizer/explore/defaults";
+import { downloadCsv, rowsToCsv } from "@/features/visualizer/explore/csv";
+import { DateRangePanel } from "@/features/visualizer/explore/date-range-panel";
+import {
+  dateRangeSummary,
+  isDateRangeActive,
+} from "@/features/visualizer/explore/date-range";
 import { uniqueValues } from "@/features/visualizer/explore/flatten";
-import { newFilterId } from "@/features/visualizer/explore/transform";
+import { newFilterId, transformRows } from "@/features/visualizer/explore/transform";
 import type {
   VizDataset,
   VizExploreConfig,
@@ -88,72 +95,6 @@ function FieldSelect({
         ))}
       </SelectContent>
     </Select>
-  );
-}
-
-function DataFieldsPanel({
-  dataset,
-  filteredCount,
-}: {
-  dataset: VizDataset;
-  filteredCount: number;
-}) {
-  const previewRows = dataset.rows.slice(0, 8);
-  return (
-    <div className="flex max-h-[420px] w-[min(92vw,560px)] flex-col gap-3">
-      <div>
-        <p className="text-xs font-medium text-muted-foreground">
-          Fields in this feed · {dataset.rows.length} rows
-          {filteredCount !== dataset.rows.length
-            ? ` · ${filteredCount} after filters`
-            : ""}
-        </p>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {dataset.fields.map((field) => (
-            <Badge key={field.key} variant="outline" className="font-normal">
-              <span className="text-foreground">{field.label}</span>
-              <span className="text-muted-foreground">{field.type}</span>
-            </Badge>
-          ))}
-        </div>
-      </div>
-      <div className="min-h-0 flex-1 overflow-auto rounded-md border border-border">
-        <table className="w-full border-collapse text-left text-xs">
-          <thead className="sticky top-0 bg-popover">
-            <tr className="border-b border-border">
-              {dataset.fields.map((field) => (
-                <th
-                  key={field.key}
-                  className="whitespace-nowrap px-2 py-1.5 font-medium text-muted-foreground"
-                >
-                  {field.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {previewRows.map((row, i) => (
-              <tr key={i} className="border-b border-border/60 last:border-0">
-                {dataset.fields.map((field) => (
-                  <td
-                    key={field.key}
-                    className="max-w-[140px] truncate px-2 py-1 tabular-nums text-foreground/90"
-                    title={String(row[field.key] ?? "")}
-                  >
-                    {row[field.key] == null ? "—" : String(row[field.key])}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {dataset.rows.length > previewRows.length ? (
-        <p className="text-[11px] text-muted-foreground">
-          Showing first {previewRows.length} of {dataset.rows.length} rows
-        </p>
-      ) : null}
-    </div>
   );
 }
 
@@ -394,18 +335,19 @@ function EncodePanel({
     (f) => f.type === "category" || f.type === "string" || f.type === "date",
   );
   const numberFields = dataset.fields.filter((f) => f.type === "number");
+  const isTable = config.chartKind === "table";
 
   return (
     <div className="flex w-[min(92vw,300px)] flex-col gap-3">
       <div>
-        <p className="text-xs font-medium text-muted-foreground">Chart type</p>
+        <p className="text-xs font-medium text-muted-foreground">View</p>
         <Select
           value={config.chartKind}
           onValueChange={(chartKind) => {
             if (chartKind == null) return;
             onChange({
               ...config,
-              chartKind: chartKind as VisualizationKind,
+              chartKind: chartKind as VizExploreConfig["chartKind"],
             });
           }}
         >
@@ -421,69 +363,73 @@ function EncodePanel({
           </SelectContent>
         </Select>
       </div>
-      <div>
-        <p className="text-xs font-medium text-muted-foreground">
-          {config.chartKind === "sankey" ? "Source" : "X axis"}
-        </p>
-        <FieldSelect
-          value={config.xField}
-          onChange={(xField) =>
-            onChange({ ...config, xField: xField ?? config.xField })
-          }
-          fields={categoryFields.length > 0 ? categoryFields : dataset.fields}
-          className="mt-1 w-full"
-        />
-      </div>
-      {config.chartKind === "sankey" ? (
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">Target</p>
-          <FieldSelect
-            value={config.seriesField}
-            onChange={(seriesField) => onChange({ ...config, seriesField })}
-            fields={categoryFields}
-            className="mt-1 w-full"
-          />
-        </div>
-      ) : null}
-      <div>
-        <p className="text-xs font-medium text-muted-foreground">Aggregate</p>
-        <Select
-          value={config.aggregate}
-          onValueChange={(aggregate) => {
-            if (aggregate == null) return;
-            onChange({
-              ...config,
-              aggregate: aggregate as VizExploreConfig["aggregate"],
-            });
-          }}
-        >
-          <SelectTrigger size="sm" className="mt-1 w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {AGGREGATE_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div>
-        <p className="text-xs font-medium text-muted-foreground">Y metric</p>
-        <FieldSelect
-          value={config.yField}
-          onChange={(yField) =>
-            onChange({
-              ...config,
-              yField: yField ?? config.yField,
-              compareFields: config.compareFields.filter((k) => k !== yField),
-            })
-          }
-          fields={numberFields}
-          className="mt-1 w-full"
-        />
-      </div>
+      {isTable ? null : (
+        <>
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">
+              {config.chartKind === "sankey" ? "Source" : "X axis"}
+            </p>
+            <FieldSelect
+              value={config.xField}
+              onChange={(xField) =>
+                onChange({ ...config, xField: xField ?? config.xField })
+              }
+              fields={categoryFields.length > 0 ? categoryFields : dataset.fields}
+              className="mt-1 w-full"
+            />
+          </div>
+          {config.chartKind === "sankey" ? (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">Target</p>
+              <FieldSelect
+                value={config.seriesField}
+                onChange={(seriesField) => onChange({ ...config, seriesField })}
+                fields={categoryFields}
+                className="mt-1 w-full"
+              />
+            </div>
+          ) : null}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">Aggregate</p>
+            <Select
+              value={config.aggregate}
+              onValueChange={(aggregate) => {
+                if (aggregate == null) return;
+                onChange({
+                  ...config,
+                  aggregate: aggregate as VizExploreConfig["aggregate"],
+                });
+              }}
+            >
+              <SelectTrigger size="sm" className="mt-1 w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AGGREGATE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">Y metric</p>
+            <FieldSelect
+              value={config.yField}
+              onChange={(yField) =>
+                onChange({
+                  ...config,
+                  yField: yField ?? config.yField,
+                  compareFields: config.compareFields.filter((k) => k !== yField),
+                })
+              }
+              fields={numberFields}
+              className="mt-1 w-full"
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -493,18 +439,24 @@ export function VisualizationToolbar({
   config,
   defaults,
   filteredRowCount,
+  canSave,
+  title,
   onChange,
   onReset,
+  onSave,
 }: {
   dataset: VizDataset;
   config: VizExploreConfig;
   defaults: VizExploreConfig;
   filteredRowCount: number;
+  canSave: boolean;
+  title: string;
   onChange: (next: VizExploreConfig) => void;
   onReset: () => void;
+  onSave: () => void;
 }) {
-  const [dataOpen, setDataOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [dateOpen, setDateOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
   const [encodeOpen, setEncodeOpen] = useState(false);
@@ -513,37 +465,15 @@ export function VisualizationToolbar({
   const activeFilters = config.filters.filter(
     (f) => f.field && f.value.trim() !== "",
   ).length;
+  const dateActive = isDateRangeActive(config.dateRange);
+  const dateLabel = dateRangeSummary(config.dateRange);
+  const hasDateFields = dataset.fields.some((f) => f.type === "date");
 
   const sortFields = useMemo(() => dataset.fields, [dataset.fields]);
 
   return (
     <div className="flex shrink-0 flex-col gap-2 border-b border-border bg-neutral-900/80 px-3 py-2 backdrop-blur-sm">
       <div className="flex flex-wrap items-center gap-1.5">
-        <Popover open={dataOpen} onOpenChange={setDataOpen}>
-          <PopoverTrigger
-            render={
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                aria-label="Browse data fields"
-              />
-            }
-          >
-            <TableIcon data-icon="inline-start" />
-            Data
-            <Badge variant="secondary" className="ml-0.5 font-normal">
-              {dataset.fields.length}
-            </Badge>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-auto p-3">
-            <DataFieldsPanel
-              dataset={dataset}
-              filteredCount={filteredRowCount}
-            />
-          </PopoverContent>
-        </Popover>
-
         <Popover open={filterOpen} onOpenChange={setFilterOpen}>
           <PopoverTrigger
             render={
@@ -565,6 +495,35 @@ export function VisualizationToolbar({
           </PopoverTrigger>
           <PopoverContent align="start" className="w-auto p-3">
             <FilterBuilder
+              config={config}
+              dataset={dataset}
+              onChange={onChange}
+            />
+          </PopoverContent>
+        </Popover>
+
+        <Popover open={dateOpen} onOpenChange={setDateOpen}>
+          <PopoverTrigger
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-label="Filter by date range"
+                disabled={!hasDateFields}
+              />
+            }
+          >
+            <CalendarDaysIcon data-icon="inline-start" />
+            Date
+            {dateActive && dateLabel ? (
+              <Badge variant="secondary" className="ml-0.5 font-normal">
+                {dateLabel}
+              </Badge>
+            ) : null}
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-auto p-3">
+            <DateRangePanel
               config={config}
               dataset={dataset}
               onChange={onChange}
@@ -702,6 +661,31 @@ export function VisualizationToolbar({
               Reset
             </Button>
           ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={filteredRowCount === 0}
+            aria-label="Download CSV"
+            onClick={() => {
+              const rows = transformRows(dataset.rows, config);
+              downloadCsv(title, rowsToCsv(dataset.fields, rows));
+            }}
+          >
+            <DownloadIcon data-icon="inline-start" />
+            CSV
+          </Button>
+          <Button
+            type="button"
+            variant={canSave ? "default" : "outline"}
+            size="sm"
+            disabled={!canSave}
+            onClick={onSave}
+            aria-label="Save visualization"
+          >
+            <SaveIcon data-icon="inline-start" />
+            Save
+          </Button>
         </div>
       </div>
     </div>

@@ -4,6 +4,7 @@ import type {
   SankeyData,
   TimeseriesData,
 } from "@/domain";
+import { applyDateRange } from "@/features/visualizer/explore/date-range";
 import type {
   VizAggregate,
   VizCell,
@@ -297,13 +298,19 @@ export function transformRows(
   rows: VizRow[],
   config: VizExploreConfig,
 ): VizRow[] {
-  return applySort(applyFilters(rows, config.filters), config.sort);
+  return applySort(
+    applyDateRange(applyFilters(rows, config.filters), config.dateRange),
+    config.sort,
+  );
 }
 
 export function rebuildChartData(
   rows: VizRow[],
   config: VizExploreConfig,
 ): SankeyData | TimeseriesData | ComparisonData | BarData {
+  if (config.chartKind === "table") {
+    throw new Error("Cannot rebuild chart data for table view");
+  }
   const prepared = transformRows(rows, config);
   switch (config.chartKind) {
     case "sankey":

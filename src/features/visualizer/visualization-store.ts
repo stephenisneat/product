@@ -1,5 +1,6 @@
 import type { Visualization } from "@/domain";
 import { seedRecents } from "@/features/visualizer/dummy-data";
+import type { VizExploreConfig } from "@/features/visualizer/explore/types";
 
 export type VisualizationStore = {
   visualizations: Visualization[];
@@ -7,6 +8,8 @@ export type VisualizationStore = {
   /** Last visualizer route visited (`/visualizer` or `/visualizer/[id]`). */
   lastPath: string;
   seeded: boolean;
+  /** Saved explore configs keyed by visualization id. Only written on explicit Save. */
+  explores: Record<string, VizExploreConfig>;
 };
 
 const DEFAULT_VISUALIZER_PATH = "/visualizer";
@@ -21,6 +24,7 @@ function emptyStore(): VisualizationStore {
     openTabIds: [],
     lastPath: DEFAULT_VISUALIZER_PATH,
     seeded: false,
+    explores: {},
   };
 }
 
@@ -62,6 +66,7 @@ export function loadVisualizationStore(
         openTabIds: [],
         lastPath: DEFAULT_VISUALIZER_PATH,
         seeded: true,
+        explores: {},
       };
       saveVisualizationStore(workspaceId, store);
       return store;
@@ -75,6 +80,7 @@ export function loadVisualizationStore(
         openTabIds: [],
         lastPath: DEFAULT_VISUALIZER_PATH,
         seeded: true,
+        explores: {},
       };
       saveVisualizationStore(workspaceId, store);
       return store;
@@ -86,6 +92,15 @@ export function loadVisualizationStore(
         )
       : [];
 
+    const explores =
+      parsed.explores && typeof parsed.explores === "object"
+        ? Object.fromEntries(
+            Object.entries(parsed.explores).filter(([id]) =>
+              parsed.visualizations.some((v) => v.id === id),
+            ),
+          )
+        : {};
+
     let store: VisualizationStore = {
       visualizations: parsed.visualizations,
       openTabIds,
@@ -95,6 +110,7 @@ export function loadVisualizationStore(
         openTabIds,
       ),
       seeded: parsed.seeded === true,
+      explores,
     };
 
     if (!store.seeded && store.visualizations.length === 0) {
@@ -103,6 +119,7 @@ export function loadVisualizationStore(
         openTabIds: [],
         lastPath: DEFAULT_VISUALIZER_PATH,
         seeded: true,
+        explores: {},
       };
       saveVisualizationStore(workspaceId, store);
     }
@@ -115,6 +132,7 @@ export function loadVisualizationStore(
       openTabIds: [],
       lastPath: DEFAULT_VISUALIZER_PATH,
       seeded: true,
+      explores: {},
     };
     saveVisualizationStore(workspaceId, store);
     return store;
@@ -172,14 +190,45 @@ export function upsertVisualization(
   return next;
 }
 
+export function getVisualizationExplore(
+  workspaceId: string,
+  id: string,
+): VizExploreConfig | null {
+  const explore = loadVisualizationStore(workspaceId).explores[id];
+  if (!explore) return null;
+  return {
+    ...explore,
+    dateRange: explore.dateRange ?? null,
+  };
+}
+
+export function saveVisualizationEdits(
+  workspaceId: string,
+  visualization: Visualization,
+  explore: VizExploreConfig,
+): VisualizationStore {
+  const store = upsertVisualization(workspaceId, visualization);
+  const next: VisualizationStore = {
+    ...store,
+    explores: {
+      ...store.explores,
+      [visualization.id]: explore,
+    },
+  };
+  saveVisualizationStore(workspaceId, next);
+  return next;
+}
+
 export function deleteVisualization(workspaceId: string, id: string) {
   const store = loadVisualizationStore(workspaceId);
   const visualizations = store.visualizations.filter((v) => v.id !== id);
   const openTabIds = store.openTabIds.filter((tabId) => tabId !== id);
+  const { [id]: _removed, ...explores } = store.explores;
   const next: VisualizationStore = {
     ...store,
     visualizations,
     openTabIds,
+    explores,
     lastPath: normalizeLastPath(store.lastPath, visualizations, openTabIds),
   };
   saveVisualizationStore(workspaceId, next);

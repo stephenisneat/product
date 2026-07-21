@@ -19,6 +19,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { CatalogHeaderActions } from "@/features/products/catalog-toolbar";
+import { useVisualizationDraft } from "@/features/visualizer/visualization-draft-context";
 import { listVisualizations } from "@/features/visualizer/visualization-store";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +54,7 @@ export function VisualizationSearch({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { confirmDiscardIfDirty } = useVisualizationDraft();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [visualizations, setVisualizations] = useState<Visualization[]>([]);
@@ -85,17 +87,24 @@ export function VisualizationSearch({
   }, [visualizations, query]);
 
   function openViz(viz: Visualization) {
+    const currentMatch = pathname.match(/^\/visualizer\/([^/]+)$/);
+    const currentId = currentMatch?.[1] ?? null;
+    if (currentId === viz.id) {
+      setQuery("");
+      setOpen(false);
+      return;
+    }
+    if (!confirmDiscardIfDirty(currentId)) return;
     setQuery("");
     setOpen(false);
-    if (pathname !== `/visualizer/${viz.id}`) {
-      router.push(`/visualizer/${viz.id}`);
-    }
+    router.push(`/visualizer/${viz.id}`);
   }
 
   return (
     <CatalogHeaderActions>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
+          nativeButton={false}
           render={
             <div className="relative w-44 sm:w-56" />
           }

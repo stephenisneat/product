@@ -55,6 +55,7 @@ export function defaultExploreConfig(
         aggregate: "sum",
         filters: [],
         sort: { field: "value", direction: "desc" },
+        dateRange: null,
       };
     case "timeseries":
       return {
@@ -66,6 +67,7 @@ export function defaultExploreConfig(
         aggregate: "sum",
         filters: [],
         sort: { field: "date", direction: "asc" },
+        dateRange: null,
       };
     case "comparison":
       return {
@@ -77,6 +79,7 @@ export function defaultExploreConfig(
         aggregate: "sum",
         filters: [],
         sort: { field: "date", direction: "asc" },
+        dateRange: null,
       };
     case "bar": {
       const spend = fields.find((f) => f.key === "Spend");
@@ -91,6 +94,7 @@ export function defaultExploreConfig(
           aggregate: "sum",
           filters: [],
           sort: null,
+          dateRange: null,
         };
       }
       return {
@@ -102,6 +106,7 @@ export function defaultExploreConfig(
         aggregate: "sum",
         filters: [],
         sort: null,
+        dateRange: null,
       };
     }
   }
@@ -121,18 +126,20 @@ export function exploreConfigIsActive(
     (config.sort?.field ?? "") !== (defaults.sort?.field ?? "") ||
     (config.sort?.direction ?? "asc") !==
       (defaults.sort?.direction ?? "asc") ||
-    config.compareFields.join("|") !== defaults.compareFields.join("|")
+    config.compareFields.join("|") !== defaults.compareFields.join("|") ||
+    JSON.stringify(config.dateRange) !== JSON.stringify(defaults.dateRange)
   );
 }
 
 export const CHART_KIND_OPTIONS: {
-  value: VisualizationKind;
+  value: import("@/features/visualizer/explore/types").VizDisplayKind;
   label: string;
 }[] = [
   { value: "timeseries", label: "Timeseries" },
   { value: "bar", label: "Bar" },
   { value: "comparison", label: "Comparison" },
   { value: "sankey", label: "Sankey" },
+  { value: "table", label: "Table" },
 ];
 
 export const AGGREGATE_OPTIONS: { value: VizExploreConfig["aggregate"]; label: string }[] =
