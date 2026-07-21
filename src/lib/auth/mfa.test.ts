@@ -8,6 +8,9 @@ describe("mfa-gate paths", () => {
   it("exempts auth and invite flows", () => {
     expect(isMfaExemptPath("/login")).toBe(true);
     expect(isMfaExemptPath("/signup")).toBe(true);
+    expect(isMfaExemptPath("/privacy")).toBe(true);
+    expect(isMfaExemptPath("/terms")).toBe(true);
+    expect(isMfaExemptPath("/pricing")).toBe(true);
     expect(isMfaExemptPath("/auth/mfa")).toBe(true);
     expect(isMfaExemptPath("/auth/callback")).toBe(true);
     expect(isMfaExemptPath("/invite/abc")).toBe(true);

@@ -35,6 +35,22 @@ export function MarketingChrome({ children }: { children: ReactNode }) {
       </header>
 
       {children}
+
+      <footer className="relative z-10 mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-6 py-8 text-xs text-muted-foreground">
+        <span>© {new Date().getFullYear()} Product Agent</span>
+        <Link
+          href="/privacy"
+          className="underline-offset-4 hover:text-foreground hover:underline"
+        >
+          Privacy
+        </Link>
+        <Link
+          href="/terms"
+          className="underline-offset-4 hover:text-foreground hover:underline"
+        >
+          Terms
+        </Link>
+      </footer>
     </div>
   );
 }

@@ -109,6 +109,23 @@ export function SignupForm() {
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           Sign up
         </Button>
+        <p className="text-center text-xs text-muted-foreground">
+          By signing up you agree to our{" "}
+          <Link
+            href="/terms"
+            className="text-foreground underline-offset-4 hover:underline"
+          >
+            Terms
+          </Link>{" "}
+          and{" "}
+          <Link
+            href="/privacy"
+            className="text-foreground underline-offset-4 hover:underline"
+          >
+            Privacy Policy
+          </Link>
+          .
+        </p>
       </form>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">

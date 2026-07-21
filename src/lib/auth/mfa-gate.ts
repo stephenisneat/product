@@ -10,6 +10,9 @@ const MFA_EXEMPT_EXACT = new Set([
   "/signup",
   "/forgot-password",
   "/update-password",
+  "/privacy",
+  "/terms",
+  "/pricing",
 ]);
 
 const MFA_EXEMPT_PREFIXES = ["/auth/", "/invite/", "/api/auth/"];
