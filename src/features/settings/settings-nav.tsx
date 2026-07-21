@@ -10,6 +10,7 @@ import {
   LightbulbIcon,
   Link2Icon,
   MonitorIcon,
+  PuzzleIcon,
   SearchIcon,
   ShieldIcon,
   UsersIcon,
@@ -55,6 +56,7 @@ const settingsGroups = [
         label: "Connections",
         icon: Link2Icon,
       },
+      { href: "/settings/plugin", label: "Plugin", icon: PuzzleIcon },
     ],
   },
 ] as const;
