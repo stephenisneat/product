@@ -1,5 +1,4 @@
 import type {
-  Artifact,
   BillingInterval,
   Campaign,
   CanonicalProduct,
@@ -104,16 +103,6 @@ export interface ProductRepository {
   ): Promise<CommerceConnection>;
 }
 
-export interface ArtifactRepository {
-  listByProduct(productId: string): Promise<Artifact[]>;
-  listByProductIds(productIds: string[]): Promise<Artifact[]>;
-  listByCampaign(campaignId: string): Promise<Artifact[]>;
-  countCreativesByCampaign(campaignId: string): Promise<number>;
-  getById(id: string): Promise<Artifact | null>;
-  create(artifact: Artifact): Promise<Artifact>;
-  update(artifact: Artifact): Promise<Artifact>;
-  setCampaignIds(artifactId: string, campaignIds: string[]): Promise<void>;
-}
 
 export type CreativeCreateInput = {
   id?: string;

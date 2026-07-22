@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { Insight } from "@/domain";
+import { isApplyDeliverableAction } from "@/domain";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
-import {
-  PlanEntitlementError,
-  assertHasInsights,
-} from "@/lib/billing/gates";
+import { PlanEntitlementError } from "@/lib/billing/gates";
 import { executeInsightAction } from "@/lib/insights/execute-action";
 import { getInsightRepository } from "@/repositories";
 
@@ -40,18 +38,6 @@ export async function GET(
     return NextResponse.json({ error: "No workspace available" }, { status: 400 });
   }
 
-  try {
-    assertHasInsights(active.workspace.plan ?? "free");
-  } catch (err) {
-    if (err instanceof PlanEntitlementError) {
-      return NextResponse.json(
-        { error: err.message, code: err.code },
-        { status: err.status },
-      );
-    }
-    throw err;
-  }
-
   const { id } = await context.params;
   const insights = await getInsightRepository();
   const insight = await insights.getById(id);
@@ -76,18 +62,6 @@ export async function PATCH(
     return NextResponse.json({ error: "No workspace available" }, { status: 400 });
   }
 
-  try {
-    assertHasInsights(active.workspace.plan ?? "free");
-  } catch (err) {
-    if (err instanceof PlanEntitlementError) {
-      return NextResponse.json(
-        { error: err.message, code: err.code },
-        { status: err.status },
-      );
-    }
-    throw err;
-  }
-
   const { id } = await context.params;
   const parsed = patchSchema.safeParse(await req.json());
   if (!parsed.success) {
@@ -101,6 +75,7 @@ export async function PATCH(
   }
 
   const { action, feedback } = parsed.data;
+  const plan = active.workspace.plan ?? "free";
 
   if (action === "reject") {
     if (
@@ -148,10 +123,44 @@ export async function PATCH(
       activeJobId: null,
       revisionFeedback: null,
     });
+
+    // Deliverables apply on Accept — no separate Do it step.
+    if (isApplyDeliverableAction(insight.action)) {
+      try {
+        const result = await executeInsightAction({
+          insight,
+          workspaceId: active.workspace.id,
+          userId: user.id,
+          plan,
+        });
+        const refreshed = await insights.getById(id);
+        return NextResponse.json({
+          insight: refreshed ?? insight,
+          result,
+        });
+      } catch (err) {
+        // Roll status back so the user can retry.
+        await insights.update(id, { status: "awaiting_review" });
+        if (err instanceof PlanEntitlementError) {
+          return NextResponse.json(
+            { error: err.message, code: err.code },
+            { status: err.status },
+          );
+        }
+        return NextResponse.json(
+          {
+            error:
+              err instanceof Error ? err.message : "Failed to apply deliverable.",
+          },
+          { status: 500 },
+        );
+      }
+    }
+
     return NextResponse.json({ insight });
   }
 
-  // do_it — require accepted first
+  // do_it — require accepted first (non-deliverable actions)
   if (existing.status !== "accepted") {
     return NextResponse.json(
       { error: "Accept the insight before running its action." },
@@ -164,13 +173,19 @@ export async function PATCH(
       { status: 409 },
     );
   }
+  if (isApplyDeliverableAction(existing.action)) {
+    return NextResponse.json(
+      { error: "Deliverable insights apply on Accept." },
+      { status: 409 },
+    );
+  }
 
   try {
     const result = await executeInsightAction({
       insight: existing,
       workspaceId: active.workspace.id,
       userId: user.id,
-      plan: active.workspace.plan ?? "free",
+      plan,
     });
     return NextResponse.json({ insight: existing, result });
   } catch (err) {

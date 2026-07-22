@@ -8,11 +8,10 @@ import { SupabaseCreativeRepository } from "./creatives";
 import { SupabaseGoalRepository } from "./goals";
 import { SupabaseInsightRepository } from "./insights";
 import { SupabaseJobRepository } from "./jobs";
-import { SupabaseArtifactRepository, SupabaseProductRepository } from "./supabase";
+import { SupabaseProductRepository } from "./supabase";
 import { SupabaseWalletRepository } from "./wallet";
 import { SupabaseWorkspaceRepository } from "./workspaces";
 import type {
-  ArtifactRepository,
   CreativeRepository,
   JobRepository,
   ProductRepository,
@@ -39,10 +38,6 @@ export function getProductWriteRepository(): ProductRepository {
   return new SupabaseProductRepository(createServiceClient());
 }
 
-export async function getArtifactRepository(): Promise<ArtifactRepository> {
-  const client = await createClient();
-  return new SupabaseArtifactRepository(client);
-}
 
 export async function getCreativeRepository(): Promise<CreativeRepository> {
   const client = await createClient();
@@ -115,7 +110,6 @@ export function getWalletWriteRepository(): SupabaseWalletRepository {
 }
 
 export type {
-  ArtifactRepository,
   CreativeRepository,
   JobRepository,
   ProductRepository,

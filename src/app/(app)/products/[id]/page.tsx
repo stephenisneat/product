@@ -4,7 +4,6 @@ import { ProductWorkspace } from "@/features/products/product-workspace";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import {
-  getArtifactRepository,
   getCreativeRepository,
   getGoalRepository,
   getInsightRepository,
@@ -37,12 +36,11 @@ export default async function ProductPage({
     notFound();
   }
 
-  const [intelligence, campaigns, performance, artifacts, creatives, goals, insights] =
+  const [intelligence, campaigns, performance, creatives, goals, insights] =
     await Promise.all([
       products.getIntelligence(id),
       products.listCampaigns(id),
       products.getPerformance(id),
-      (await getArtifactRepository()).listByProduct(id),
       (await getCreativeRepository()).listByProduct(id),
       (await getGoalRepository()).listByProduct(active.workspace.id, id),
       (await getInsightRepository()).listByProduct(active.workspace.id, id, {
@@ -56,7 +54,6 @@ export default async function ProductPage({
       <ProductWorkspace
         product={product}
         intelligence={intelligence}
-        artifacts={artifacts}
         creatives={creatives}
         campaigns={campaigns}
         performance={performance}

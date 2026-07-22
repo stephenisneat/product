@@ -248,6 +248,64 @@ export async function resubmitInsight(opts: {
   return { insight: refreshed ?? existing, job };
 }
 
+export type CreateReadyInsightInput = {
+  workspaceId: string;
+  productId: string;
+  campaignId?: string | null;
+  goalId?: string | null;
+  createdBy: string | null;
+  title: string;
+  summary: string;
+  rationale?: string;
+  action: Insight["action"];
+  triggerSource?: InsightTriggerSource;
+  triggerRef?: Record<string, unknown> | null;
+};
+
+/**
+ * Sync insight creation when the agent already has full content
+ * (e.g. apply_deliverable with concrete copy). No generate_insight job.
+ * Free plans may create apply_deliverable insights.
+ */
+export async function createReadyInsight(
+  opts: CreateReadyInsightInput,
+): Promise<Insight> {
+  if (!hasServiceRole()) {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY is required to create insights.",
+    );
+  }
+
+  const action = opts.action;
+  if (!action || action.type !== "apply_deliverable") {
+    const workspaces = getWorkspaceWriteRepository();
+    const workspace = await workspaces.getWorkspace(opts.workspaceId);
+    if (!workspace) throw new Error("Workspace not found.");
+    assertHasInsights(workspace.plan ?? "free");
+  }
+
+  const cap = await canEnqueueInsight(opts.workspaceId);
+  if (!cap.ok) {
+    throw new Error(cap.reason);
+  }
+
+  const insights = getInsightWriteRepository();
+  return insights.create({
+    workspaceId: opts.workspaceId,
+    productId: opts.productId,
+    campaignId: opts.campaignId ?? null,
+    goalId: opts.goalId ?? null,
+    title: opts.title,
+    summary: opts.summary,
+    rationale: opts.rationale ?? "",
+    status: "awaiting_review",
+    triggerSource: opts.triggerSource ?? "agent",
+    triggerRef: opts.triggerRef ?? null,
+    action,
+    createdBy: opts.createdBy,
+  });
+}
+
 /**
  * After a campaign/creative job finishes, optionally enqueue an insight.
  * Best-effort: never throws to the caller.

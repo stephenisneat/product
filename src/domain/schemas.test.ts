@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   productSchema,
   createProductInputSchema,
-  artifactSchema,
+  deliverableTypeSchema,
+  insightActionSchema,
   workspaceSchema,
   workspaceMemberSchema,
 } from "@/domain";
@@ -71,20 +72,20 @@ describe("domain schemas", () => {
     expect(website.type).toBe("website");
   });
 
-  it("parses artifacts", () => {
-    const artifact = artifactSchema.parse({
-      id: "art_1",
-      productId: "prod_1",
-      type: "ad_copy",
-      status: "proposed",
-      title: "Test",
-      summary: "Summary",
-      payload: { headline: "Hi" },
-      createdBy: "agent",
-      createdAt: "2026-07-14T00:00:00.000Z",
-      updatedAt: "2026-07-14T00:00:00.000Z",
+  it("parses deliverable insight actions", () => {
+    expect(deliverableTypeSchema.parse("ad_copy")).toBe("ad_copy");
+    const action = insightActionSchema.parse({
+      type: "apply_deliverable",
+      label: "Apply ad copy",
+      payload: {
+        productId: "prod_1",
+        type: "ad_copy",
+        title: "Test",
+        summary: "Summary",
+        payload: { headline: "Hi" },
+      },
     });
-    expect(artifact.type).toBe("ad_copy");
+    expect(action.type).toBe("apply_deliverable");
   });
 
   it("parses workspace and membership", () => {

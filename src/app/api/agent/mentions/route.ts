@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import {
-  getArtifactRepository,
   getCreativeRepository,
   getProductRepository,
 } from "@/repositories";
@@ -30,9 +29,8 @@ export async function GET(req: Request) {
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
   const productId = url.searchParams.get("productId") ?? undefined;
 
-  const [productsRepo, artifactsRepo, creativesRepo] = await Promise.all([
+  const [productsRepo, creativesRepo] = await Promise.all([
     getProductRepository(),
-    getArtifactRepository(),
     getCreativeRepository(),
   ]);
 
@@ -68,10 +66,9 @@ export async function GET(req: Request) {
     ? [productId]
     : products.slice(0, 12).map((p) => p.id);
 
-  const [campaigns, artifacts] = await Promise.all([
-    productsRepo.listCampaignsForProducts(mentionProductIds),
-    artifactsRepo.listByProductIds(mentionProductIds),
-  ]);
+  const campaigns = await productsRepo.listCampaignsForProducts(
+    mentionProductIds,
+  );
 
   for (const campaign of campaigns) {
     if (!q || campaign.name.toLowerCase().includes(q)) {
@@ -79,17 +76,6 @@ export async function GET(req: Request) {
         value: campaign.name,
         id: campaign.id,
         type: "campaign",
-      });
-    }
-  }
-
-  for (const artifact of artifacts) {
-    if (artifact.type !== "ad_copy") continue;
-    if (!q || artifact.title.toLowerCase().includes(q)) {
-      items.push({
-        value: artifact.title,
-        id: artifact.id,
-        type: "creative",
       });
     }
   }

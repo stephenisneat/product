@@ -91,7 +91,7 @@ export function MarketingTermsPage() {
         <LegalList
           items={[
             "AI outputs may be inaccurate, incomplete, or unsuitable. You are responsible for reviewing outputs before publishing or relying on them.",
-            "Chat messages and related context are processed to generate responses and may trigger workspace actions (such as creating artifacts, campaigns, creatives, goals, or insights) based on your requests.",
+            "Chat messages and related context are processed to generate responses and may trigger workspace actions (such as creating insights, campaigns, creatives, or goals) based on your requests.",
             "Conversation history is primarily stored in your browser; messages are still processed by our servers when sent.",
             "AI usage may consume included plan allotments and/or wallet balance according to your workspace plan and metering rules.",
           ]}

@@ -35,7 +35,7 @@ export type PlanEntitlements = {
   maxCampaignsPerProduct: number | null;
   /** Max video creatives per campaign; null = unlimited; 0 = none. */
   maxVideoCreativesPerCampaign: number | null;
-  /** Max ad_copy artifacts per campaign; null = unlimited; 0 = none. */
+  /** Max ad_copy deliverables per campaign; null = unlimited; 0 = none. */
   maxAdCopyPerCampaign: number | null;
   /** Can add ad spend / launch campaigns. */
   canSpendAndLaunch: boolean;

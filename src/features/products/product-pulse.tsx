@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type {
-  Artifact,
   Campaign,
   Creative,
   Goal,
@@ -20,15 +19,13 @@ export type ProductMaturity =
 export function resolveProductMaturity({
   intelligence,
   campaigns,
-  pendingArtifacts,
   awaitingInsights,
 }: {
   intelligence: ProductIntelligence | null;
   campaigns: Campaign[];
-  pendingArtifacts: Artifact[];
   awaitingInsights: Insight[];
 }): ProductMaturity {
-  if (pendingArtifacts.length > 0 || awaitingInsights.length > 0) {
+  if (awaitingInsights.length > 0) {
     return "needs_attention";
   }
   if (campaigns.some((c) => c.status === "active" || c.status === "paused")) {
@@ -74,7 +71,6 @@ function PulseCell({
 
 export function ProductPulse({
   maturity,
-  pendingArtifacts,
   awaitingInsights,
   campaigns,
   creatives,
@@ -82,7 +78,6 @@ export function ProductPulse({
   performance,
 }: {
   maturity: ProductMaturity;
-  pendingArtifacts: Artifact[];
   awaitingInsights: Insight[];
   campaigns: Campaign[];
   creatives: Creative[];
@@ -122,22 +117,13 @@ export function ProductPulse({
         ) : null}
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <PulseCell
-          href="#decide"
-          label="Open proposals"
-          value={String(pendingArtifacts.length)}
-          hint={
-            pendingArtifacts.length > 0 ? "Review in Decide" : "Inbox clear"
-          }
-          accent={pendingArtifacts.length > 0}
-        />
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <PulseCell
           href="#decide"
           label="Insights"
           value={String(awaitingInsights.length)}
           hint={
-            awaitingInsights.length > 0 ? "Awaiting action" : "None pending"
+            awaitingInsights.length > 0 ? "Review in Decide" : "Inbox clear"
           }
           accent={awaitingInsights.length > 0}
         />

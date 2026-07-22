@@ -406,16 +406,19 @@ export const productIntelligenceSchema = z.object({
 
 export type ProductIntelligence = z.infer<typeof productIntelligenceSchema>;
 
-export const artifactTypeSchema = z.enum([
+/** Deliverable kinds carried on insight action `apply_deliverable`. */
+export const deliverableTypeSchema = z.enum([
   "positioning",
   "ad_copy",
   "campaign_concept",
   "listing_update",
 ]);
-export type ArtifactType = z.infer<typeof artifactTypeSchema>;
+export type DeliverableType = z.infer<typeof deliverableTypeSchema>;
 
-export const artifactStatusSchema = z.enum(["proposed", "approved", "rejected"]);
-export type ArtifactStatus = z.infer<typeof artifactStatusSchema>;
+/** @deprecated Use deliverableTypeSchema */
+export const artifactTypeSchema = deliverableTypeSchema;
+/** @deprecated Use DeliverableType */
+export type ArtifactType = DeliverableType;
 
 export const positioningPayloadSchema = z.object({
   positioning: z.string(),
@@ -445,28 +448,15 @@ export const listingUpdatePayloadSchema = z.object({
   bulletPoints: z.array(z.string()),
 });
 
-export const artifactPayloadSchema = z.union([
+export const deliverablePayloadSchema = z.union([
   positioningPayloadSchema,
   adCopyPayloadSchema,
   campaignConceptPayloadSchema,
   listingUpdatePayloadSchema,
 ]);
 
-export const artifactSchema = z.object({
-  id: z.string(),
-  productId: z.string(),
-  campaignIds: z.array(z.string()).default([]),
-  type: artifactTypeSchema,
-  status: artifactStatusSchema,
-  title: z.string(),
-  summary: z.string(),
-  payload: z.record(z.string(), z.unknown()),
-  createdBy: z.string(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
-});
-
-export type Artifact = z.infer<typeof artifactSchema>;
+/** @deprecated Use deliverablePayloadSchema */
+export const artifactPayloadSchema = deliverablePayloadSchema;
 
 export const campaignSchema = z.object({
   id: z.string(),
@@ -963,7 +953,7 @@ export type InsightTriggerSource = z.infer<typeof insightTriggerSourceSchema>;
 
 export const insightActionTypeSchema = z.enum([
   "create_campaign",
-  "propose_artifact",
+  "apply_deliverable",
   "create_video_creative",
   "open_chat",
 ]);
@@ -975,6 +965,23 @@ export const insightActionSchema = z.object({
   payload: z.record(z.string(), z.unknown()),
 });
 export type InsightAction = z.infer<typeof insightActionSchema>;
+
+export function isApplyDeliverableAction(
+  action: InsightAction | null | undefined,
+): action is InsightAction & { type: "apply_deliverable" } {
+  return action?.type === "apply_deliverable";
+}
+
+export function deliverableCampaignIds(
+  action: InsightAction | null | undefined,
+): string[] {
+  if (!isApplyDeliverableAction(action)) return [];
+  const raw = action.payload.campaignIds;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (id): id is string => typeof id === "string" && id.trim().length > 0,
+  );
+}
 
 export const insightSchema = z.object({
   id: z.string().uuid(),

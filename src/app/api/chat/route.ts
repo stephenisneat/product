@@ -9,12 +9,15 @@ import {
 } from "ai";
 import { z } from "zod";
 import type {
-  Artifact,
+  DeliverableType,
+  Insight,
+  InsightAction,
   Product,
   ProductIntelligence,
   WorkspacePlan,
 } from "@/domain";
 import {
+  deliverableTypeSchema,
   goalHorizonSchema,
   goalMetricSchema,
   goalScopeSchema,
@@ -31,7 +34,6 @@ import {
 } from "@/lib/billing/gates";
 import { normalizeWorkspacePlan } from "@/lib/billing/entitlements";
 import {
-  assertCanLinkCreativesToCampaigns,
   normalizeCampaignIds,
   resolveProductCampaignIds,
 } from "@/lib/campaigns/associate";
@@ -42,6 +44,7 @@ import {
   startVideoCreative,
 } from "@/lib/jobs/enqueue";
 import {
+  createReadyInsight,
   resubmitInsight,
   startInsightGeneration,
 } from "@/lib/jobs/enqueue-insight";
@@ -52,11 +55,7 @@ import {
   buildCreateVisualizationResult,
   inferVisualizationFromPrompt,
 } from "@/features/visualizer/create-visualization";
-import {
-  getArtifactRepository,
-  getGoalRepository,
-  getProductRepository,
-} from "@/repositories";
+import { getGoalRepository, getProductRepository } from "@/repositories";
 
 const createVisualizationToolSchema = z.object({
   title: z.string().trim().min(1).max(120),
@@ -94,15 +93,15 @@ You help develop positioning, ad copy, campaign concepts, listing updates, video
 Workspace plan: ${plan}. Video/display creatives and saved campaigns require Growth or Pro.
 If the workspace plan is free and a tool returns plan_upgrade_required, tell the user to upgrade and stop asking for creative details.
 If the workspace plan is growth or pro, creatives are allowed — treat any earlier plan_upgrade tool errors in this conversation as stale. When the user asks to retry, call create_video_creative or create_display_creative again; do not invent extra permission restrictions.
-Always prefer calling propose_artifact when you have a concrete text proposal ready for review.
+Always prefer calling propose_insight with a ready apply_deliverable action when you have concrete copy, positioning, campaign concepts, or listing updates ready for review.
 When the user wants to create a campaign (not just a concept proposal), call run_job with type create_campaign.
-Keep propose_artifact for reviewable copy, positioning, and campaign concepts; use run_job to actually create a draft campaign.
+Keep propose_insight (apply_deliverable) for reviewable copy and concepts; use run_job to actually create a draft campaign.
 When the user wants a video ad, call create_video_creative immediately with a short title and brief. If they ask you to invent the concept (e.g. "come up with something"), invent the title and brief yourself and call the tool — do not ask follow-up questions first. Omit campaignIds unless you have real campaign ids from a prior tool result — never invent them.
 When the user wants a display ad (static/banner/RDA/image ads), call create_display_creative immediately with a short title and brief. Invent title and brief when asked to invent — do not ask follow-up questions first.
 When the user is revising an existing creative (they mention a creative id or are iterating on feedback), call resubmit_creative with that creativeId — do not create a new creative.
-When proposing ad_copy creatives for campaigns, pass campaignIds with real ids only (or omit / [] for unassigned); never invent.
-Insights require Pro. When the user states a measurable objective, call create_goal (product or workspace scope). Use list_goals to see active goals. For proactive recommendations, call propose_insight; when revising an insight, call resubmit_insight.
-Keep propose_artifact for reviewable copy, positioning, and campaign concepts; use propose_insight for goal-oriented next steps the user Accepts / Rejects / Revises.
+When proposing ad_copy deliverables for campaigns, pass campaignIds with real ids only (or omit / [] for unassigned); never invent.
+Goals and auto-generated insights require Pro. When the user states a measurable objective, call create_goal (product or workspace scope). Use list_goals to see active goals. For proactive recommendations without ready content, call propose_insight without action fields; when revising an insight, call resubmit_insight.
+Use propose_insight for all reviewable next steps the user Accepts / Rejects / Revises — including concrete marketing deliverables.
 When the user asks about performance, funnels, comparisons (e.g. Q1 vs Q2), trends, or wants a chart/visualization, call create_visualization with an appropriate kind (sankey, timeseries, comparison, or bar) and a clear title.
 Never invent inventory or prices that contradict the product context.
 The user may navigate between pages during a conversation. Treat the product below as the current page context for this turn.
@@ -139,18 +138,17 @@ function buildWorkspaceSystemPrompt(
 
   return `You are Product Agent, an AI marketing collaborator for a commerce workspace.
 The user is chatting at the workspace (catalog) level, not a single product page.
-Help prioritize work, compare products, and propose marketing artifacts for specific products.
+Help prioritize work, compare products, and propose marketing insights for specific products.
 Workspace plan: ${plan}. Video/display creatives and saved campaigns require Growth or Pro.
 If the workspace plan is free and a tool returns plan_upgrade_required, tell the user to upgrade and stop asking for creative details.
 If the workspace plan is growth or pro, creatives are allowed — treat any earlier plan_upgrade tool errors in this conversation as stale. When the user asks to retry, call create_video_creative or create_display_creative again; do not invent extra permission restrictions.
-When proposing an artifact, always call propose_artifact with the target productId from the catalog.
+When proposing reviewable copy or concepts, call propose_insight with productId from the catalog and a ready apply_deliverable action.
 When the user wants to create a campaign for a product, call run_job with type create_campaign and that productId.
-Keep propose_artifact for reviewable copy and concepts; use run_job to create a draft campaign.
+Keep propose_insight (apply_deliverable) for reviewable copy and concepts; use run_job to create a draft campaign.
 When the user wants a video ad, call create_video_creative immediately with productId from the catalog (match @mentions to catalog ids), plus a short title and brief. If they ask you to invent the concept, invent title and brief yourself and call the tool — do not ask follow-up questions first. Omit campaignIds unless you have real campaign ids from a prior tool result — never invent them.
 When the user wants a display ad (static/banner/RDA/image ads), call create_display_creative immediately with productId from the catalog plus title and brief.
 When the user is revising an existing creative, call resubmit_creative with that creativeId — do not create a new creative.
-Insights require Pro. When the user states a measurable objective, call create_goal. Use list_goals to inspect goals. For proactive recommendations, call propose_insight; when revising, call resubmit_insight.
-Keep propose_artifact for reviewable copy and concepts; use propose_insight for goal-oriented recommendations.
+Goals and auto-generated insights require Pro. When the user states a measurable objective, call create_goal. Use list_goals to inspect goals. For proactive recommendations without ready content, call propose_insight without action fields; when revising, call resubmit_insight.
 When the user asks about performance, funnels, comparisons (e.g. Q1 vs Q2), trends, or wants a chart/visualization, call create_visualization with an appropriate kind (sankey, timeseries, comparison, or bar) and a clear title.
 Never invent inventory or prices that contradict the catalog.
 The user may navigate between pages during a conversation. Treat this workspace context as the current page for this turn.
@@ -159,18 +157,18 @@ Workspace catalog:
 ${catalog}`;
 }
 
-async function createArtifactFromProposal(input: {
+async function createDeliverableInsight(input: {
+  workspaceId: string;
   productId: string;
   campaignId?: string | null;
   campaignIds?: string[];
-  type: Artifact["type"];
+  type: DeliverableType;
   title: string;
   summary: string;
+  rationale?: string;
   payload: Record<string, unknown>;
   userId: string;
-  plan: WorkspacePlan;
-}): Promise<Artifact> {
-  const artifacts = await getArtifactRepository();
+}): Promise<Insight> {
   const campaignIds = await resolveProductCampaignIds(
     input.productId,
     normalizeCampaignIds({
@@ -179,30 +177,36 @@ async function createArtifactFromProposal(input: {
     }),
   );
 
-  if (input.type === "ad_copy") {
-    await assertCanLinkCreativesToCampaigns({
-      plan: input.plan,
-      campaignIds,
-      countByCampaign: (id) => artifacts.countCreativesByCampaign(id),
-      kind: "ad_copy",
-    });
-  }
+  const labels: Record<DeliverableType, string> = {
+    positioning: "Apply positioning",
+    ad_copy: "Apply ad copy",
+    campaign_concept: "Apply campaign concept",
+    listing_update: "Apply listing update",
+  };
 
-  const now = new Date().toISOString();
-  const artifact: Artifact = {
-    id: `art_${crypto.randomUUID().slice(0, 8)}`,
+  const action: InsightAction = {
+    type: "apply_deliverable",
+    label: labels[input.type],
+    payload: {
+      productId: input.productId,
+      type: input.type,
+      title: input.title,
+      summary: input.summary,
+      campaignIds,
+      payload: input.payload,
+    },
+  };
+
+  return createReadyInsight({
+    workspaceId: input.workspaceId,
     productId: input.productId,
-    campaignIds,
-    type: input.type,
-    status: "proposed",
+    campaignId: input.campaignId ?? null,
+    createdBy: input.userId,
     title: input.title,
     summary: input.summary,
-    payload: input.payload,
-    createdBy: input.userId,
-    createdAt: now,
-    updatedAt: now,
-  };
-  return artifacts.create(artifact);
+    rationale: input.rationale ?? "",
+    action,
+  });
 }
 
 function lastUserText(messages: UIMessage[]): string {
@@ -272,8 +276,8 @@ function writeVisualizationToolEvents(
 
 function offlineProductStreamResponse(
   product: Product,
+  workspaceId: string,
   userId: string,
-  plan: WorkspacePlan,
   messages: UIMessage[] = [],
 ): Response {
   const encoder = new TextEncoder();
@@ -307,7 +311,7 @@ function offlineProductStreamResponse(
       }
 
       const text =
-        `Reviewing ${product.title}. I'll draft positioning and Meta ad copy as structured artifacts for your approval.\n\n` +
+        `Reviewing ${product.title}. I'll draft positioning and Meta ad copy as insights for your approval.\n\n` +
         `Creating two proposals now…`;
 
       const messageId = `msg_${crypto.randomUUID().slice(0, 8)}`;
@@ -324,43 +328,46 @@ function offlineProductStreamResponse(
 
       write(`data: ${JSON.stringify({ type: "text-end", id: messageId })}\n\n`);
 
-      await createArtifactFromProposal({
-        productId: product.id,
-        type: "positioning",
-        title: `${product.title} — refined positioning`,
-        summary: "Positioning proposal ready for review.",
-        payload: {
-          positioning: `${product.title} is the premium everyday choice for customers who want durable design without disposable waste.`,
-          audience: "Design-conscious shoppers aged 25–45 discovering elevated essentials",
-          valueProps: [
-            "Built for daily use",
-            "Distinctive finishes",
-            "Clear quality signal at shelf",
-          ],
-          objections: ["Premium price vs commodity alternatives"],
-          tone: "Confident, restrained, product-led",
-        },
-        userId,
-        plan,
-      });
+      if (hasServiceRole()) {
+        try {
+          await createDeliverableInsight({
+            workspaceId,
+            productId: product.id,
+            type: "positioning",
+            title: `${product.title} — refined positioning`,
+            summary: "Positioning proposal ready for review.",
+            payload: {
+              positioning: `${product.title} is the premium everyday choice for customers who want durable design without disposable waste.`,
+              audience:
+                "Design-conscious shoppers aged 25–45 discovering elevated essentials",
+              valueProps: [
+                "Built for daily use",
+                "Distinctive finishes",
+                "Clear quality signal at shelf",
+              ],
+              objections: ["Premium price vs commodity alternatives"],
+              tone: "Confident, restrained, product-led",
+            },
+            userId,
+          });
 
-      try {
-        await createArtifactFromProposal({
-          productId: product.id,
-          type: "ad_copy",
-          title: `${product.title} — Meta ad draft`,
-          summary: "Primary text and headline for paid social.",
-          payload: {
-            headline: `Meet ${product.title}`,
-            primaryText: `${product.description.slice(0, 140)} Built to last. Ready when you are.`,
-            cta: "Shop now",
-            channel: "meta",
-          },
-          userId,
-          plan,
-        });
-      } catch (err) {
-        if (!(err instanceof PlanEntitlementError)) throw err;
+          await createDeliverableInsight({
+            workspaceId,
+            productId: product.id,
+            type: "ad_copy",
+            title: `${product.title} — Meta ad draft`,
+            summary: "Primary text and headline for paid social.",
+            payload: {
+              headline: `Meet ${product.title}`,
+              primaryText: `${product.description.slice(0, 140)} Built to last. Ready when you are.`,
+              cta: "Shop now",
+              channel: "meta",
+            },
+            userId,
+          });
+        } catch {
+          // Offline stub should still complete the stream.
+        }
       }
 
       write(
@@ -368,7 +375,7 @@ function offlineProductStreamResponse(
           type: "text-delta",
           id: messageId,
           delta:
-            "\n\nArtifacts are ready in the Artifacts tab for review. Approve to apply them.",
+            "\n\nInsights are ready in Decide for review. Accept to apply them.",
         })}\n\n`,
       );
 
@@ -461,13 +468,6 @@ function offlineWorkspaceStreamResponse(
   });
 }
 
-const artifactTypeSchema = z.enum([
-  "positioning",
-  "ad_copy",
-  "campaign_concept",
-  "listing_update",
-]);
-
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) {
@@ -502,8 +502,8 @@ export async function POST(req: Request) {
     if (!hasAiGateway()) {
       return offlineProductStreamResponse(
         product,
+        active.workspace.id,
         user.id,
-        normalizeWorkspacePlan(active.workspace.plan),
         messages,
       );
     }
@@ -533,43 +533,6 @@ export async function POST(req: Request) {
         });
       },
       tools: {
-        propose_artifact: tool({
-          description:
-            "Propose a structured marketing artifact for human review before it is applied. For ad_copy creatives, pass campaignIds (real ids only) or omit for unassigned.",
-          inputSchema: z.object({
-            type: artifactTypeSchema,
-            title: z.string(),
-            summary: z.string(),
-            payload: z.record(z.string(), z.unknown()),
-            campaignIds: z.array(z.string()).optional(),
-            campaignId: z.string().optional(),
-          }),
-          execute: async (input) => {
-            try {
-              const artifact = await createArtifactFromProposal({
-                productId,
-                campaignIds: input.campaignIds,
-                campaignId: input.campaignId,
-                type: input.type,
-                title: input.title,
-                summary: input.summary,
-                payload: input.payload,
-                userId: user.id,
-                plan,
-              });
-              return {
-                ok: true,
-                artifactId: artifact.id,
-                message: `Created proposal "${artifact.title}" for review.`,
-              };
-            } catch (err) {
-              if (err instanceof PlanEntitlementError) {
-                return { ok: false, error: err.message, code: err.code };
-              }
-              throw err;
-            }
-          },
-        }),
         run_job: tool({
           description:
             "Start a background job. Use type create_campaign to create a draft campaign for the current product. Returns immediately with a jobId; progress appears on /jobs.",
@@ -870,20 +833,53 @@ export async function POST(req: Request) {
         }),
         propose_insight: tool({
           description:
-            "Generate a goal-oriented insight for human review (Accept / Reject / Revise). Prefer when recommending a next marketing move. Pro plan required.",
+            "Propose an insight for human review (Accept / Reject / Revise). For concrete copy/positioning/listing/campaign concepts, pass title, summary, deliverableType, and payload (apply_deliverable) — available on all plans. Omit those fields to enqueue async generation (Pro required).",
           inputSchema: z.object({
             productId: z.string().optional(),
             goalId: z.string().uuid().optional(),
+            title: z.string().optional(),
+            summary: z.string().optional(),
+            rationale: z.string().optional(),
+            deliverableType: deliverableTypeSchema.optional(),
+            payload: z.record(z.string(), z.unknown()).optional(),
+            campaignIds: z.array(z.string()).optional(),
+            campaignId: z.string().optional(),
           }),
           execute: async (input) => {
             if (!hasServiceRole()) {
               return { ok: false, error: "Jobs service is not configured." };
             }
+            const targetProductId = input.productId ?? productId;
             try {
+              if (
+                input.deliverableType &&
+                input.title &&
+                input.summary &&
+                input.payload
+              ) {
+                const insight = await createDeliverableInsight({
+                  workspaceId: active.workspace.id,
+                  productId: targetProductId,
+                  campaignIds: input.campaignIds,
+                  campaignId: input.campaignId,
+                  type: input.deliverableType,
+                  title: input.title,
+                  summary: input.summary,
+                  rationale: input.rationale,
+                  payload: input.payload,
+                  userId: user.id,
+                });
+                return {
+                  ok: true,
+                  insightId: insight.id,
+                  href: `/products/${targetProductId}`,
+                  message: `Created insight "${insight.title}" for review in Decide.`,
+                };
+              }
               assertHasInsights(plan);
               const { insight, job } = await startInsightGeneration({
                 workspaceId: active.workspace.id,
-                productId: input.productId ?? productId,
+                productId: targetProductId,
                 goalId: input.goalId ?? null,
                 createdBy: user.id,
                 insightTrigger: "agent",
@@ -996,50 +992,6 @@ export async function POST(req: Request) {
       });
     },
     tools: {
-      propose_artifact: tool({
-        description:
-          "Propose a structured marketing artifact for a specific product in the workspace. productId must be one of the catalog ids. For ad_copy creatives, pass campaignIds (real ids only) or omit for unassigned.",
-        inputSchema: z.object({
-          productId: z.string(),
-          type: artifactTypeSchema,
-          title: z.string(),
-          summary: z.string(),
-          payload: z.record(z.string(), z.unknown()),
-          campaignIds: z.array(z.string()).optional(),
-          campaignId: z.string().optional(),
-        }),
-        execute: async (input) => {
-          if (!ownedIds.has(input.productId)) {
-            return {
-              ok: false,
-              message: "productId is not in this workspace catalog.",
-            };
-          }
-          try {
-            const artifact = await createArtifactFromProposal({
-              productId: input.productId,
-              campaignIds: input.campaignIds,
-              campaignId: input.campaignId,
-              type: input.type,
-              title: input.title,
-              summary: input.summary,
-              payload: input.payload,
-              userId: user.id,
-              plan,
-            });
-            return {
-              ok: true,
-              artifactId: artifact.id,
-              message: `Created proposal "${artifact.title}" for review.`,
-            };
-          } catch (err) {
-            if (err instanceof PlanEntitlementError) {
-              return { ok: false, error: err.message, code: err.code };
-            }
-            throw err;
-          }
-        },
-      }),
       run_job: tool({
         description:
           "Start a background job for a product in the workspace. Use type create_campaign with productId from the catalog. Returns immediately with a jobId; progress appears on /jobs.",
@@ -1367,13 +1319,21 @@ export async function POST(req: Request) {
       }),
       propose_insight: tool({
         description:
-          "Generate a goal-oriented insight for human review. Pass optional productId from the catalog. Pro plan required.",
+          "Propose an insight for human review. For concrete deliverables, pass productId, title, summary, deliverableType, and payload. Async generation without those fields requires Pro.",
         inputSchema: z.object({
           productId: z.string().optional(),
           goalId: z.string().uuid().optional(),
+          title: z.string().optional(),
+          summary: z.string().optional(),
+          rationale: z.string().optional(),
+          deliverableType: deliverableTypeSchema.optional(),
+          payload: z.record(z.string(), z.unknown()).optional(),
+          campaignIds: z.array(z.string()).optional(),
+          campaignId: z.string().optional(),
         }),
         execute: async (input) => {
-          if (input.productId && !ownedIds.has(input.productId)) {
+          const targetProductId = input.productId;
+          if (targetProductId && !ownedIds.has(targetProductId)) {
             return {
               ok: false,
               error: "productId is not in this workspace catalog.",
@@ -1383,10 +1343,36 @@ export async function POST(req: Request) {
             return { ok: false, error: "Jobs service is not configured." };
           }
           try {
+            if (
+              input.deliverableType &&
+              input.title &&
+              input.summary &&
+              input.payload &&
+              targetProductId
+            ) {
+              const insight = await createDeliverableInsight({
+                workspaceId: activeWorkspace.workspace.id,
+                productId: targetProductId,
+                campaignIds: input.campaignIds,
+                campaignId: input.campaignId,
+                type: input.deliverableType,
+                title: input.title,
+                summary: input.summary,
+                rationale: input.rationale,
+                payload: input.payload,
+                userId: user.id,
+              });
+              return {
+                ok: true,
+                insightId: insight.id,
+                href: `/products/${targetProductId}`,
+                message: `Created insight "${insight.title}" for review in Decide.`,
+              };
+            }
             assertHasInsights(plan);
             const { insight, job } = await startInsightGeneration({
               workspaceId: activeWorkspace.workspace.id,
-              productId: input.productId ?? null,
+              productId: targetProductId ?? null,
               goalId: input.goalId ?? null,
               createdBy: user.id,
               insightTrigger: "agent",

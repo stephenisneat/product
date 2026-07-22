@@ -1,5 +1,4 @@
 import type {
-  Artifact,
   Campaign,
   Creative,
   Goal,
@@ -29,7 +28,6 @@ import {
 export function ProductWorkspace({
   product,
   intelligence,
-  artifacts,
   creatives = [],
   campaigns,
   performance,
@@ -39,7 +37,6 @@ export function ProductWorkspace({
 }: {
   product: Product;
   intelligence: ProductIntelligence | null;
-  artifacts: Artifact[];
   creatives?: Creative[];
   campaigns: Campaign[];
   performance: PerformancePoint[];
@@ -47,7 +44,6 @@ export function ProductWorkspace({
   insights?: Insight[];
   plan?: WorkspacePlan;
 }) {
-  const pendingArtifacts = artifacts.filter((a) => a.status === "proposed");
   const awaitingInsights = insights.filter(
     (i) =>
       i.status === "awaiting_review" ||
@@ -57,7 +53,6 @@ export function ProductWorkspace({
   const maturity = resolveProductMaturity({
     intelligence,
     campaigns,
-    pendingArtifacts,
     awaitingInsights,
   });
 
@@ -68,7 +63,6 @@ export function ProductWorkspace({
 
         <ProductPulse
           maturity={maturity}
-          pendingArtifacts={pendingArtifacts}
           awaitingInsights={awaitingInsights}
           campaigns={campaigns}
           creatives={creatives}
@@ -79,7 +73,6 @@ export function ProductWorkspace({
         <ProductStreamKnow product={product} intelligence={intelligence} />
 
         <ProductStreamDecide
-          pendingArtifacts={pendingArtifacts}
           awaitingInsights={awaitingInsights}
           productTitle={product.title}
         />
@@ -88,7 +81,7 @@ export function ProductWorkspace({
           product={product}
           campaigns={campaigns}
           creatives={creatives}
-          artifacts={artifacts}
+          insights={insights}
           plan={plan}
         />
 

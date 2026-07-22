@@ -29,7 +29,16 @@ type DbInsight = {
 
 function parseAction(value: unknown): InsightAction | null {
   if (value == null) return null;
-  const parsed = insightActionSchema.safeParse(value);
+  let candidate = value;
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "type" in value &&
+    (value as { type?: unknown }).type === "propose_artifact"
+  ) {
+    candidate = { ...(value as Record<string, unknown>), type: "apply_deliverable" };
+  }
+  const parsed = insightActionSchema.safeParse(candidate);
   return parsed.success ? parsed.data : null;
 }
 

@@ -170,17 +170,18 @@ export function buildStubInsight(opts: {
     productId,
     action: productId
       ? {
-          type: "propose_artifact",
-          label: "Propose ad copy",
+          type: "apply_deliverable",
+          label: "Apply ad copy",
           payload: {
             productId,
             type: "ad_copy",
             title: `Copy for ${primaryGoal.title}`,
             summary: `Draft messaging toward ${goalLabel}`,
             payload: {
-              headlines: [`Hit ${goalLabel}`],
+              headline: `Hit ${goalLabel}`,
               primaryText: `Built to help you reach ${goalLabel}.`,
               cta: "Shop now",
+              channel: "meta",
             },
           },
         }

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "@/components/icons";
 import { useEffect, useState, useTransition } from "react";
 import type { Insight } from "@/domain";
+import { isApplyDeliverableAction } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -108,7 +109,7 @@ export function InsightCard({
         prefill?: string;
         jobId?: string;
         creativeId?: string;
-        artifactId?: string;
+        deliverableType?: string;
       };
     };
     setInsight(body.insight);
@@ -130,19 +131,33 @@ export function InsightCard({
         body.result.creativeId
       ) {
         setActionNote(`Video creative started.`);
-      } else if (
-        body.result.type === "propose_artifact" &&
-        body.result.artifactId
-      ) {
-        setActionNote(`Artifact proposed (${body.result.artifactId}).`);
       }
+    }
+
+    if (action === "accept" && body.result?.type === "apply_deliverable") {
+      setActionNote("Deliverable applied.");
     }
 
     startTransition(() => router.refresh());
   }
 
   const canReview = insight.status === "awaiting_review";
-  const canDoIt = insight.status === "accepted" && insight.action;
+  const canDoIt =
+    insight.status === "accepted" &&
+    insight.action &&
+    !isApplyDeliverableAction(insight.action);
+
+  const deliverablePayload =
+    isApplyDeliverableAction(insight.action) &&
+    insight.action.payload.payload &&
+    typeof insight.action.payload.payload === "object"
+      ? (insight.action.payload.payload as Record<string, unknown>)
+      : null;
+  const deliverableType =
+    isApplyDeliverableAction(insight.action) &&
+    typeof insight.action.payload.type === "string"
+      ? insight.action.payload.type
+      : null;
 
   return (
     <article
@@ -184,12 +199,23 @@ export function InsightCard({
         <Badge variant="outline" className="text-[10px] uppercase">
           {insight.triggerSource}
         </Badge>
+        {deliverableType ? (
+          <Badge variant="secondary" className="text-[10px] uppercase">
+            {deliverableType.replace("_", " ")}
+          </Badge>
+        ) : null}
       </div>
 
       {insight.rationale ? (
         <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
           {insight.rationale}
         </p>
+      ) : null}
+
+      {deliverablePayload ? (
+        <pre className="mt-3 max-h-40 overflow-auto rounded-md bg-muted/50 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+          {JSON.stringify(deliverablePayload, null, 2)}
+        </pre>
       ) : null}
 
       {insight.status === "generating" ? (
@@ -221,7 +247,9 @@ export function InsightCard({
               disabled={pending}
               onClick={() => void mutate("accept")}
             >
-              Accept
+              {isApplyDeliverableAction(insight.action)
+                ? (insight.action.label ?? "Accept & apply")
+                : "Accept"}
             </Button>
             <Button
               size="sm"

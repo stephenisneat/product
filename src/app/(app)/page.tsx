@@ -5,7 +5,6 @@ import { ProductCatalog } from "@/features/products/product-catalog";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import {
-  getArtifactRepository,
   getInsightRepository,
   getProductRepository,
 } from "@/repositories";
@@ -34,17 +33,15 @@ export default async function RootPage() {
     );
   }
 
-  const [products, artifactsRepo, insightsRepo] = await Promise.all([
+  const [products, insightsRepo] = await Promise.all([
     getProductRepository(),
-    getArtifactRepository(),
     getInsightRepository(),
   ]);
   const catalog = await products.listProducts(active.workspace.id);
   const productIds = catalog.map((product) => product.id);
 
-  const [campaigns, artifacts, pendingInsights] = await Promise.all([
+  const [campaigns, pendingInsights] = await Promise.all([
     products.listCampaignsForProducts(productIds),
-    artifactsRepo.listByProductIds(productIds),
     insightsRepo.listByWorkspace(active.workspace.id, {
       status: ["awaiting_review", "revising", "generating"],
       limit: 1000,
@@ -59,11 +56,6 @@ export default async function RootPage() {
   }
 
   const needsAttentionIds = new Set<string>();
-  for (const artifact of artifacts) {
-    if (artifact.status === "proposed") {
-      needsAttentionIds.add(artifact.productId);
-    }
-  }
   for (const insight of pendingInsights) {
     if (insight.productId) {
       needsAttentionIds.add(insight.productId);

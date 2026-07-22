@@ -3,7 +3,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type {
-  Artifact,
   Campaign,
   Creative,
   Goal,
@@ -13,7 +12,7 @@ import type {
   ProductIntelligence,
   WorkspacePlan,
 } from "@/domain";
-import { ArtifactCard } from "@/features/artifacts/artifact-card";
+import { deliverableCampaignIds, isApplyDeliverableAction } from "@/domain";
 import { CreativeCard } from "@/features/creatives/creative-card";
 import { useAgentContext } from "@/features/agent/agent-context";
 import { UpgradeButton } from "@/features/billing/upgrade-button";
@@ -282,24 +281,21 @@ export function ProductStreamKnow({
 }
 
 export function ProductStreamDecide({
-  pendingArtifacts,
   awaitingInsights,
   productTitle,
 }: {
-  pendingArtifacts: Artifact[];
   awaitingInsights: Insight[];
   productTitle: string;
 }) {
   const { setComposePrefill } = useAgentContext();
-  const empty =
-    pendingArtifacts.length === 0 && awaitingInsights.length === 0;
+  const empty = awaitingInsights.length === 0;
 
   return (
     <section aria-labelledby="decide" className="space-y-4">
       <StreamHeading
         id="decide"
         title="Decide"
-        description="Review queue — approve agent proposals and act on insights here."
+        description="Review queue — accept or reject insights for this product."
         action={
           empty ? (
             <Button
@@ -307,11 +303,11 @@ export function ProductStreamDecide({
               variant="outline"
               onClick={() =>
                 setComposePrefill(
-                  `Propose the next marketing artifact for ${productTitle}.`,
+                  `Propose the next marketing insight for ${productTitle}.`,
                 )
               }
             >
-              Ask for a proposal
+              Ask for an insight
             </Button>
           ) : null
         }
@@ -320,38 +316,17 @@ export function ProductStreamDecide({
       {empty ? (
         <p className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
           Nothing needs your review. Use the agent to generate positioning, ad
-          copy, campaign concepts, or listing updates.
+          copy, campaign concepts, or listing updates as insights.
         </p>
       ) : (
-        <div className="space-y-4">
-          {awaitingInsights.length > 0 ? (
-            <div className="space-y-2">
-              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Insights awaiting action
-              </h3>
-              <div className="grid gap-3 lg:grid-cols-2">
-                {awaitingInsights.map((insight) => (
-                  <InsightCard
-                    key={insight.id}
-                    insight={insight}
-                    productTitle={productTitle}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : null}
-          {pendingArtifacts.length > 0 ? (
-            <div className="space-y-2">
-              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Open proposals
-              </h3>
-              <div className="grid gap-3 lg:grid-cols-2">
-                {pendingArtifacts.map((artifact) => (
-                  <ArtifactCard key={artifact.id} artifact={artifact} />
-                ))}
-              </div>
-            </div>
-          ) : null}
+        <div className="grid gap-3 lg:grid-cols-2">
+          {awaitingInsights.map((insight) => (
+            <InsightCard
+              key={insight.id}
+              insight={insight}
+              productTitle={productTitle}
+            />
+          ))}
         </div>
       )}
     </section>
@@ -362,18 +337,22 @@ export function ProductStreamRun({
   product,
   campaigns,
   creatives,
-  artifacts,
+  insights,
   plan = "free",
 }: {
   product: Product;
   campaigns: Campaign[];
   creatives: Creative[];
-  artifacts: Artifact[];
+  insights: Insight[];
   plan?: WorkspacePlan;
 }) {
   const { setComposePrefill } = useAgentContext();
   const ents = getEntitlements(plan);
   const campaignsLocked = !ents.canSpendAndLaunch;
+
+  const acceptedDeliverables = insights.filter(
+    (i) => i.status === "accepted" && isApplyDeliverableAction(i.action),
+  );
 
   return (
     <section aria-labelledby="run" className="space-y-4">
@@ -424,8 +403,8 @@ export function ProductStreamRun({
             const linkedCreatives = creatives.filter((c) =>
               c.campaignIds.includes(campaign.id),
             );
-            const linkedArtifacts = artifacts.filter((a) =>
-              a.campaignIds.includes(campaign.id),
+            const linkedInsights = acceptedDeliverables.filter((insight) =>
+              deliverableCampaignIds(insight.action).includes(campaign.id),
             );
             return (
               <li key={campaign.id} className="space-y-3 p-3">
@@ -443,7 +422,7 @@ export function ProductStreamRun({
                     {campaign.status}
                   </Badge>
                 </div>
-                {linkedCreatives.length === 0 && linkedArtifacts.length === 0 ? (
+                {linkedCreatives.length === 0 && linkedInsights.length === 0 ? (
                   <p className="text-[11px] text-muted-foreground">
                     No creatives linked yet.
                   </p>
@@ -457,8 +436,13 @@ export function ProductStreamRun({
                         pollWhileGenerating={false}
                       />
                     ))}
-                    {linkedArtifacts.map((artifact) => (
-                      <ArtifactCard key={artifact.id} artifact={artifact} />
+                    {linkedInsights.map((insight) => (
+                      <InsightCard
+                        key={insight.id}
+                        insight={insight}
+                        compact
+                        pollWhileGenerating={false}
+                      />
                     ))}
                   </div>
                 )}
@@ -713,7 +697,7 @@ export function ProductStreamLibrary({ product }: { product: Product }) {
             </p>
           ) : null}
           <p className="mt-3 text-[11px] text-muted-foreground">
-            Approving a listing_update artifact applies title and description
+            Accepting a listing_update insight applies title and description
             here. Pushing back to the storefront is not available yet.
           </p>
         </div>
