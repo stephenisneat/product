@@ -1,9 +1,14 @@
 import { PageCanvas } from "@/components/layout/page-canvas";
 import { MarketingHome } from "@/features/marketing/marketing-home";
+import { resolveCatalogStatus } from "@/features/products/catalog-status";
 import { ProductCatalog } from "@/features/products/product-catalog";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
-import { getProductRepository } from "@/repositories";
+import {
+  getArtifactRepository,
+  getInsightRepository,
+  getProductRepository,
+} from "@/repositories";
 
 export default async function RootPage() {
   const user = await getCurrentUser();
@@ -29,8 +34,56 @@ export default async function RootPage() {
     );
   }
 
-  const products = await getProductRepository();
+  const [products, artifactsRepo, insightsRepo] = await Promise.all([
+    getProductRepository(),
+    getArtifactRepository(),
+    getInsightRepository(),
+  ]);
   const catalog = await products.listProducts(active.workspace.id);
+  const productIds = catalog.map((product) => product.id);
 
-  return <ProductCatalog products={catalog} />;
+  const [campaigns, artifacts, pendingInsights] = await Promise.all([
+    products.listCampaignsForProducts(productIds),
+    artifactsRepo.listByProductIds(productIds),
+    insightsRepo.listByWorkspace(active.workspace.id, {
+      status: ["awaiting_review", "revising", "generating"],
+      limit: 1000,
+    }),
+  ]);
+
+  const campaignsByProduct = new Map<string, typeof campaigns>();
+  for (const campaign of campaigns) {
+    const list = campaignsByProduct.get(campaign.productId) ?? [];
+    list.push(campaign);
+    campaignsByProduct.set(campaign.productId, list);
+  }
+
+  const needsAttentionIds = new Set<string>();
+  for (const artifact of artifacts) {
+    if (artifact.status === "proposed") {
+      needsAttentionIds.add(artifact.productId);
+    }
+  }
+  for (const insight of pendingInsights) {
+    if (insight.productId) {
+      needsAttentionIds.add(insight.productId);
+    }
+  }
+
+  const catalogStatusByProductId = Object.fromEntries(
+    catalog.map((product) => [
+      product.id,
+      resolveCatalogStatus(
+        campaignsByProduct.get(product.id) ?? [],
+        needsAttentionIds.has(product.id),
+      ),
+    ]),
+  );
+
+  return (
+    <ProductCatalog
+      products={catalog}
+      catalogStatusByProductId={catalogStatusByProductId}
+    />
+  );
 }

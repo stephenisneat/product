@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ArrowUpDownIcon,
   CheckIcon,
+  ChevronDownIcon,
   ListFilterIcon,
   PlusIcon,
   SearchIcon,
@@ -23,6 +24,11 @@ import { Separator } from "@/components/ui/separator";
 import { PageCanvas } from "@/components/layout/page-canvas";
 import { ProductImage } from "@/components/product-image";
 import { CatalogHeaderActions } from "@/features/products/catalog-toolbar";
+import {
+  CATALOG_STATUS_LABELS,
+  CATALOG_STATUS_ORDER,
+  type CatalogStatus,
+} from "@/features/products/catalog-status";
 import {
   productSummaryLine,
   productTypeLabel,
@@ -103,7 +109,111 @@ function sortProducts(products: Product[], sort: SortKey) {
 const addProductsButtonClass =
   "border-0 bg-[#288DFF] bg-clip-border text-white shadow-[0_0_0_1px_#288DFF,0_1px_2px_0_rgba(14,18,27,0.24),inset_0_1px_0_0_rgba(255,255,255,0.12)] hover:bg-[#1f7ff5] hover:text-white focus-visible:border-transparent focus-visible:ring-0 aria-expanded:bg-[#288DFF] aria-expanded:text-white dark:bg-[#288DFF] dark:text-white dark:hover:bg-[#1f7ff5]";
 
-export function ProductCatalog({ products }: { products: Product[] }) {
+function ProductCard({ product }: { product: Product }) {
+  return (
+    <li className="bg-card overflow-hidden rounded-lg border border-border">
+      <Link
+        href={`/products/${product.id}`}
+        className="group flex h-full flex-col outline-none transition-colors focus-visible:bg-muted/40"
+      >
+        {product.images[0] ? (
+          <ProductImage
+            src={product.images[0]}
+            avgColor={product.imageAvgColors[0]}
+            className="aspect-[4/3]"
+            imageClassName="transition-transform duration-300 group-hover:scale-[1.02]"
+            sizes="(max-width: 640px) 100vw, 25vw"
+          />
+        ) : (
+          <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden text-xs text-muted-foreground">
+            No image
+          </div>
+        )}
+        <div className="flex flex-1 flex-col gap-2 p-3">
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="text-sm leading-snug font-medium">{product.title}</h2>
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              <Badge
+                variant="outline"
+                className="text-[10px] tracking-wide uppercase"
+              >
+                {productTypeLabel(product.type)}
+              </Badge>
+              <Badge
+                variant="outline"
+                className="text-[10px] tracking-wide uppercase"
+              >
+                {product.status}
+              </Badge>
+            </div>
+          </div>
+          <p className="line-clamp-2 text-xs text-muted-foreground">
+            {product.description}
+          </p>
+          <div className="mt-auto flex items-center justify-between gap-2 pt-2 text-xs text-muted-foreground">
+            <span className="min-w-0 truncate font-mono">
+              {productSummaryLine(product)}
+            </span>
+            <span className="shrink-0">
+              {product.channels.length} channels
+            </span>
+          </div>
+        </div>
+      </Link>
+    </li>
+  );
+}
+
+function CatalogStatusGroup({
+  status,
+  products,
+}: {
+  status: CatalogStatus;
+  products: Product[];
+}) {
+  const [open, setOpen] = useState(true);
+  const label = CATALOG_STATUS_LABELS[status];
+
+  return (
+    <section className="space-y-3">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center gap-2 rounded-md py-1 text-left outline-none hover:bg-muted/50 focus-visible:bg-muted/50"
+      >
+        <ChevronDownIcon
+          className={cn(
+            "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
+            !open && "-rotate-90",
+          )}
+          aria-hidden
+        />
+        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          {label}
+        </h2>
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {products.length}
+        </span>
+      </button>
+      {open ? (
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {products.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  );
+}
+
+export function ProductCatalog({
+  products,
+  catalogStatusByProductId,
+}: {
+  products: Product[];
+  catalogStatusByProductId: Record<string, CatalogStatus>;
+}) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortKey>("newest");
@@ -150,6 +260,14 @@ export function ProductCatalog({ products }: { products: Product[] }) {
     ),
     sort,
   );
+
+  const grouped = CATALOG_STATUS_ORDER.map((status) => ({
+    status,
+    products: filtered.filter(
+      (product) =>
+        (catalogStatusByProductId[product.id] ?? "inactive") === status,
+    ),
+  })).filter((group) => group.products.length > 0);
 
   return (
     <PageCanvas>
@@ -283,65 +401,15 @@ export function ProductCatalog({ products }: { products: Product[] }) {
             </p>
           </div>
         ) : (
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filtered.map((product) => (
-              <li
-                key={product.id}
-                className="bg-card overflow-hidden rounded-lg border border-border"
-              >
-                <Link
-                  href={`/products/${product.id}`}
-                  className="group flex h-full flex-col outline-none transition-colors focus-visible:bg-muted/40"
-                >
-                  {product.images[0] ? (
-                    <ProductImage
-                      src={product.images[0]}
-                      avgColor={product.imageAvgColors[0]}
-                      className="aspect-[4/3]"
-                      imageClassName="transition-transform duration-300 group-hover:scale-[1.02]"
-                      sizes="(max-width: 640px) 100vw, 25vw"
-                    />
-                  ) : (
-                    <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden text-xs text-muted-foreground">
-                      No image
-                    </div>
-                  )}
-                  <div className="flex flex-1 flex-col gap-2 p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <h2 className="text-sm leading-snug font-medium">
-                        {product.title}
-                      </h2>
-                      <div className="flex shrink-0 flex-col items-end gap-1">
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] tracking-wide uppercase"
-                        >
-                          {productTypeLabel(product.type)}
-                        </Badge>
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] tracking-wide uppercase"
-                        >
-                          {product.status}
-                        </Badge>
-                      </div>
-                    </div>
-                    <p className="line-clamp-2 text-xs text-muted-foreground">
-                      {product.description}
-                    </p>
-                    <div className="mt-auto flex items-center justify-between gap-2 pt-2 text-xs text-muted-foreground">
-                      <span className="min-w-0 truncate font-mono">
-                        {productSummaryLine(product)}
-                      </span>
-                      <span className="shrink-0">
-                        {product.channels.length} channels
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              </li>
+          <div className="space-y-8">
+            {grouped.map((group) => (
+              <CatalogStatusGroup
+                key={group.status}
+                status={group.status}
+                products={group.products}
+              />
             ))}
-          </ul>
+          </div>
         )}
       </div>
     </PageCanvas>
