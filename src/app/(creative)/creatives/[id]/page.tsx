@@ -15,7 +15,7 @@ const CREATIVE_TABS = [
   "keywords",
   "script",
   "audio",
-  "performance",
+  "distribution",
 ] as const;
 
 export default async function CreativeDetailPage({

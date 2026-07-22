@@ -161,9 +161,9 @@ function CardFooterActions({
         size="sm"
         variant="outline"
         className="w-full"
-        render={<Link href={`/creatives/${creative.id}?tab=performance`} />}
+        render={<Link href={`/creatives/${creative.id}?tab=distribution`} />}
       >
-        View performance
+        View distribution
       </Button>
     );
   }

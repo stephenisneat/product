@@ -43,7 +43,7 @@ type CreativeTab =
   | "keywords"
   | "script"
   | "audio"
-  | "performance";
+  | "distribution";
 
 const VIDEO_STAGE_ORDER = ["screenplay", "world", "storyboard", "video"] as const;
 const DISPLAY_STAGE_ORDER = ["concept", "assets"] as const;
@@ -129,7 +129,7 @@ function isUploadedCreative(creative: Creative): boolean {
 }
 
 function isTabEnabled(tab: CreativeTab, creative: Creative): boolean {
-  if (tab === "performance") {
+  if (tab === "distribution") {
     return creative.status === "ready";
   }
   if (creative.kind === "display_ad") {
@@ -217,27 +217,27 @@ function tabItems(creative: Creative): readonly (readonly [CreativeTab, string])
     return [
       ["concept", "Concept"],
       ["assets", "Assets"],
-      ["performance", "Performance"],
+      ["distribution", "Distribution"],
     ] as const;
   }
   if (creative.kind === "search_ad") {
     return [
       ["copy", "Copy"],
       ["keywords", "Keywords"],
-      ["performance", "Performance"],
+      ["distribution", "Distribution"],
     ] as const;
   }
   if (creative.kind === "audio_ad") {
     return [
       ["script", "Script"],
       ["audio", "Audio"],
-      ["performance", "Performance"],
+      ["distribution", "Distribution"],
     ] as const;
   }
   if (isUploadedCreative(creative)) {
     return [
       ["video", "Video"],
-      ["performance", "Performance"],
+      ["distribution", "Distribution"],
     ] as const;
   }
   return [
@@ -245,7 +245,7 @@ function tabItems(creative: Creative): readonly (readonly [CreativeTab, string])
     ["world", "World"],
     ["storyboard", "Storyboard"],
     ["video", "Video"],
-    ["performance", "Performance"],
+    ["distribution", "Distribution"],
   ] as const;
 }
 
@@ -720,7 +720,7 @@ function AudioSpotView({ creative }: { creative: Creative }) {
   );
 }
 
-function PerformanceView({
+function DistributionView({
   creative,
   performance,
   onCreativeChange,
@@ -773,7 +773,7 @@ function PerformanceView({
   if (creative.status !== "ready") {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center justify-center gap-2 px-4 py-24 text-center text-sm text-muted-foreground">
-        <p>Performance unlocks when this creative is ready.</p>
+        <p>Distribution unlocks when this creative is ready.</p>
         <p className="text-xs">
           Download the MP4 and link campaigns from the workspace once generation
           finishes.
@@ -1342,8 +1342,8 @@ export function CreativeWorkspace({
               <AudioSpotView creative={creative} />
             </TabsContent>
 
-            <TabsContent value="performance" className="mt-0">
-              <PerformanceView
+            <TabsContent value="distribution" className="mt-0">
+              <DistributionView
                 creative={creative}
                 performance={performance}
                 onCreativeChange={setCreative}
