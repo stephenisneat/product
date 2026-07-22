@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type SVGProps } from "react";
 import { useRouter } from "next/navigation";
+import {
+  AmazonLogo,
+  BigCommerceLogo,
+  ShopifyLogo,
+  SquarespaceLogo,
+  WooCommerceLogo,
+} from "@/components/brand-logos";
 import {
   Building2Icon,
   CalendarDaysIcon,
@@ -9,7 +16,6 @@ import {
   PenLineIcon,
   ShoppingBagIcon,
   SmartphoneIcon,
-  StoreIcon,
   VoteIcon,
 } from "@/components/icons";
 import { toast } from "sonner";
@@ -34,35 +40,43 @@ import {
 } from "@/lib/products/product-type";
 import { cn } from "@/lib/utils";
 
+type BrandLogo = (props: SVGProps<SVGSVGElement>) => React.ReactNode;
+
 const COMMERCE_SOURCES: {
   id: CommerceProvider;
   label: string;
   description: string;
+  Logo: BrandLogo;
 }[] = [
   {
     id: "shopify",
     label: "Shopify",
     description: "Sync products from your Shopify store",
+    Logo: ShopifyLogo,
   },
   {
     id: "woocommerce",
     label: "WooCommerce",
     description: "Sync products from your WooCommerce store",
+    Logo: WooCommerceLogo,
   },
   {
     id: "bigcommerce",
     label: "BigCommerce",
     description: "Sync products from your BigCommerce store",
+    Logo: BigCommerceLogo,
   },
   {
     id: "amazon",
     label: "Amazon",
     description: "Sync listings from Amazon Seller Central",
+    Logo: AmazonLogo,
   },
   {
     id: "squarespace",
     label: "Squarespace",
     description: "Sync products from your Squarespace store",
+    Logo: SquarespaceLogo,
   },
 ];
 
@@ -291,28 +305,31 @@ export function CreateProductFlow() {
 
         {step.kind === "ecommerce-source" ? (
           <div className={optionGridClass}>
-            {COMMERCE_SOURCES.map((source) => (
-              <button
-                key={source.id}
-                type="button"
-                className={optionCardClass}
-                onClick={() =>
-                  setStep({ kind: "commerce", provider: source.id })
-                }
-              >
-                <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-foreground">
-                  <StoreIcon className="size-4" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">
-                    {source.label}
+            {COMMERCE_SOURCES.map((source) => {
+              const Logo = source.Logo;
+              return (
+                <button
+                  key={source.id}
+                  type="button"
+                  className={optionCardClass}
+                  onClick={() =>
+                    setStep({ kind: "commerce", provider: source.id })
+                  }
+                >
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-foreground">
+                    <Logo className="size-4" />
                   </span>
-                  <span className="mt-1.5 block text-xs leading-relaxed text-muted-foreground">
-                    {source.description}
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">
+                      {source.label}
+                    </span>
+                    <span className="mt-1.5 block text-xs leading-relaxed text-muted-foreground">
+                      {source.description}
+                    </span>
                   </span>
-                </span>
-              </button>
-            ))}
+                </button>
+              );
+            })}
             <button
               type="button"
               className={cn(optionCardClass)}
