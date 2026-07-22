@@ -162,34 +162,41 @@ function HighlightMatch({ text, query }: { text: string; query: string }) {
 function ChannelLogo({
   name,
   logoSlug,
+  logoVariant = "default",
   websiteUrl,
 }: {
   name: string;
-  logoSlug: string;
+  logoSlug: string | null;
+  logoVariant?: "default" | "mono" | "color";
   websiteUrl: string;
 }) {
   const [failed, setFailed] = useState(false);
 
-  const mark = failed ? (
-    <span
-      className="flex size-5 shrink-0 items-center justify-center rounded-sm bg-muted text-[10px] font-medium text-muted-foreground"
-      aria-hidden
-    >
-      {name.charAt(0).toUpperCase()}
-    </span>
-  ) : (
-    // eslint-disable-next-line @next/next/no-img-element -- simpleicons CDN brand marks
-    <img
-      src={channelLogoUrl(logoSlug)}
-      alt=""
-      width={20}
-      height={20}
-      className="size-5 shrink-0 dark:invert"
-      loading="lazy"
-      decoding="async"
-      onError={() => setFailed(true)}
-    />
-  );
+  const mark =
+    !logoSlug || failed ? (
+      <span
+        className="flex size-5 shrink-0 items-center justify-center rounded-sm bg-muted text-[10px] font-medium text-muted-foreground"
+        aria-hidden
+      >
+        {name.charAt(0).toUpperCase()}
+      </span>
+    ) : (
+      // eslint-disable-next-line @next/next/no-img-element -- thesvg.org CDN brand marks
+      <img
+        src={channelLogoUrl(logoSlug, logoVariant)}
+        alt=""
+        width={20}
+        height={20}
+        className={cn(
+          "size-5 shrink-0 object-contain",
+          // Mono marks are typically black fills — invert for dark surfaces.
+          logoVariant === "mono" && "dark:invert",
+        )}
+        loading="lazy"
+        decoding="async"
+        onError={() => setFailed(true)}
+      />
+    );
 
   return (
     <a
@@ -248,6 +255,7 @@ function ChannelRow({
       <ChannelLogo
         name={channel.name}
         logoSlug={channel.logoSlug}
+        logoVariant={channel.logoVariant}
         websiteUrl={channel.websiteUrl}
       />
       <span className="min-w-0 flex-1">
