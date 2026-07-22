@@ -93,4 +93,15 @@ export type PluginInstallStatus = {
   last_event_name: string | null;
   last_hour_count: number;
   last_day_count: number;
+  primary_domain: string | null;
+  detected_provider: string | null;
+};
+
+export type PluginPingResult = {
+  ok: boolean;
+  script_reachable: boolean;
+  container_reachable: boolean;
+  container_version: number | null;
+  status: PluginInstallStatus;
+  error?: string;
 };

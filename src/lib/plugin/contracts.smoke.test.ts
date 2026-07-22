@@ -94,9 +94,12 @@ describe("plugin container contracts", () => {
       "src/app/(settings)/settings/plugin/page.tsx",
       "src/app/api/plugin/container/route.ts",
       "src/app/api/plugin/container/install-status/route.ts",
+      "src/app/api/plugin/container/ping/route.ts",
       "src/features/plugin/container-manager.tsx",
       "src/features/plugin/install-panel.tsx",
       "src/features/plugin/product-plugin-menu.tsx",
+      "src/features/plugin/install-platforms.ts",
+      "src/features/plugin/snippet-highlight.tsx",
     ]) {
       expect(() =>
         readFileSync(join(PRODUCT_ROOT, rel), "utf8"),

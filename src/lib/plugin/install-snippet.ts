@@ -7,5 +7,9 @@ export function getPluginBaseUrl() {
 
 export function buildInstallSnippet(workspaceId: string) {
   const base = getPluginBaseUrl();
-  return `<script src="${base}/v1/plugin.js" data-workspace="${workspaceId}" async></script>`;
+  return `<script
+  src="${base}/v1/plugin.js"
+  data-workspace="${workspaceId}"
+  async
+></script>`;
 }

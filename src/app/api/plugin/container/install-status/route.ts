@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { ensurePluginContainer } from "@/lib/plugin/ensure-container";
+import { loadPluginInstallStatus } from "@/lib/plugin/install-status";
 import { createServiceClient, hasServiceRole } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
 
@@ -31,38 +32,11 @@ export async function GET() {
     );
   }
 
-  const workspaceId = active.workspace.id;
-  const now = Date.now();
-  const hourAgo = new Date(now - 60 * 60 * 1000).toISOString();
-  const dayAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
-
-  const [{ data: latest }, { count: lastHourCount }, { count: lastDayCount }] =
-    await Promise.all([
-      client
-        .from("plugin_measurement_events")
-        .select("created_at, event_type, event_name")
-        .eq("workspace_id", workspaceId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      client
-        .from("plugin_measurement_events")
-        .select("*", { count: "exact", head: true })
-        .eq("workspace_id", workspaceId)
-        .gte("created_at", hourAgo),
-      client
-        .from("plugin_measurement_events")
-        .select("*", { count: "exact", head: true })
-        .eq("workspace_id", workspaceId)
-        .gte("created_at", dayAgo),
-    ]);
-
-  return NextResponse.json({
-    has_ever_received: !!latest,
-    last_event_at: latest?.created_at ?? null,
-    last_event_type: latest?.event_type ?? null,
-    last_event_name: latest?.event_name ?? null,
-    last_hour_count: lastHourCount ?? 0,
-    last_day_count: lastDayCount ?? 0,
+  const status = await loadPluginInstallStatus({
+    client,
+    workspaceId: active.workspace.id,
+    primaryDomain: active.workspace.primaryDomain ?? null,
   });
+
+  return NextResponse.json(status);
 }
