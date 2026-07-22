@@ -99,6 +99,7 @@ export async function runGenerateInsightJob(
       title: content.title,
       summary: content.summary,
       rationale: content.rationale,
+      kind: content.kind,
       goalId: content.goalId ?? payload.goalId ?? null,
       productId: content.productId ?? productId ?? null,
       action: content.action,

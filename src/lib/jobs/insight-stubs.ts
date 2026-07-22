@@ -1,4 +1,4 @@
-import type { Goal, InsightAction, JobRun } from "@/domain";
+import type { Goal, InsightAction, InsightKind, JobRun } from "@/domain";
 
 export const MAX_AWAITING_REVIEW_INSIGHTS = 3;
 export const HEARTBEAT_MIN_HOURS_BETWEEN_INSIGHTS = 12;
@@ -7,6 +7,7 @@ export type StubInsightContent = {
   title: string;
   summary: string;
   rationale: string;
+  kind: InsightKind;
   goalId: string | null;
   productId: string | null;
   action: InsightAction | null;
@@ -56,6 +57,7 @@ export function buildStubInsight(opts: {
         "No active goals yet. Define a product or workspace goal so insights can stay focused.",
       rationale:
         "Insights work best when they optimize toward a concrete target (ROAS, revenue, CAC, or a custom KPI).",
+      kind: "setup",
       goalId: null,
       productId: opts.productId ?? null,
       action: {
@@ -86,6 +88,7 @@ export function buildStubInsight(opts: {
         rationale: succeeded
           ? `Job ${job.id.slice(0, 8)} succeeded. Next step: attach a video creative or ad copy that directly supports ${goalLabel}.`
           : `Job ${job.id.slice(0, 8)} failed${job.error ? `: ${job.error}` : ""}. Clear the blocker, then retry with a sharper objective tied to ${goalLabel}.`,
+        kind: succeeded ? "opportunity" : "blocker",
         goalId: primaryGoal.id,
         productId,
         action: succeeded
@@ -119,6 +122,7 @@ export function buildStubInsight(opts: {
         rationale: succeeded
           ? `Accept the stage if it advances ${goalLabel}; otherwise revise with clearer goal language.`
           : `Job ${job.id.slice(0, 8)} failed${job.error ? `: ${job.error}` : ""}. Resubmit or adjust the brief.`,
+        kind: succeeded ? "opportunity" : "blocker",
         goalId: primaryGoal.id,
         productId,
         action: {
@@ -140,6 +144,7 @@ export function buildStubInsight(opts: {
       title: `Push toward ${goalLabel}`,
       summary: `Launch or refresh a campaign concept aimed at ${primaryGoal.metric.toUpperCase()}.`,
       rationale: `Active goal "${primaryGoal.title}" (${primaryGoal.horizon}) has no recent linked campaign action. A focused draft campaign keeps momentum.`,
+      kind: "opportunity",
       goalId: primaryGoal.id,
       productId,
       action: productId
@@ -166,6 +171,7 @@ export function buildStubInsight(opts: {
     title: `Next move for ${primaryGoal.title}`,
     summary: `Propose fresh ad copy that reinforces ${goalLabel}.`,
     rationale: `Workspace heartbeat: keep creative messaging aligned with the active ${primaryGoal.horizon} goal.`,
+    kind: "idea",
     goalId: primaryGoal.id,
     productId,
     action: productId

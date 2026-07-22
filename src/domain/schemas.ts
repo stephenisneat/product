@@ -1094,6 +1094,15 @@ export const insightStatusSchema = z.enum([
 ]);
 export type InsightStatus = z.infer<typeof insightStatusSchema>;
 
+/** Content nature for list grouping — separate from workflow status. */
+export const insightKindSchema = z.enum([
+  "blocker",
+  "opportunity",
+  "idea",
+  "setup",
+]);
+export type InsightKind = z.infer<typeof insightKindSchema>;
+
 export const insightTriggerSourceSchema = z.enum([
   "job",
   "agent",
@@ -1143,6 +1152,7 @@ export const insightSchema = z.object({
   title: z.string(),
   summary: z.string(),
   rationale: z.string(),
+  kind: insightKindSchema,
   status: insightStatusSchema,
   triggerSource: insightTriggerSourceSchema,
   triggerRef: z.record(z.string(), z.unknown()).nullable(),

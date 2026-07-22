@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   Insight,
   InsightAction,
+  InsightKind,
   InsightStatus,
   InsightTriggerSource,
 } from "@/domain";
@@ -16,6 +17,7 @@ type DbInsight = {
   title: string;
   summary: string;
   rationale: string;
+  kind: InsightKind;
   status: InsightStatus;
   trigger_source: InsightTriggerSource;
   trigger_ref: Record<string, unknown> | null;
@@ -52,6 +54,7 @@ export function mapInsight(row: DbInsight): Insight {
     title: row.title ?? "",
     summary: row.summary ?? "",
     rationale: row.rationale ?? "",
+    kind: row.kind ?? "idea",
     status: row.status,
     triggerSource: row.trigger_source,
     triggerRef: row.trigger_ref,
@@ -73,6 +76,7 @@ export type InsightCreateInput = {
   title?: string;
   summary?: string;
   rationale?: string;
+  kind?: InsightKind;
   status?: InsightStatus;
   triggerSource: InsightTriggerSource;
   triggerRef?: Record<string, unknown> | null;
@@ -89,6 +93,7 @@ export type InsightUpdateInput = {
   title?: string;
   summary?: string;
   rationale?: string;
+  kind?: InsightKind;
   status?: InsightStatus;
   triggerRef?: Record<string, unknown> | null;
   action?: InsightAction | null;
@@ -212,6 +217,7 @@ export class SupabaseInsightRepository {
         title: input.title ?? "",
         summary: input.summary ?? "",
         rationale: input.rationale ?? "",
+        kind: input.kind ?? "idea",
         status: input.status ?? "generating",
         trigger_source: input.triggerSource,
         trigger_ref: input.triggerRef ?? null,
@@ -238,6 +244,7 @@ export class SupabaseInsightRepository {
     if (patch.title !== undefined) row.title = patch.title;
     if (patch.summary !== undefined) row.summary = patch.summary;
     if (patch.rationale !== undefined) row.rationale = patch.rationale;
+    if (patch.kind !== undefined) row.kind = patch.kind;
     if (patch.status !== undefined) row.status = patch.status;
     if (patch.triggerRef !== undefined) row.trigger_ref = patch.triggerRef;
     if (patch.action !== undefined) row.action = patch.action;

@@ -298,6 +298,7 @@ export async function createReadyInsight(
     title: opts.title,
     summary: opts.summary,
     rationale: opts.rationale ?? "",
+    kind: "idea",
     status: "awaiting_review",
     triggerSource: opts.triggerSource ?? "agent",
     triggerRef: opts.triggerRef ?? null,

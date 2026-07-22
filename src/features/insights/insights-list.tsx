@@ -2,8 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import type { Insight, InsightStatus } from "@/domain";
+import type { Insight, InsightKind, InsightStatus } from "@/domain";
+import { ChevronDownIcon } from "@/components/icons";
 import { InsightCard } from "@/features/insights/insight-card";
+import { cn } from "@/lib/utils";
 
 export type InsightsSortKey =
   | "newest"
@@ -17,6 +19,20 @@ export type InsightsStatusFilter =
   | "accepted"
   | "generating"
   | "failed";
+
+export const INSIGHT_KIND_ORDER: InsightKind[] = [
+  "blocker",
+  "opportunity",
+  "idea",
+  "setup",
+];
+
+export const INSIGHT_KIND_LABELS: Record<InsightKind, string> = {
+  blocker: "Blocker",
+  opportunity: "Opportunity",
+  idea: "Idea",
+  setup: "Setup",
+};
 
 function sortInsights(
   list: Insight[],
@@ -50,8 +66,69 @@ function filterInsights(
   return list.filter((i) => i.status === (status as InsightStatus));
 }
 
+function InsightKindGroup({
+  kind,
+  insights,
+  productTitleById,
+  goalTitleById,
+}: {
+  kind: InsightKind;
+  insights: Insight[];
+  productTitleById: Record<string, string>;
+  goalTitleById: Record<string, string>;
+}) {
+  const [open, setOpen] = useState(true);
+  const label = INSIGHT_KIND_LABELS[kind];
+
+  return (
+    <section className="space-y-3">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center gap-2 rounded-md py-1 text-left outline-none hover:bg-muted/50 focus-visible:bg-muted/50"
+      >
+        <ChevronDownIcon
+          className={cn(
+            "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
+            !open && "-rotate-90",
+          )}
+          aria-hidden
+        />
+        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          {label}
+        </h2>
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {insights.length}
+        </span>
+      </button>
+      {open ? (
+        <ul className="space-y-3">
+          {insights.map((insight) => (
+            <li key={insight.id}>
+              <InsightCard
+                insight={insight}
+                pollWhileGenerating={false}
+                productTitle={
+                  insight.productId
+                    ? productTitleById[insight.productId] ?? null
+                    : null
+                }
+                goalTitle={
+                  insight.goalId ? goalTitleById[insight.goalId] ?? null : null
+                }
+              />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  );
+}
+
 /**
  * List view that coalesces generating-insight polls into one workspace fetch.
+ * Groups by kind (Blocker / Opportunity / Idea / Setup); status stays a filter.
  */
 export function InsightsList({
   initialInsights,
@@ -107,6 +184,15 @@ export function InsightsList({
     [insights, statusFilter, sort],
   );
 
+  const groups = useMemo(
+    () =>
+      INSIGHT_KIND_ORDER.map((kind) => ({
+        kind,
+        insights: visible.filter((i) => i.kind === kind),
+      })).filter((group) => group.insights.length > 0),
+    [visible],
+  );
+
   if (visible.length === 0) {
     return (
       <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
@@ -116,23 +202,16 @@ export function InsightsList({
   }
 
   return (
-    <ul className="space-y-3">
-      {visible.map((insight) => (
-        <li key={insight.id}>
-          <InsightCard
-            insight={insight}
-            pollWhileGenerating={false}
-            productTitle={
-              insight.productId
-                ? productTitleById[insight.productId] ?? null
-                : null
-            }
-            goalTitle={
-              insight.goalId ? goalTitleById[insight.goalId] ?? null : null
-            }
-          />
-        </li>
+    <div className="space-y-6">
+      {groups.map((group) => (
+        <InsightKindGroup
+          key={group.kind}
+          kind={group.kind}
+          insights={group.insights}
+          productTitleById={productTitleById}
+          goalTitleById={goalTitleById}
+        />
       ))}
-    </ul>
+    </div>
   );
 }
