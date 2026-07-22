@@ -8,7 +8,6 @@ import {
   type ReactNode,
 } from "react";
 import type { AdminFeedbackKind } from "@/domain";
-import { FeedbackDialog } from "@/features/feedback/feedback-dialog";
 import { FeedbackPinOverlay } from "@/features/feedback/feedback-pin-overlay";
 import {
   captureFeedbackScreenshot,
@@ -29,6 +28,11 @@ type FeedbackContextValue = {
   startPinMode: (point?: { x: number; y: number }) => void;
   recordContextPoint: (point: { x: number; y: number }) => void;
   lastContextPoint: () => { x: number; y: number } | null;
+  menuOpen: boolean;
+  setMenuOpen: (open: boolean) => void;
+  draft: FeedbackDraft;
+  setDraft: (draft: FeedbackDraft) => void;
+  resetDraft: () => void;
 };
 
 const FeedbackContext = createContext<FeedbackContextValue | null>(null);
@@ -41,9 +45,11 @@ export function useFeedback() {
   return ctx;
 }
 
+const EMPTY_DRAFT: FeedbackDraft = { kind: "bug" };
+
 export function FeedbackProvider({ children }: { children: ReactNode }) {
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [draft, setDraft] = useState<FeedbackDraft>({ kind: "bug" });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [draft, setDraft] = useState<FeedbackDraft>(EMPTY_DRAFT);
   const [pinMode, setPinMode] = useState<{
     active: boolean;
     x: number;
@@ -59,36 +65,56 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   });
   const [capturing, setCapturing] = useState(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const preserveDraftOnCloseRef = useRef(false);
 
   function revokePreview(url: string | null | undefined) {
     if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
+  }
+
+  function resetDraft() {
+    setDraft((prev) => {
+      revokePreview(prev.screenshotPreviewUrl);
+      return { kind: "bug" };
+    });
+  }
+
+  function setMenuOpenSafe(open: boolean) {
+    if (!open && !preserveDraftOnCloseRef.current) {
+      resetDraft();
+    }
+    preserveDraftOnCloseRef.current = false;
+    setMenuOpen(open);
   }
 
   function openFeedback(partial?: Partial<FeedbackDraft>) {
     setDraft((prev) => {
       const next: FeedbackDraft = {
         kind: partial?.kind ?? prev.kind ?? "bug",
-        title: partial?.title ?? "",
-        body: partial?.body ?? "",
+        title: partial?.title ?? prev.title ?? "",
+        body: partial?.body ?? prev.body ?? "",
         screenshotBlob:
           partial && "screenshotBlob" in partial
             ? (partial.screenshotBlob ?? null)
-            : null,
+            : (prev.screenshotBlob ?? null),
         screenshotPreviewUrl:
           partial && "screenshotPreviewUrl" in partial
             ? (partial.screenshotPreviewUrl ?? null)
-            : null,
+            : (prev.screenshotPreviewUrl ?? null),
       };
-      if (prev.screenshotPreviewUrl !== next.screenshotPreviewUrl) {
+      if (
+        prev.screenshotPreviewUrl &&
+        prev.screenshotPreviewUrl !== next.screenshotPreviewUrl
+      ) {
         revokePreview(prev.screenshotPreviewUrl);
       }
       return next;
     });
-    setDialogOpen(true);
+    setMenuOpen(true);
   }
 
   function startPinMode(point?: { x: number; y: number }) {
-    setDialogOpen(false);
+    preserveDraftOnCloseRef.current = true;
+    setMenuOpen(false);
     if (point) {
       setPinMode({
         active: true,
@@ -143,24 +169,16 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     startPinMode,
     recordContextPoint,
     lastContextPoint,
+    menuOpen,
+    setMenuOpen: setMenuOpenSafe,
+    draft,
+    setDraft,
+    resetDraft,
   };
 
   return (
     <FeedbackContext.Provider value={value}>
       {children}
-      <FeedbackDialog
-        open={dialogOpen}
-        draft={draft}
-        onDraftChange={setDraft}
-        onOpenChange={(open) => {
-          if (!open) {
-            revokePreview(draft.screenshotPreviewUrl);
-            setDraft({ kind: "bug" });
-          }
-          setDialogOpen(open);
-        }}
-        onStartPin={() => startPinMode()}
-      />
       {pinMode.active ? (
         <FeedbackPinOverlay
           x={pinMode.x}
@@ -169,9 +187,10 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
           awaitingClick={pinMode.awaitingClick}
           capturing={capturing}
           onChange={(next) => setPinMode((p) => ({ ...p, ...next }))}
-          onCancel={() =>
-            setPinMode((p) => ({ ...p, active: false, awaitingClick: false }))
-          }
+          onCancel={() => {
+            setPinMode((p) => ({ ...p, active: false, awaitingClick: false }));
+            setMenuOpen(true);
+          }}
           onConfirm={(pin) => void confirmPin(pin)}
         />
       ) : null}
