@@ -28,11 +28,13 @@ import { useAgentContext } from "@/features/agent/agent-context";
 import { CampaignAssociation } from "@/features/campaigns/campaign-association";
 import { CreativeVideoEditor } from "@/features/creatives/creative-video-editor";
 import { ScreenplayDocument } from "@/features/creatives/screenplay-document";
+import { WorldView } from "@/features/creatives/world-view";
 import { PerformanceChartLazy } from "@/features/reporting/performance-chart-lazy";
 import { cn } from "@/lib/utils";
 
 type CreativeTab =
   | "screenplay"
+  | "world"
   | "storyboard"
   | "video"
   | "concept"
@@ -43,7 +45,7 @@ type CreativeTab =
   | "audio"
   | "performance";
 
-const VIDEO_STAGE_ORDER = ["screenplay", "storyboard", "video"] as const;
+const VIDEO_STAGE_ORDER = ["screenplay", "world", "storyboard", "video"] as const;
 const DISPLAY_STAGE_ORDER = ["concept", "assets"] as const;
 const SEARCH_STAGE_ORDER = ["copy", "keywords"] as const;
 const AUDIO_STAGE_ORDER = ["script", "audio"] as const;
@@ -59,6 +61,8 @@ function stageLabel(stage: Creative["stage"]): string {
   switch (stage) {
     case "screenplay":
       return "Screenplay";
+    case "world":
+      return "World";
     case "storyboard":
       return "Storyboard";
     case "video":
@@ -112,13 +116,14 @@ function stageIndex(creative: Creative) {
   return (stageOrderFor(creative) as readonly string[]).indexOf(creative.stage);
 }
 
-/** User-uploaded ads skip screenplay/storyboard and land as ready video. */
+/** User-uploaded ads skip screenplay/world/storyboard and land as ready video. */
 function isUploadedCreative(creative: Creative): boolean {
   return (
     creative.kind === "video_ad" &&
     creative.stage === "video" &&
     Boolean(creative.video) &&
     !creative.screenplay &&
+    !creative.world &&
     !creative.storyboard
   );
 }
@@ -160,7 +165,12 @@ function isTabEnabled(tab: CreativeTab, creative: Creative): boolean {
   if (isUploadedCreative(creative)) {
     return tab === "video";
   }
-  if (tab !== "screenplay" && tab !== "storyboard" && tab !== "video") {
+  if (
+    tab !== "screenplay" &&
+    tab !== "world" &&
+    tab !== "storyboard" &&
+    tab !== "video"
+  ) {
     return false;
   }
   const tabIdx = VIDEO_STAGE_ORDER.indexOf(tab);
@@ -168,6 +178,7 @@ function isTabEnabled(tab: CreativeTab, creative: Creative): boolean {
   if (tabIdx < 0) return false;
   // Current and prior stages are reachable; later stages unlock once payload exists.
   if (tabIdx <= currentIdx) return true;
+  if (tab === "world") return Boolean(creative.world);
   if (tab === "storyboard") return Boolean(creative.storyboard);
   if (tab === "video") return Boolean(creative.video);
   return false;
@@ -231,6 +242,7 @@ function tabItems(creative: Creative): readonly (readonly [CreativeTab, string])
   }
   return [
     ["screenplay", "Screenplay"],
+    ["world", "World"],
     ["storyboard", "Storyboard"],
     ["video", "Video"],
     ["performance", "Performance"],
@@ -1289,6 +1301,13 @@ export function CreativeWorkspace({
                   }
                 />
               )}
+            </TabsContent>
+
+            <TabsContent value="world" className="mt-0">
+              <WorldView
+                creative={creative}
+                onCreativeChange={setCreative}
+              />
             </TabsContent>
 
             <TabsContent value="storyboard" className="mt-0">

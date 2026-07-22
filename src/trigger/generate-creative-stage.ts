@@ -8,7 +8,7 @@ import { logServerError } from "@/lib/errors";
 
 export const generateCreativeStageTask = task({
   id: "generate-creative-stage",
-  // Screenplay/storyboard are quicker; video runs Veo per scene + Remotion stitch.
+  // Screenplay/world/storyboard are quicker; video runs Veo per scene + Remotion stitch.
   maxDuration: 1200,
   // Remotion Chrome + multi-clip stitch needs more than the default small machine.
   machine: "large-1x",

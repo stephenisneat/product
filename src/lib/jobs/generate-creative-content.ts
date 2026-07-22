@@ -4,6 +4,7 @@ import type {
   Product,
   ScreenplayPayload,
   StoryboardPayload,
+  WorldPayload,
 } from "@/domain";
 import {
   screenplayPayloadSchema,
@@ -202,45 +203,118 @@ async function uploadCreativeFrameImage(opts: {
   return data.publicUrl;
 }
 
+/**
+ * Multimodal reference URLs for a storyboard still (or single-frame regen).
+ * Always reattaches the same world locks for the scene's location + cast + product.
+ */
+export function worldReferenceUrlsForScene(opts: {
+  world: WorldPayload;
+  product: Product;
+  sceneId: string;
+  characterNames: string[];
+  limit?: number;
+}): string[] {
+  const locationId = opts.world.sceneLocationIds[opts.sceneId];
+  const location = opts.world.locations.find((l) => l.id === locationId);
+  const characters = opts.world.characters.filter((c) =>
+    opts.characterNames.includes(c.name.toUpperCase()),
+  );
+  const referenceUrls: string[] = [
+    opts.world.styleLockUrl,
+    ...(location ? [location.sheetUrl] : []),
+    ...characters.map((c) => c.sheetUrl),
+    ...opts.world.productLockUrls,
+    ...opts.product.images,
+  ].filter(Boolean);
+  return [...new Set(referenceUrls)].slice(0, opts.limit ?? 8);
+}
+
+/** Characters likely visible in a scene (dialogue speaker + names mentioned in action). */
+export function charactersForScene(
+  scene: ScreenplayPayload["scenes"][number],
+  world: WorldPayload,
+): string[] {
+  const names = new Set<string>();
+  if (scene.spokenKind === "dialogue" && scene.character.trim()) {
+    names.add(scene.character.trim().toUpperCase());
+  }
+  const actionUpper = scene.action.toUpperCase();
+  for (const character of world.characters) {
+    if (actionUpper.includes(character.name.toUpperCase())) {
+      names.add(character.name.toUpperCase());
+    }
+  }
+  return [...names];
+}
+
 async function generateFrameImage(opts: {
   styleBrief: string;
   imagePrompt: string;
   product: Product;
+  world: WorldPayload;
+  sceneId: string;
+  characterNames: string[];
   workspaceId: string;
   creativeId: string;
-  sceneId: string;
   userId: string | null;
 }): Promise<string> {
-  const productImage = opts.product.images[0];
+  const locationId = opts.world.sceneLocationIds[opts.sceneId];
+  const location = opts.world.locations.find((l) => l.id === locationId);
+  const characters = opts.world.characters.filter((c) =>
+    opts.characterNames.includes(c.name.toUpperCase()),
+  );
+
+  const uniqueRefs = worldReferenceUrlsForScene({
+    world: opts.world,
+    product: opts.product,
+    sceneId: opts.sceneId,
+    characterNames: opts.characterNames,
+  });
+
+  const characterBlock =
+    characters.length > 0
+      ? characters
+          .map(
+            (c) =>
+              `- ${c.name}: ${c.appearanceSummary || [c.face, c.hair, c.wardrobe].filter(Boolean).join(", ")}`,
+          )
+          .join("\n")
+      : "- No on-camera dialogue characters required in this still.";
+
   const textPrompt = `Create a single landscape 16:9 commercial storyboard still (no collage, no text overlays, no watermarks, no UI chrome).
 
-Style: ${opts.styleBrief}
+Match the attached world reference images exactly for style grade, set design, character identity/wardrobe, and product appearance. Only change camera, action, and framing for this shot.
+
+Style bible: ${opts.styleBrief}
+${opts.world.continuityNotes?.trim() ? `Continuity: ${opts.world.continuityNotes.trim()}` : ""}
+${location ? `Location/set: ${location.name} — ${location.description}` : ""}
+Characters in frame:
+${characterBlock}
+Product: ${opts.product.title}
+${opts.world.productAppearance?.trim() ? `Product appearance lock: ${opts.world.productAppearance.trim()}` : ""}
+${opts.world.brandLock?.trim() ? `Brand: ${opts.world.brandLock.trim()}` : ""}
+${opts.product.description?.trim() ? `Product context: ${opts.product.description.trim().slice(0, 400)}` : ""}
 
 Shot: ${opts.imagePrompt}
 
-Product: ${opts.product.title}
-${opts.product.description?.trim() ? `Product context: ${opts.product.description.trim().slice(0, 400)}` : ""}
+Photoreal or polished commercial still. Do not invent new faces, wardrobes, sets, or packaging.`;
 
-Photoreal or polished commercial still. Match the product's real appearance if a reference image is provided.`;
+  const content: Array<
+    | { type: "text"; text: string }
+    | { type: "image"; image: URL }
+  > = [{ type: "text", text: textPrompt }];
+
+  for (const url of uniqueRefs) {
+    try {
+      content.push({ type: "image", image: new URL(url) });
+    } catch {
+      // Skip invalid URLs.
+    }
+  }
 
   const result = await generateText({
     model: CREATIVE_IMAGE_MODEL,
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: textPrompt },
-          ...(productImage
-            ? ([
-                {
-                  type: "image" as const,
-                  image: new URL(productImage),
-                },
-              ] as const)
-            : []),
-        ],
-      },
-    ],
+    messages: [{ role: "user", content }],
   });
 
   await maybeCharge({
@@ -269,6 +343,7 @@ Photoreal or polished commercial still. Match the product's real appearance if a
 
 export async function generateStoryboard(opts: {
   screenplay: ScreenplayPayload;
+  world: WorldPayload;
   product: Product;
   workspaceId: string;
   creativeId: string;
@@ -277,12 +352,21 @@ export async function generateStoryboard(opts: {
 }): Promise<StoryboardPayload> {
   assertAiGatewayConfigured();
 
+  const styleBrief = opts.world.styleBible.trim();
+  const castDigest = opts.world.characters
+    .map((c) => `- ${c.name}: ${c.appearanceSummary}`)
+    .join("\n");
+  const locationDigest = opts.world.locations
+    .map((l) => `- ${l.id} (${l.name}): ${l.description}`)
+    .join("\n");
+
   const sceneDigest = opts.screenplay.scenes
     .map((s) => {
       const spoken = s.dialogue
         ? ` [${s.spokenKind}${s.character ? `:${s.character}` : ""}] "${s.dialogue}"`
         : "";
-      return `- ${s.id} | ${s.heading} (${s.durationSec}s)\n  Action: ${s.action}${spoken}`;
+      const locId = opts.world.sceneLocationIds[s.id];
+      return `- ${s.id} | ${s.heading} (${s.durationSec}s) | location=${locId ?? "unknown"}\n  Action: ${s.action}${spoken}`;
     })
     .join("\n");
 
@@ -290,12 +374,27 @@ export async function generateStoryboard(opts: {
     model: CREATIVE_TEXT_MODEL,
     output: Output.object({ schema: generatedStoryboardPlanSchema }),
     system: `You plan landscape 16:9 storyboard frames for a product video ad.
+The visual world is already locked — do NOT invent new style, faces, wardrobes, or sets.
 For each screenplay scene, produce one frame with:
 - shotDescription: concrete visual description of the still
 - camera: lens/framing/movement note
-- imagePrompt: a self-contained image-generation prompt (subject, setting, lighting, wardrobe, product placement, mood). No abstract marketing language.`,
+- imagePrompt: a self-contained image-generation prompt that references the locked cast/location/product and only varies camera/action.
+Set styleBrief to the provided style bible verbatim (or a trivial copy).`,
     prompt: `Product:
 ${productContext(opts.product)}
+
+Locked style bible (use as styleBrief):
+${styleBrief}
+
+Locked cast:
+${castDigest || "(none)"}
+
+Locked locations:
+${locationDigest}
+
+Product appearance: ${opts.world.productAppearance}
+Brand: ${opts.world.brandLock}
+Continuity: ${opts.world.continuityNotes}
 
 Screenplay logline: ${opts.screenplay.logline}
 
@@ -304,7 +403,7 @@ ${sceneDigest}
 
 ${opts.revisionFeedback?.trim() ? `Revision notes: ${opts.revisionFeedback.trim()}` : ""}
 
-Return one frame per scene (matching sceneId). Include a cohesive styleBrief for the whole board.`,
+Return one frame per scene (matching sceneId).`,
   });
 
   await maybeCharge({
@@ -336,12 +435,14 @@ Return one frame per scene (matching sceneId). Include a cohesive styleBrief for
         `${scene.heading}: ${scene.action}. Landscape 16:9 commercial still featuring ${opts.product.title}.`;
 
       const imageUrl = await generateFrameImage({
-        styleBrief: plan.styleBrief,
+        styleBrief,
         imagePrompt,
         product: opts.product,
+        world: opts.world,
+        sceneId: scene.id,
+        characterNames: charactersForScene(scene, opts.world),
         workspaceId: opts.workspaceId,
         creativeId: opts.creativeId,
-        sceneId: scene.id,
         userId: opts.userId,
       });
 
@@ -355,7 +456,7 @@ Return one frame per scene (matching sceneId). Include a cohesive styleBrief for
   );
 
   return storyboardPayloadSchema.parse({
-    styleBrief: plan.styleBrief.trim(),
+    styleBrief,
     frames,
   });
 }

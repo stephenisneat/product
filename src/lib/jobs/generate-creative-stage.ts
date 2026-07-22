@@ -8,6 +8,7 @@ import {
   generateScreenplay,
   generateStoryboard,
 } from "@/lib/jobs/generate-creative-content";
+import { generateWorld } from "@/lib/jobs/generate-creative-world";
 import {
   generateDisplayAssets,
   generateDisplayConcept,
@@ -116,6 +117,28 @@ export async function runGenerateCreativeStageJob(
         stage: "screenplay",
         status: "awaiting_review",
         screenplay,
+        world: null,
+        storyboard: null,
+        video: null,
+        activeJobId: null,
+        revisionFeedback: null,
+      });
+    } else if (payload.stage === "world") {
+      if (!creative.screenplay) {
+        throw new Error("Screenplay is required before world generation.");
+      }
+      const world = await generateWorld({
+        screenplay: creative.screenplay,
+        product,
+        workspaceId: payload.workspaceId,
+        creativeId: creative.id,
+        userId: payload.createdBy,
+        revisionFeedback: feedback || null,
+      });
+      await creatives.update(creative.id, {
+        stage: "world",
+        status: "awaiting_review",
+        world,
         storyboard: null,
         video: null,
         activeJobId: null,
@@ -125,8 +148,12 @@ export async function runGenerateCreativeStageJob(
       if (!creative.screenplay) {
         throw new Error("Screenplay is required before storyboard generation.");
       }
+      if (!creative.world) {
+        throw new Error("World is required before storyboard generation.");
+      }
       const storyboard = await generateStoryboard({
         screenplay: creative.screenplay,
+        world: creative.world,
         product,
         workspaceId: payload.workspaceId,
         creativeId: creative.id,
@@ -151,6 +178,7 @@ export async function runGenerateCreativeStageJob(
       const video = await generateVideo({
         screenplay: creative.screenplay,
         storyboard: creative.storyboard,
+        world: creative.world,
         product,
         workspaceId: payload.workspaceId,
         creativeId: creative.id,

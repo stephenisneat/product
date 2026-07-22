@@ -13,6 +13,7 @@ import type {
   SearchKeywordsPayload,
   StoryboardPayload,
   VideoPayload,
+  WorldPayload,
 } from "@/domain";
 import {
   audioPayloadSchema,
@@ -25,6 +26,7 @@ import {
   searchKeywordsPayloadSchema,
   storyboardPayloadSchema,
   videoPayloadSchema,
+  worldPayloadSchema,
 } from "@/domain";
 
 type DbCreative = {
@@ -37,6 +39,7 @@ type DbCreative = {
   stage: CreativeStage;
   status: CreativeStatus;
   screenplay: unknown | null;
+  world: unknown | null;
   storyboard: unknown | null;
   video: unknown | null;
   concept: unknown | null;
@@ -56,6 +59,12 @@ type DbCreative = {
 function parseScreenplay(value: unknown): ScreenplayPayload | null {
   if (value == null) return null;
   const parsed = screenplayPayloadSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+function parseWorld(value: unknown): WorldPayload | null {
+  if (value == null) return null;
+  const parsed = worldPayloadSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
 }
 
@@ -127,6 +136,7 @@ export function mapCreative(
     stage: row.stage,
     status: row.status,
     screenplay: parseScreenplay(row.screenplay),
+    world: parseWorld(row.world),
     storyboard: parseStoryboard(row.storyboard),
     video: parseVideo(row.video),
     concept: parseConcept(row.concept),
@@ -165,6 +175,7 @@ export type CreativeUpdateInput = {
   stage?: CreativeStage;
   status?: CreativeStatus;
   screenplay?: ScreenplayPayload | null;
+  world?: WorldPayload | null;
   storyboard?: StoryboardPayload | null;
   video?: VideoPayload | null;
   concept?: DisplayConceptPayload | null;
@@ -347,6 +358,7 @@ export class SupabaseCreativeRepository {
     if (patch.stage !== undefined) row.stage = patch.stage;
     if (patch.status !== undefined) row.status = patch.status;
     if (patch.screenplay !== undefined) row.screenplay = patch.screenplay;
+    if (patch.world !== undefined) row.world = patch.world;
     if (patch.storyboard !== undefined) row.storyboard = patch.storyboard;
     if (patch.video !== undefined) row.video = patch.video;
     if (patch.concept !== undefined) row.concept = patch.concept;

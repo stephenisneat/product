@@ -676,7 +676,7 @@ export async function POST(req: Request) {
         }),
         create_video_creative: tool({
           description:
-            "Start a video ad creative pipeline (screenplay → storyboard → video) for the current product. Returns a creativeId; the user reviews each stage with Accept / Reject / Revise. Omit campaignIds unless attaching to existing campaign ids from a prior tool result — never invent campaign ids.",
+            "Start a video ad creative pipeline (screenplay → world → storyboard → video) for the current product. Returns a creativeId; the user reviews each stage with Accept / Reject / Revise. Omit campaignIds unless attaching to existing campaign ids from a prior tool result — never invent campaign ids.",
           inputSchema: z.object({
             title: z.string().trim().min(1).max(120),
             brief: z.string().trim().min(1).max(4000),
@@ -1257,7 +1257,7 @@ export async function POST(req: Request) {
       }),
       create_video_creative: tool({
         description:
-          "Start a video ad creative pipeline (screenplay → storyboard → video) for a product in the catalog. Returns a creativeId for Accept / Reject / Revise review. Omit campaignIds unless attaching to existing campaign ids from a prior tool result — never invent campaign ids.",
+          "Start a video ad creative pipeline (screenplay → world → storyboard → video) for a product in the catalog. Returns a creativeId for Accept / Reject / Revise review. Omit campaignIds unless attaching to existing campaign ids from a prior tool result — never invent campaign ids.",
         inputSchema: z.object({
           productId: z.string(),
           title: z.string().trim().min(1).max(120),

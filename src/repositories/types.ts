@@ -24,6 +24,7 @@ import type {
   SearchKeywordsPayload,
   StoryboardPayload,
   VideoPayload,
+  WorldPayload,
   Workspace,
   WorkspaceInvite,
   WorkspaceInviteRole,
@@ -129,6 +130,7 @@ export type CreativeUpdateInput = {
   stage?: CreativeStage;
   status?: CreativeStatus;
   screenplay?: ScreenplayPayload | null;
+  world?: WorldPayload | null;
   storyboard?: StoryboardPayload | null;
   video?: VideoPayload | null;
   concept?: DisplayConceptPayload | null;

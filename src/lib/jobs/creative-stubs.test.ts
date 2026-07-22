@@ -3,6 +3,7 @@ import {
   buildStubVideo,
   buildTemplateScreenplay,
   buildTemplateStoryboard,
+  buildTemplateWorld,
   nextStageAfterAccept,
 } from "@/lib/jobs/creative-stubs";
 
@@ -45,8 +46,21 @@ describe("creative stubs", () => {
     expect(video.durationSec).toBe(screenplay.targetDurationSec);
   });
 
+  it("builds a world lookbook from screenplay", () => {
+    const screenplay = buildTemplateScreenplay("Quick demo", "Widget");
+    const world = buildTemplateWorld(screenplay, "Widget");
+    expect(world.styleLockUrl).toMatch(/^https:\/\//);
+    expect(world.characters.some((c) => c.name === "MAYA")).toBe(true);
+    expect(world.locations.length).toBeGreaterThan(0);
+    expect(world.voiceCast.voiceoverId).toBeTruthy();
+    expect(Object.keys(world.sceneLocationIds)).toHaveLength(
+      screenplay.scenes.length,
+    );
+  });
+
   it("advances stages until video is accepted", () => {
-    expect(nextStageAfterAccept("screenplay")).toBe("storyboard");
+    expect(nextStageAfterAccept("screenplay")).toBe("world");
+    expect(nextStageAfterAccept("world")).toBe("storyboard");
     expect(nextStageAfterAccept("storyboard")).toBe("video");
     expect(nextStageAfterAccept("video")).toBeNull();
   });

@@ -4,16 +4,23 @@ import type {
   StoryboardPayload,
   VideoClip,
   VideoPayload,
+  WorldPayload,
 } from "@/domain";
 import { videoPayloadSchema } from "@/domain";
-import { synthesizeSceneAudio, createCreativeVoiceCast, resolveSceneVoiceId } from "@/lib/media/elevenlabs";
+import {
+  synthesizeSceneAudio,
+  createCreativeVoiceCast,
+  resolveSceneVoiceId,
+} from "@/lib/media/elevenlabs";
 import { assertElevenLabsConfigured, assertRunwayConfigured } from "@/lib/media/env";
 import { generateVeoClip } from "@/lib/media/runway";
+import { creativeVoiceCastFromWorld } from "@/lib/media/voice-cast";
 import type { CreativeAdClip } from "@/remotion/constants";
 
 export type GenerateVideoOpts = {
   screenplay: ScreenplayPayload;
   storyboard: StoryboardPayload;
+  world?: WorldPayload | null;
   product: Product;
   workspaceId: string;
   creativeId: string;
@@ -40,10 +47,16 @@ export async function generateVideo(
     opts.screenplay.scenes.map((scene) => [scene.id, scene]),
   );
 
-  const voiceCast = await createCreativeVoiceCast({
-    creativeId: opts.creativeId,
-    scenes: opts.screenplay.scenes,
-  });
+  // Prefer the world-stage cast so VO/character picks survive into video.
+  const voiceCast = opts.world?.voiceCast
+    ? creativeVoiceCastFromWorld({
+        voiceoverId: opts.world.voiceCast.voiceoverId,
+        characterVoices: opts.world.voiceCast.characterVoices,
+      })
+    : await createCreativeVoiceCast({
+        creativeId: opts.creativeId,
+        scenes: opts.screenplay.scenes,
+      });
 
   const clips: VideoClip[] = [];
 
@@ -76,6 +89,9 @@ export async function generateVideo(
       scene?.action ? `Action: ${scene.action}` : null,
       opts.storyboard.styleBrief
         ? `Style: ${opts.storyboard.styleBrief}`
+        : null,
+      opts.world?.continuityNotes
+        ? `Continuity: ${opts.world.continuityNotes}`
         : null,
     ]
       .filter(Boolean)

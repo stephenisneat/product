@@ -68,6 +68,11 @@ const patchSchema = z.discriminatedUnion("action", [
     reexport: z.boolean().optional(),
   }),
   z.object({
+    action: z.literal("update_world_voices"),
+    voiceoverId: z.string().min(1).optional(),
+    characterVoices: z.record(z.string(), z.string()).optional(),
+  }),
+  z.object({
     action: z.literal("set_external_ad_refs"),
     externalAdRefs: creativeExternalAdRefsSchema,
   }),
@@ -455,6 +460,69 @@ export async function PATCH(
 
     const creative = await creatives.getById(id);
     return NextResponse.json({ creative: creative ?? existing });
+  }
+
+  if (action === "update_world_voices") {
+    if (!existing.world) {
+      return NextResponse.json(
+        { error: "World has not been generated yet." },
+        { status: 409 },
+      );
+    }
+
+    const voiceNames = new Map<string, string>();
+    try {
+      const { listElevenLabsVoices } = await import("@/lib/media/elevenlabs");
+      const voices = await listElevenLabsVoices();
+      for (const voice of voices) {
+        voiceNames.set(voice.voiceId, voice.name?.trim() || voice.voiceId);
+      }
+    } catch {
+      // Names are best-effort; ids still persist.
+    }
+
+    const nextVoiceoverId =
+      parsed.data.voiceoverId?.trim() || existing.world.voiceCast.voiceoverId;
+    const nextCharacterVoices = {
+      ...existing.world.voiceCast.characterVoices,
+      ...(parsed.data.characterVoices ?? {}),
+    };
+    const nextCharacterVoiceNames = {
+      ...existing.world.voiceCast.characterVoiceNames,
+    };
+    for (const [name, voiceId] of Object.entries(nextCharacterVoices)) {
+      nextCharacterVoiceNames[name] =
+        voiceNames.get(voiceId) ?? nextCharacterVoiceNames[name] ?? voiceId;
+    }
+
+    const characters = existing.world.characters.map((character) => {
+      const voiceId =
+        nextCharacterVoices[character.name] ?? character.voiceId;
+      return {
+        ...character,
+        voiceId,
+        voiceName:
+          voiceNames.get(voiceId) ??
+          nextCharacterVoiceNames[character.name] ??
+          character.voiceName,
+      };
+    });
+
+    const world = {
+      ...existing.world,
+      characters,
+      voiceCast: {
+        voiceoverId: nextVoiceoverId,
+        voiceoverName:
+          voiceNames.get(nextVoiceoverId) ??
+          existing.world.voiceCast.voiceoverName,
+        characterVoices: nextCharacterVoices,
+        characterVoiceNames: nextCharacterVoiceNames,
+      },
+    };
+
+    const creative = await creatives.update(id, { world });
+    return NextResponse.json({ creative });
   }
 
   // accept

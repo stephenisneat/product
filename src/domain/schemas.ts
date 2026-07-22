@@ -780,6 +780,7 @@ export type CreativeKind = z.infer<typeof creativeKindSchema>;
 
 export const creativeStageSchema = z.enum([
   "screenplay",
+  "world",
   "storyboard",
   "video",
   "concept",
@@ -830,6 +831,57 @@ export const screenplayPayloadSchema = z.object({
   targetDurationSec: z.number().positive().default(15),
 });
 export type ScreenplayPayload = z.infer<typeof screenplayPayloadSchema>;
+
+/** Persisted ElevenLabs cast for video TTS (plain object for JSON storage). */
+export const worldVoiceCastSchema = z.object({
+  voiceoverId: z.string().min(1),
+  voiceoverName: z.string().default(""),
+  /** UPPERCASE character name → voice id */
+  characterVoices: z.record(z.string(), z.string()),
+  /** UPPERCASE character name → display name */
+  characterVoiceNames: z.record(z.string(), z.string()).default({}),
+});
+export type WorldVoiceCast = z.infer<typeof worldVoiceCastSchema>;
+
+export const worldCharacterSchema = z.object({
+  name: z.string().min(1),
+  ageRange: z.string().default(""),
+  presentation: z.string().default(""),
+  face: z.string().default(""),
+  hair: z.string().default(""),
+  wardrobe: z.string().default(""),
+  distinguishingMarks: z.string().default(""),
+  appearanceSummary: z.string().default(""),
+  sheetUrl: z.string().url(),
+  voiceId: z.string().min(1),
+  voiceName: z.string().default(""),
+});
+export type WorldCharacter = z.infer<typeof worldCharacterSchema>;
+
+export const worldLocationSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().default(""),
+  interiorExterior: z.enum(["interior", "exterior", "mixed"]).default("mixed"),
+  timeOfDay: z.string().default(""),
+  sheetUrl: z.string().url(),
+});
+export type WorldLocation = z.infer<typeof worldLocationSchema>;
+
+export const worldPayloadSchema = z.object({
+  styleBible: z.string().min(1),
+  styleLockUrl: z.string().url(),
+  characters: z.array(worldCharacterSchema).default([]),
+  locations: z.array(worldLocationSchema).default([]),
+  /** screenplay sceneId → location id */
+  sceneLocationIds: z.record(z.string(), z.string()).default({}),
+  productAppearance: z.string().default(""),
+  productLockUrls: z.array(z.string().url()).default([]),
+  brandLock: z.string().default(""),
+  continuityNotes: z.string().default(""),
+  voiceCast: worldVoiceCastSchema,
+});
+export type WorldPayload = z.infer<typeof worldPayloadSchema>;
 
 export const storyboardFrameSchema = z.object({
   sceneId: z.string(),
@@ -968,6 +1020,7 @@ export const creativeSchema = z.object({
   stage: creativeStageSchema,
   status: creativeStatusSchema,
   screenplay: screenplayPayloadSchema.nullable(),
+  world: worldPayloadSchema.nullable(),
   storyboard: storyboardPayloadSchema.nullable(),
   video: videoPayloadSchema.nullable(),
   concept: displayConceptPayloadSchema.nullable(),
@@ -1105,6 +1158,7 @@ export type Insight = z.infer<typeof insightSchema>;
 export const jobRunTypeSchema = z.enum([
   "create_campaign",
   "generate_creative_screenplay",
+  "generate_creative_world",
   "generate_creative_storyboard",
   "generate_creative_video",
   "generate_creative_concept",

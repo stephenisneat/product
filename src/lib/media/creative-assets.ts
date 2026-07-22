@@ -116,6 +116,30 @@ export async function uploadDisplayCreativeImage(opts: {
   });
 }
 
+/** Style / cast / location / product lock sheets for the world stage. */
+export async function uploadCreativeWorldSheet(opts: {
+  workspaceId: string;
+  creativeId: string;
+  kind: string;
+  bytes: Uint8Array;
+  contentType?: string;
+}): Promise<string> {
+  const ext = opts.contentType?.includes("jpeg")
+    ? "jpg"
+    : opts.contentType?.includes("webp")
+      ? "webp"
+      : "png";
+  const safeKind = opts.kind.replace(/[^a-zA-Z0-9_-]+/g, "-").slice(0, 48);
+  return uploadBytes({
+    workspaceId: opts.workspaceId,
+    creativeId: opts.creativeId,
+    folder: "world",
+    filename: `${safeKind}-${crypto.randomUUID().slice(0, 8)}.${ext}`,
+    bytes: opts.bytes,
+    contentType: opts.contentType || "image/png",
+  });
+}
+
 export async function downloadUrlToBytes(url: string): Promise<{
   bytes: Uint8Array;
   contentType: string | null;

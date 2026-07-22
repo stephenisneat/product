@@ -75,6 +75,8 @@ function typeLabel(type: JobRun["type"]): string {
       return "Create campaign";
     case "generate_creative_screenplay":
       return "Generate screenplay";
+    case "generate_creative_world":
+      return "Generate world";
     case "generate_creative_storyboard":
       return "Generate storyboard";
     case "generate_creative_video":

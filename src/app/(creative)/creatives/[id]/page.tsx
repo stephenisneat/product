@@ -6,6 +6,7 @@ import { getCreativeRepository, getProductRepository } from "@/repositories";
 
 const CREATIVE_TABS = [
   "screenplay",
+  "world",
   "storyboard",
   "video",
   "concept",

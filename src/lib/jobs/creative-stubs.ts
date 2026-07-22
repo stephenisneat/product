@@ -3,6 +3,7 @@ import type {
   ScreenplayPayload,
   StoryboardPayload,
   VideoPayload,
+  WorldPayload,
 } from "@/domain";
 
 /** Public sample clip used as a stub rendered video. */
@@ -10,9 +11,11 @@ const STUB_VIDEO_URL =
   "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4";
 const STUB_THUMBNAIL_URL =
   "https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerEscapes.jpg";
+const STUB_SHEET_URL =
+  "https://placehold.co/1280x720/1a1a1a/f5f5f5/png?text=World";
 
 /**
- * Deterministic screenplay / storyboard / video builders for **unit tests only**.
+ * Deterministic screenplay / world / storyboard / video builders for **unit tests only**.
  * Production generation requires AI Gateway, ElevenLabs, and Runway — there is
  * intentionally no offline stub fallback in job runners.
  */
@@ -85,8 +88,97 @@ export function buildTemplateScreenplay(
   };
 }
 
+export function buildTemplateWorld(
+  screenplay: ScreenplayPayload,
+  productTitle?: string,
+): WorldPayload {
+  const subject = productTitle?.trim() || "the product";
+  const characters = [
+    ...new Set(
+      screenplay.scenes
+        .filter((s) => s.spokenKind === "dialogue" && s.character.trim())
+        .map((s) => s.character.trim().toUpperCase()),
+    ),
+  ].map((name) => ({
+    name,
+    ageRange: "30s",
+    presentation: "feminine",
+    face: "warm open expression, soft features",
+    hair: "shoulder-length dark hair",
+    wardrobe: "navy cardigan over cream tee",
+    distinguishingMarks: "small silver hoop earrings",
+    appearanceSummary: `${name}, 30s, navy cardigan, warm open expression`,
+    sheetUrl: `${STUB_SHEET_URL}+${encodeURIComponent(name)}`,
+    voiceId: "stub-voice-maya",
+    voiceName: "Stub Maya",
+  }));
+
+  const locations = [
+    {
+      id: "loc-sidewalk",
+      name: "City sidewalk",
+      description: "Urban sidewalk near subway entrance, daylight, concrete.",
+      interiorExterior: "exterior" as const,
+      timeOfDay: "day",
+      sheetUrl: `${STUB_SHEET_URL}+Sidewalk`,
+    },
+    {
+      id: "loc-kitchen",
+      name: "Studio kitchen",
+      description: "Bright kitchen with soft window light and clean counters.",
+      interiorExterior: "interior" as const,
+      timeOfDay: "day",
+      sheetUrl: `${STUB_SHEET_URL}+Kitchen`,
+    },
+    {
+      id: "loc-entryway",
+      name: "Entryway",
+      description: "Quiet residential entryway at night, console table, plant.",
+      interiorExterior: "interior" as const,
+      timeOfDay: "night",
+      sheetUrl: `${STUB_SHEET_URL}+Entryway`,
+    },
+  ];
+
+  const sceneLocationIds: Record<string, string> = {};
+  for (const scene of screenplay.scenes) {
+    const heading = scene.heading.toUpperCase();
+    if (heading.includes("SIDEWALK") || heading.includes("EXT.")) {
+      sceneLocationIds[scene.id] = "loc-sidewalk";
+    } else if (heading.includes("ENTRY")) {
+      sceneLocationIds[scene.id] = "loc-entryway";
+    } else {
+      sceneLocationIds[scene.id] = "loc-kitchen";
+    }
+  }
+
+  return {
+    styleBible:
+      "Clean commercial aesthetic, high-contrast soft window light, landscape 16:9, modern product-ad grade.",
+    styleLockUrl: `${STUB_SHEET_URL}+Style`,
+    characters,
+    locations,
+    sceneLocationIds,
+    productAppearance: `${subject}: match packaging and label from product photos exactly.`,
+    productLockUrls: [`${STUB_SHEET_URL}+Product`],
+    brandLock: subject,
+    continuityNotes: "MAYA always wears navy cardigan; product label faces camera.",
+    voiceCast: {
+      voiceoverId: "stub-voice-vo",
+      voiceoverName: "Stub Narrator",
+      characterVoices: Object.fromEntries(
+        characters.map((c) => [c.name, c.voiceId]),
+      ),
+      characterVoiceNames: Object.fromEntries(
+        characters.map((c) => [c.name, c.voiceName]),
+      ),
+    },
+  };
+}
+
 export function buildTemplateStoryboard(
   screenplay: ScreenplayPayload,
+  world?: WorldPayload | null,
 ): StoryboardPayload {
   const frames = screenplay.scenes.map((scene, index) => ({
     sceneId: scene.id,
@@ -102,6 +194,7 @@ export function buildTemplateStoryboard(
 
   return {
     styleBrief:
+      world?.styleBible ??
       "Clean commercial aesthetic, high-contrast lighting, landscape 16:9, modern product-ad pacing.",
     frames,
   };
@@ -131,6 +224,8 @@ export function jobTypeForStage(stage: CreativeStage) {
   switch (stage) {
     case "screenplay":
       return "generate_creative_screenplay" as const;
+    case "world":
+      return "generate_creative_world" as const;
     case "storyboard":
       return "generate_creative_storyboard" as const;
     case "video":
@@ -155,6 +250,8 @@ export function nextStageAfterAccept(
 ): CreativeStage | null {
   switch (stage) {
     case "screenplay":
+      return "world";
+    case "world":
       return "storyboard";
     case "storyboard":
       return "video";

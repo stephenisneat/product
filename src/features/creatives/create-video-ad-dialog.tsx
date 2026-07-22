@@ -128,7 +128,7 @@ export function CreateVideoAdDialog({
           <DialogHeader>
             <DialogTitle>Create video ad</DialogTitle>
             <DialogDescription>
-              Generate a screenplay → storyboard → video pipeline for a product.
+              Generate a screenplay → world → storyboard → video pipeline for a product.
             </DialogDescription>
           </DialogHeader>
 
