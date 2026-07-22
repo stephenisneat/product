@@ -4,13 +4,18 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckIcon,
-  ChevronDownIcon,
   ListFilterIcon,
   PlusIcon,
   SearchIcon,
   XIcon,
 } from "@/components/icons";
 import type { Creative, CreativeStatus } from "@/domain";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -57,57 +62,6 @@ function matchesQuery(creative: Creative, query: string) {
   return (
     creative.title.toLowerCase().includes(q) ||
     creative.brief.toLowerCase().includes(q)
-  );
-}
-
-function CreativeStatusGroup({
-  status,
-  creatives,
-  onDeleted,
-}: {
-  status: CreativeStatus;
-  creatives: Creative[];
-  onDeleted: (id: string) => void;
-}) {
-  const [open, setOpen] = useState(true);
-  const label = CREATIVE_STATUS_LABELS[status];
-
-  return (
-    <section className="space-y-3">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-        className="flex w-full items-center gap-2 rounded-md py-1 text-left outline-none hover:bg-muted/50 focus-visible:bg-muted/50"
-      >
-        <ChevronDownIcon
-          className={cn(
-            "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
-            !open && "-rotate-90",
-          )}
-          aria-hidden
-        />
-        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          {label}
-        </h2>
-        <span className="text-xs tabular-nums text-muted-foreground">
-          {creatives.length}
-        </span>
-      </button>
-      {open ? (
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {creatives.map((creative) => (
-            <li key={creative.id}>
-              <CreativeCard
-                creative={creative}
-                pollWhileGenerating={false}
-                onDeleted={onDeleted}
-              />
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </section>
   );
 }
 
@@ -292,16 +246,39 @@ export function CreativesList({
           </p>
         </div>
       ) : (
-        <div className="space-y-8">
+        <Accordion
+          multiple
+          defaultValue={[...CREATIVE_STATUS_ORDER]}
+          className="w-full"
+        >
           {grouped.map((group) => (
-            <CreativeStatusGroup
-              key={group.status}
-              status={group.status}
-              creatives={group.creatives}
-              onDeleted={handleDeleted}
-            />
+            <AccordionItem key={group.status} value={group.status}>
+              <AccordionTrigger className="hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                    {CREATIVE_STATUS_LABELS[group.status]}
+                  </span>
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    {group.creatives.length}
+                  </span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="pb-4 [&_a]:no-underline">
+                <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {group.creatives.map((creative) => (
+                    <li key={creative.id}>
+                      <CreativeCard
+                        creative={creative}
+                        pollWhileGenerating={false}
+                        onDeleted={handleDeleted}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
           ))}
-        </div>
+        </Accordion>
       )}
     </>
   );

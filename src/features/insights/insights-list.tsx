@@ -3,9 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import type { Insight, InsightKind, InsightStatus } from "@/domain";
-import { ChevronDownIcon } from "@/components/icons";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { InsightCard } from "@/features/insights/insight-card";
-import { cn } from "@/lib/utils";
 
 export type InsightsSortKey =
   | "newest"
@@ -64,66 +68,6 @@ function filterInsights(
 ): Insight[] {
   if (status === "all") return list;
   return list.filter((i) => i.status === (status as InsightStatus));
-}
-
-function InsightKindGroup({
-  kind,
-  insights,
-  productTitleById,
-  goalTitleById,
-}: {
-  kind: InsightKind;
-  insights: Insight[];
-  productTitleById: Record<string, string>;
-  goalTitleById: Record<string, string>;
-}) {
-  const [open, setOpen] = useState(true);
-  const label = INSIGHT_KIND_LABELS[kind];
-
-  return (
-    <section className="space-y-3">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-        className="flex w-full items-center gap-2 rounded-md py-1 text-left outline-none hover:bg-muted/50 focus-visible:bg-muted/50"
-      >
-        <ChevronDownIcon
-          className={cn(
-            "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
-            !open && "-rotate-90",
-          )}
-          aria-hidden
-        />
-        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          {label}
-        </h2>
-        <span className="text-xs tabular-nums text-muted-foreground">
-          {insights.length}
-        </span>
-      </button>
-      {open ? (
-        <ul className="space-y-3">
-          {insights.map((insight) => (
-            <li key={insight.id}>
-              <InsightCard
-                insight={insight}
-                pollWhileGenerating={false}
-                productTitle={
-                  insight.productId
-                    ? productTitleById[insight.productId] ?? null
-                    : null
-                }
-                goalTitle={
-                  insight.goalId ? goalTitleById[insight.goalId] ?? null : null
-                }
-              />
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </section>
-  );
 }
 
 /**
@@ -202,16 +146,47 @@ export function InsightsList({
   }
 
   return (
-    <div className="space-y-6">
+    <Accordion
+      multiple
+      defaultValue={[...INSIGHT_KIND_ORDER]}
+      className="w-full"
+    >
       {groups.map((group) => (
-        <InsightKindGroup
-          key={group.kind}
-          kind={group.kind}
-          insights={group.insights}
-          productTitleById={productTitleById}
-          goalTitleById={goalTitleById}
-        />
+        <AccordionItem key={group.kind} value={group.kind}>
+          <AccordionTrigger className="hover:no-underline">
+            <span className="flex items-center gap-2">
+              <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                {INSIGHT_KIND_LABELS[group.kind]}
+              </span>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {group.insights.length}
+              </span>
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="pb-4 [&_a]:no-underline">
+            <ul className="space-y-3">
+              {group.insights.map((insight) => (
+                <li key={insight.id}>
+                  <InsightCard
+                    insight={insight}
+                    pollWhileGenerating={false}
+                    productTitle={
+                      insight.productId
+                        ? productTitleById[insight.productId] ?? null
+                        : null
+                    }
+                    goalTitle={
+                      insight.goalId
+                        ? goalTitleById[insight.goalId] ?? null
+                        : null
+                    }
+                  />
+                </li>
+              ))}
+            </ul>
+          </AccordionContent>
+        </AccordionItem>
       ))}
-    </div>
+    </Accordion>
   );
 }

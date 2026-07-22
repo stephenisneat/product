@@ -5,13 +5,18 @@ import Link from "next/link";
 import {
   ArrowUpDownIcon,
   CheckIcon,
-  ChevronDownIcon,
   ListFilterIcon,
   PlusIcon,
   SearchIcon,
   XIcon,
 } from "@/components/icons";
 import type { Product, ProductStatus } from "@/domain";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -161,49 +166,6 @@ function ProductCard({ product }: { product: Product }) {
         </div>
       </Link>
     </li>
-  );
-}
-
-function CatalogStatusGroup({
-  status,
-  products,
-}: {
-  status: CatalogStatus;
-  products: Product[];
-}) {
-  const [open, setOpen] = useState(true);
-  const label = CATALOG_STATUS_LABELS[status];
-
-  return (
-    <section className="space-y-3">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-        className="flex w-full items-center gap-2 rounded-md py-1 text-left outline-none hover:bg-muted/50 focus-visible:bg-muted/50"
-      >
-        <ChevronDownIcon
-          className={cn(
-            "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
-            !open && "-rotate-90",
-          )}
-          aria-hidden
-        />
-        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          {label}
-        </h2>
-        <span className="text-xs tabular-nums text-muted-foreground">
-          {products.length}
-        </span>
-      </button>
-      {open ? (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </ul>
-      ) : null}
-    </section>
   );
 }
 
@@ -401,15 +363,33 @@ export function ProductCatalog({
             </p>
           </div>
         ) : (
-          <div className="space-y-8">
+          <Accordion
+            multiple
+            defaultValue={[...CATALOG_STATUS_ORDER]}
+            className="w-full"
+          >
             {grouped.map((group) => (
-              <CatalogStatusGroup
-                key={group.status}
-                status={group.status}
-                products={group.products}
-              />
+              <AccordionItem key={group.status} value={group.status}>
+                <AccordionTrigger className="hover:no-underline">
+                  <span className="flex items-center gap-2">
+                    <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                      {CATALOG_STATUS_LABELS[group.status]}
+                    </span>
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      {group.products.length}
+                    </span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4 [&_a]:no-underline">
+                  <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {group.products.map((product) => (
+                      <ProductCard key={product.id} product={product} />
+                    ))}
+                  </ul>
+                </AccordionContent>
+              </AccordionItem>
             ))}
-          </div>
+          </Accordion>
         )}
       </div>
     </PageCanvas>
