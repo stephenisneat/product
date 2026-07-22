@@ -8,6 +8,7 @@ import { normalizeWorkspacePlan } from "@/lib/billing/entitlements";
 import { logServerError, unknownErrorMessage } from "@/lib/errors";
 import { reconcileCreativesAgainstTrigger } from "@/lib/jobs/creative-job-controls";
 import {
+  startAudioCreative,
   startDisplayCreative,
   startSearchCreative,
   startVideoCreative,
@@ -87,7 +88,9 @@ export async function POST(req: Request) {
         ? startDisplayCreative
         : parsed.data.kind === "search_ad"
           ? startSearchCreative
-          : startVideoCreative;
+          : parsed.data.kind === "audio_ad"
+            ? startAudioCreative
+            : startVideoCreative;
     const { creative, job } = await start({
       workspaceId: active.workspace.id,
       productId: product.id,

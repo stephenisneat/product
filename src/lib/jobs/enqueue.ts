@@ -89,6 +89,7 @@ export type StartVideoCreativeInput = {
 
 export type StartDisplayCreativeInput = StartVideoCreativeInput;
 export type StartSearchCreativeInput = StartVideoCreativeInput;
+export type StartAudioCreativeInput = StartVideoCreativeInput;
 
 function hasTriggerSecret(): boolean {
   return Boolean(process.env.TRIGGER_SECRET_KEY);
@@ -456,6 +457,77 @@ export async function startSearchCreative(
       "Failed to start search creative.",
     );
     logServerError("startSearchCreative", err, {
+      creativeId: creative.id,
+      workspaceId: opts.workspaceId,
+      productId: opts.productId,
+      plan: opts.plan,
+      hasTriggerSecret: hasTriggerSecret(),
+    });
+    await creatives.update(creative.id, {
+      status: "paused",
+      activeJobId: null,
+    });
+    throw new Error(message, { cause: err });
+  }
+}
+
+/** Create an audio ad creative and enqueue script generation. */
+export async function startAudioCreative(
+  opts: StartAudioCreativeInput,
+): Promise<{ creative: Creative; job: JobRun }> {
+  if (!hasServiceRole()) {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY is required to start creatives.",
+    );
+  }
+
+  const creatives = getCreativeWriteRepository();
+  const campaignIds = await resolveProductCampaignIds(
+    opts.productId,
+    normalizeCampaignIds({
+      campaignIds: opts.campaignIds,
+      campaignId: opts.campaignId,
+    }),
+  );
+
+  await assertCanLinkCreativesToCampaigns({
+    plan: opts.plan,
+    campaignIds,
+    countByCampaign: (id) => creatives.countByCampaign(id),
+  });
+
+  const creative = await creatives.create({
+    workspaceId: opts.workspaceId,
+    productId: opts.productId,
+    campaignIds,
+    kind: "audio_ad",
+    title: opts.title,
+    brief: opts.brief,
+    stage: "script",
+    status: "generating",
+    createdBy: opts.createdBy,
+  });
+
+  try {
+    const job = await enqueueGenerateCreativeStageJob({
+      workspaceId: opts.workspaceId,
+      createdBy: opts.createdBy,
+      trigger: opts.trigger,
+      input: {
+        creativeId: creative.id,
+        productId: opts.productId,
+        stage: "script",
+      },
+    });
+    const refreshed = await creatives.getById(creative.id);
+    return { creative: refreshed ?? creative, job };
+  } catch (err) {
+    if (err instanceof PlanEntitlementError) throw err;
+    const message = unknownErrorMessage(
+      err,
+      "Failed to start audio creative.",
+    );
+    logServerError("startAudioCreative", err, {
       creativeId: creative.id,
       workspaceId: opts.workspaceId,
       productId: opts.productId,

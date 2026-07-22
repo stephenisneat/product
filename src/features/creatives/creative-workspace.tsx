@@ -39,15 +39,19 @@ type CreativeTab =
   | "assets"
   | "copy"
   | "keywords"
+  | "script"
+  | "audio"
   | "performance";
 
 const VIDEO_STAGE_ORDER = ["screenplay", "storyboard", "video"] as const;
 const DISPLAY_STAGE_ORDER = ["concept", "assets"] as const;
 const SEARCH_STAGE_ORDER = ["copy", "keywords"] as const;
+const AUDIO_STAGE_ORDER = ["script", "audio"] as const;
 
 function stageOrderFor(creative: Creative) {
   if (creative.kind === "display_ad") return DISPLAY_STAGE_ORDER;
   if (creative.kind === "search_ad") return SEARCH_STAGE_ORDER;
+  if (creative.kind === "audio_ad") return AUDIO_STAGE_ORDER;
   return VIDEO_STAGE_ORDER;
 }
 
@@ -67,6 +71,10 @@ function stageLabel(stage: Creative["stage"]): string {
       return "Copy";
     case "keywords":
       return "Keywords";
+    case "script":
+      return "Script";
+    case "audio":
+      return "Audio";
   }
 }
 
@@ -76,6 +84,8 @@ function kindBadgeLabel(kind: Creative["kind"]): string {
       return "Display";
     case "search_ad":
       return "Search";
+    case "audio_ad":
+      return "Audio";
     default:
       return "Video";
   }
@@ -137,6 +147,16 @@ function isTabEnabled(tab: CreativeTab, creative: Creative): boolean {
     if (tab === "keywords") return Boolean(creative.keywords);
     return false;
   }
+  if (creative.kind === "audio_ad") {
+    if (tab !== "script" && tab !== "audio") return false;
+    const order = AUDIO_STAGE_ORDER;
+    const tabIdx = order.indexOf(tab);
+    const currentIdx = stageIndex(creative);
+    if (tabIdx < 0) return false;
+    if (tabIdx <= currentIdx) return true;
+    if (tab === "audio") return Boolean(creative.audio);
+    return false;
+  }
   if (isUploadedCreative(creative)) {
     return tab === "video";
   }
@@ -167,6 +187,12 @@ function defaultTab(creative: Creative): CreativeTab {
     }
     return "copy";
   }
+  if (creative.kind === "audio_ad") {
+    if (isTabEnabled(creative.stage as CreativeTab, creative)) {
+      return creative.stage as CreativeTab;
+    }
+    return "script";
+  }
   if (isUploadedCreative(creative)) return "video";
   if (isTabEnabled(creative.stage as CreativeTab, creative)) {
     return creative.stage as CreativeTab;
@@ -190,6 +216,13 @@ function tabItems(creative: Creative): readonly (readonly [CreativeTab, string])
       ["performance", "Performance"],
     ] as const;
   }
+  if (creative.kind === "audio_ad") {
+    return [
+      ["script", "Script"],
+      ["audio", "Audio"],
+      ["performance", "Performance"],
+    ] as const;
+  }
   if (isUploadedCreative(creative)) {
     return [
       ["video", "Video"],
@@ -207,6 +240,7 @@ function tabItems(creative: Creative): readonly (readonly [CreativeTab, string])
 function primaryBriefTab(creative: Creative): CreativeTab {
   if (creative.kind === "display_ad") return "concept";
   if (creative.kind === "search_ad") return "copy";
+  if (creative.kind === "audio_ad") return "script";
   return "screenplay";
 }
 
@@ -565,6 +599,111 @@ function KeywordsView({ creative }: { creative: Creative }) {
           </ul>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function ScriptView({ creative }: { creative: Creative }) {
+  const script = creative.script;
+  if (!script) {
+    return (
+      <StageEmptyState
+        label="Script"
+        generating={
+          creative.stage === "script" && creative.status === "generating"
+        }
+        paused={creative.stage === "script" && creative.status === "paused"}
+      />
+    );
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-8 px-4 py-8">
+      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+        <span>~{script.targetDurationSec}s</span>
+        {script.musicBed ? <span>Bed: {script.musicBed}</span> : null}
+      </div>
+
+      <div className="space-y-1">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Voice direction
+        </p>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {script.voiceDirection}
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Hook
+        </p>
+        <p className="rounded-md border border-border px-3 py-2 text-sm">
+          {script.hook}
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Body
+        </p>
+        <p className="rounded-md border border-border px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap">
+          {script.body}
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          CTA
+        </p>
+        <p className="rounded-md border border-border px-3 py-2 text-sm">
+          {script.cta}
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Full script
+        </p>
+        <pre className="rounded-md border border-border bg-muted/30 px-3 py-3 font-mono text-sm leading-relaxed whitespace-pre-wrap">
+          {script.fullScript}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+function AudioSpotView({ creative }: { creative: Creative }) {
+  const audio = creative.audio;
+  if (!audio) {
+    return (
+      <StageEmptyState
+        label="Audio"
+        generating={
+          creative.stage === "audio" && creative.status === "generating"
+        }
+        paused={creative.stage === "audio" && creative.status === "paused"}
+      />
+    );
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8">
+      <div className="space-y-2">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Spot · ~{audio.durationSec}s
+        </p>
+        <audio controls preload="metadata" className="w-full" src={audio.url}>
+          <track kind="captions" />
+        </audio>
+      </div>
+      <div className="space-y-2">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Transcript
+        </p>
+        <pre className="rounded-md border border-border px-3 py-3 font-mono text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
+          {audio.transcript}
+        </pre>
+      </div>
     </div>
   );
 }
@@ -1174,6 +1313,14 @@ export function CreativeWorkspace({
 
             <TabsContent value="keywords" className="mt-0">
               <KeywordsView creative={creative} />
+            </TabsContent>
+
+            <TabsContent value="script" className="mt-0">
+              <ScriptView creative={creative} />
+            </TabsContent>
+
+            <TabsContent value="audio" className="mt-0">
+              <AudioSpotView creative={creative} />
             </TabsContent>
 
             <TabsContent value="performance" className="mt-0">

@@ -23,6 +23,8 @@ function kindBadgeLabel(kind: Creative["kind"]): string {
       return "Display";
     case "search_ad":
       return "Search";
+    case "audio_ad":
+      return "Audio";
     default:
       return "Video";
   }
@@ -67,6 +69,19 @@ function CreativePreviewMedia({ creative }: { creative: Creative }) {
         </p>
         <p className="mt-1.5 line-clamp-3 text-[10px] leading-relaxed text-muted-foreground">
           {creative.copy.descriptions[0]}
+        </p>
+      </div>
+    );
+  }
+
+  if (creative.script) {
+    return (
+      <div className="flex size-full flex-col justify-end bg-gradient-to-b from-muted/40 to-muted/80 p-3">
+        <p className="line-clamp-2 text-xs font-medium text-foreground">
+          {creative.script.hook}
+        </p>
+        <p className="mt-1.5 line-clamp-3 text-[10px] leading-relaxed text-muted-foreground">
+          {creative.script.cta}
         </p>
       </div>
     );

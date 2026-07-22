@@ -143,6 +143,10 @@ export function jobTypeForStage(stage: CreativeStage) {
       return "generate_creative_copy" as const;
     case "keywords":
       return "generate_creative_keywords" as const;
+    case "script":
+      return "generate_creative_script" as const;
+    case "audio":
+      return "generate_creative_audio" as const;
   }
 }
 
@@ -163,6 +167,10 @@ export function nextStageAfterAccept(
     case "copy":
       return "keywords";
     case "keywords":
+      return null;
+    case "script":
+      return "audio";
+    case "audio":
       return null;
   }
 }

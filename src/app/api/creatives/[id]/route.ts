@@ -89,7 +89,9 @@ function revisePrompt(creative: Creative, feedback?: string): string {
       ? "display"
       : creative.kind === "search_ad"
         ? "search"
-        : "video";
+        : creative.kind === "audio_ad"
+          ? "audio"
+          : "video";
   const notes = feedback?.trim();
   const base = `Revise the ${creative.stage} for ${kindLabel} creative "${creative.title}" (id ${creative.id}).`;
   if (notes) {

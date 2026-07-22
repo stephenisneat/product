@@ -8,6 +8,8 @@ import type {
   CreativeExternalAdRefs,
   CreativeStage,
   CreativeStatus,
+  AudioPayload,
+  AudioScriptPayload,
   DisplayAssetsPayload,
   DisplayConceptPayload,
   JobRun,
@@ -133,6 +135,8 @@ export type CreativeUpdateInput = {
   assets?: DisplayAssetsPayload | null;
   copy?: SearchCopyPayload | null;
   keywords?: SearchKeywordsPayload | null;
+  script?: AudioScriptPayload | null;
+  audio?: AudioPayload | null;
   revisionFeedback?: string | null;
   externalAdRefs?: CreativeExternalAdRefs;
   activeJobId?: string | null;

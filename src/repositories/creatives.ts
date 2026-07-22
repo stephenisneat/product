@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
+  AudioPayload,
+  AudioScriptPayload,
   Creative,
   CreativeExternalAdRefs,
   CreativeStage,
@@ -13,6 +15,8 @@ import type {
   VideoPayload,
 } from "@/domain";
 import {
+  audioPayloadSchema,
+  audioScriptPayloadSchema,
   creativeExternalAdRefsSchema,
   displayAssetsPayloadSchema,
   displayConceptPayloadSchema,
@@ -39,6 +43,8 @@ type DbCreative = {
   assets: unknown | null;
   copy: unknown | null;
   keywords: unknown | null;
+  script: unknown | null;
+  audio: unknown | null;
   revision_feedback: string | null;
   external_ad_refs: unknown | null;
   active_job_id: string | null;
@@ -89,6 +95,18 @@ function parseKeywords(value: unknown): SearchKeywordsPayload | null {
   return parsed.success ? parsed.data : null;
 }
 
+function parseScript(value: unknown): AudioScriptPayload | null {
+  if (value == null) return null;
+  const parsed = audioScriptPayloadSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+function parseAudio(value: unknown): AudioPayload | null {
+  if (value == null) return null;
+  const parsed = audioPayloadSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
 function parseExternalAdRefs(value: unknown): CreativeExternalAdRefs {
   const parsed = creativeExternalAdRefsSchema.safeParse(value ?? {});
   return parsed.success ? parsed.data : {};
@@ -115,6 +133,8 @@ export function mapCreative(
     assets: parseAssets(row.assets),
     copy: parseCopy(row.copy),
     keywords: parseKeywords(row.keywords),
+    script: parseScript(row.script),
+    audio: parseAudio(row.audio),
     revisionFeedback: row.revision_feedback,
     externalAdRefs: parseExternalAdRefs(row.external_ad_refs),
     activeJobId: row.active_job_id,
@@ -151,6 +171,8 @@ export type CreativeUpdateInput = {
   assets?: DisplayAssetsPayload | null;
   copy?: SearchCopyPayload | null;
   keywords?: SearchKeywordsPayload | null;
+  script?: AudioScriptPayload | null;
+  audio?: AudioPayload | null;
   revisionFeedback?: string | null;
   externalAdRefs?: CreativeExternalAdRefs;
   activeJobId?: string | null;
@@ -331,6 +353,8 @@ export class SupabaseCreativeRepository {
     if (patch.assets !== undefined) row.assets = patch.assets;
     if (patch.copy !== undefined) row.copy = patch.copy;
     if (patch.keywords !== undefined) row.keywords = patch.keywords;
+    if (patch.script !== undefined) row.script = patch.script;
+    if (patch.audio !== undefined) row.audio = patch.audio;
     if (patch.revisionFeedback !== undefined) {
       row.revision_feedback = patch.revisionFeedback;
     }

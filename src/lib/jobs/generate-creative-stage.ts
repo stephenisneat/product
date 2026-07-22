@@ -13,6 +13,10 @@ import {
   generateDisplayConcept,
 } from "@/lib/jobs/generate-display-creative-content";
 import {
+  generateAudioScript,
+  generateAudioSpot,
+} from "@/lib/jobs/generate-audio-creative-content";
+import {
   generateSearchCopy,
   generateSearchKeywords,
 } from "@/lib/jobs/generate-search-creative-content";
@@ -242,6 +246,45 @@ export async function runGenerateCreativeStageJob(
         stage: "keywords",
         status: "awaiting_review",
         keywords,
+        activeJobId: null,
+        revisionFeedback: null,
+      });
+    } else if (payload.stage === "script") {
+      if (creative.kind !== "audio_ad") {
+        throw new Error("Script stage is only valid for audio ads.");
+      }
+      const intelligence = await products.getIntelligence(payload.productId);
+      const script = await generateAudioScript({
+        brief: briefForGen,
+        product,
+        intelligence,
+        workspaceId: payload.workspaceId,
+        userId: payload.createdBy,
+      });
+      await creatives.update(creative.id, {
+        stage: "script",
+        status: "awaiting_review",
+        script,
+        audio: null,
+        activeJobId: null,
+        revisionFeedback: null,
+      });
+    } else if (payload.stage === "audio") {
+      if (creative.kind !== "audio_ad") {
+        throw new Error("Audio stage is only valid for audio ads.");
+      }
+      if (!creative.script) {
+        throw new Error("Script is required before audio generation.");
+      }
+      const audio = await generateAudioSpot({
+        script: creative.script,
+        workspaceId: payload.workspaceId,
+        creativeId: creative.id,
+      });
+      await creatives.update(creative.id, {
+        stage: "audio",
+        status: "awaiting_review",
+        audio,
         activeJobId: null,
         revisionFeedback: null,
       });

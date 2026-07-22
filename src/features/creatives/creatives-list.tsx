@@ -11,6 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { CreateAudioAdDialog } from "@/features/creatives/create-audio-ad-dialog";
 import { CreateDisplayAdDialog } from "@/features/creatives/create-display-ad-dialog";
 import { CreateSearchAdDialog } from "@/features/creatives/create-search-ad-dialog";
 import { CreateVideoAdDialog } from "@/features/creatives/create-video-ad-dialog";
@@ -201,6 +202,15 @@ export function CreativesList({
             ])
           }
         />
+        <CreateAudioAdDialog
+          products={products}
+          onCreated={(creative) =>
+            setCreatives((prev) => [
+              creative,
+              ...prev.filter((c) => c.id !== creative.id),
+            ])
+          }
+        />
         <UploadVideoAdDialog
           products={products}
           onUploaded={(creative) =>
@@ -219,8 +229,8 @@ export function CreativesList({
       <>
         {headerActions}
         <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          No creatives yet. Create a video, display, or search ad, upload an MP4,
-          or describe an idea in chat.
+          No creatives yet. Create a video, display, search, or audio ad, upload
+          an MP4, or describe an idea in chat.
         </div>
       </>
     );

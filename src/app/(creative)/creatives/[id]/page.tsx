@@ -12,6 +12,8 @@ const CREATIVE_TABS = [
   "assets",
   "copy",
   "keywords",
+  "script",
+  "audio",
   "performance",
 ] as const;
 

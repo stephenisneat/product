@@ -774,6 +774,7 @@ export const creativeKindSchema = z.enum([
   "video_ad",
   "display_ad",
   "search_ad",
+  "audio_ad",
 ]);
 export type CreativeKind = z.infer<typeof creativeKindSchema>;
 
@@ -785,6 +786,8 @@ export const creativeStageSchema = z.enum([
   "assets",
   "copy",
   "keywords",
+  "script",
+  "audio",
 ]);
 export type CreativeStage = z.infer<typeof creativeStageSchema>;
 
@@ -923,6 +926,28 @@ export const searchKeywordsPayloadSchema = z.object({
 });
 export type SearchKeywordsPayload = z.infer<typeof searchKeywordsPayloadSchema>;
 
+/** Spoken script for audio_ad script stage. */
+export const audioScriptPayloadSchema = z.object({
+  hook: z.string().trim().min(1).max(280),
+  body: z.string().trim().min(1).max(1200),
+  cta: z.string().trim().min(1).max(280),
+  /** Full TTS-ready script (hook + body + cta, natural pauses). */
+  fullScript: z.string().trim().min(1).max(2000),
+  targetDurationSec: z.number().positive().max(120).default(30),
+  voiceDirection: z.string().trim().min(1).max(500),
+  musicBed: z.string().trim().max(500).default(""),
+});
+export type AudioScriptPayload = z.infer<typeof audioScriptPayloadSchema>;
+
+/** Rendered spot for audio_ad audio stage. */
+export const audioPayloadSchema = z.object({
+  url: z.string().url(),
+  durationSec: z.number().positive(),
+  voiceId: z.string().trim().min(1).optional(),
+  transcript: z.string().trim().min(1),
+});
+export type AudioPayload = z.infer<typeof audioPayloadSchema>;
+
 export const creativeExternalAdRefsSchema = z.object({
   googleAssetId: z.string().trim().min(1).optional(),
   metaAdId: z.string().trim().min(1).optional(),
@@ -949,6 +974,8 @@ export const creativeSchema = z.object({
   assets: displayAssetsPayloadSchema.nullable(),
   copy: searchCopyPayloadSchema.nullable(),
   keywords: searchKeywordsPayloadSchema.nullable(),
+  script: audioScriptPayloadSchema.nullable(),
+  audio: audioPayloadSchema.nullable(),
   revisionFeedback: z.string().nullable(),
   externalAdRefs: creativeExternalAdRefsSchema.default({}),
   activeJobId: z.string().uuid().nullable(),
@@ -1084,6 +1111,8 @@ export const jobRunTypeSchema = z.enum([
   "generate_creative_assets",
   "generate_creative_copy",
   "generate_creative_keywords",
+  "generate_creative_script",
+  "generate_creative_audio",
   "render_creative_video",
   "generate_insight",
   "sync_ad_performance",

@@ -60,4 +60,9 @@ describe("creative stubs", () => {
     expect(nextStageAfterAccept("copy")).toBe("keywords");
     expect(nextStageAfterAccept("keywords")).toBeNull();
   });
+
+  it("advances audio stages until audio is accepted", () => {
+    expect(nextStageAfterAccept("script")).toBe("audio");
+    expect(nextStageAfterAccept("audio")).toBeNull();
+  });
 });
