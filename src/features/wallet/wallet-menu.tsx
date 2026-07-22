@@ -206,7 +206,7 @@ function AdSpendLimitMenu({
             aria-label="Ad spend limit progress"
             className="mr-0.5"
           />
-          {loading && !wallet ? "…" : "Ad spend"}
+          Ad spend
         </>
       }
     >
@@ -291,7 +291,7 @@ function UsageLimitMenu({
             aria-label="Usage limit progress"
             className="mr-0.5"
           />
-          {loading && !wallet ? "…" : "Usage"}
+          Usage
         </>
       }
     >
