@@ -6,10 +6,11 @@ import {
   CheckIcon,
   ChevronDownIcon,
   ListFilterIcon,
+  PlusIcon,
   SearchIcon,
   XIcon,
 } from "@/components/icons";
-import type { Creative, CreativeStatus, Product } from "@/domain";
+import type { Creative, CreativeStatus } from "@/domain";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,12 +18,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CreateAudioAdDialog } from "@/features/creatives/create-audio-ad-dialog";
-import { CreateDisplayAdDialog } from "@/features/creatives/create-display-ad-dialog";
-import { CreateSearchAdDialog } from "@/features/creatives/create-search-ad-dialog";
-import { CreateVideoAdDialog } from "@/features/creatives/create-video-ad-dialog";
+import { useAgentContext } from "@/features/agent/agent-context";
 import { CreativeCard } from "@/features/creatives/creative-card";
-import { UploadVideoAdDialog } from "@/features/creatives/upload-video-ad-dialog";
 import { CatalogHeaderActions } from "@/features/products/catalog-toolbar";
 import { cn } from "@/lib/utils";
 
@@ -122,12 +119,11 @@ function CreativeStatusGroup({
  */
 export function CreativesList({
   initialCreatives,
-  products,
 }: {
   initialCreatives: Creative[];
-  products: Pick<Product, "id" | "title">[];
 }) {
   const router = useRouter();
+  const { setComposePrefill } = useAgentContext();
   const [, startTransition] = useTransition();
   const [creatives, setCreatives] = useState(initialCreatives);
   const [query, setQuery] = useState("");
@@ -257,51 +253,18 @@ export function CreativesList({
           </PopoverContent>
         </Popover>
 
-        <CreateVideoAdDialog
-          products={products}
-          onCreated={(creative) =>
-            setCreatives((prev) => [
-              creative,
-              ...prev.filter((c) => c.id !== creative.id),
-            ])
+        <Button
+          type="button"
+          size="sm"
+          onClick={() =>
+            setComposePrefill(
+              "Help me create a new creative. Invent a concept and create it when ready.",
+            )
           }
-        />
-        <CreateDisplayAdDialog
-          products={products}
-          onCreated={(creative) =>
-            setCreatives((prev) => [
-              creative,
-              ...prev.filter((c) => c.id !== creative.id),
-            ])
-          }
-        />
-        <CreateSearchAdDialog
-          products={products}
-          onCreated={(creative) =>
-            setCreatives((prev) => [
-              creative,
-              ...prev.filter((c) => c.id !== creative.id),
-            ])
-          }
-        />
-        <CreateAudioAdDialog
-          products={products}
-          onCreated={(creative) =>
-            setCreatives((prev) => [
-              creative,
-              ...prev.filter((c) => c.id !== creative.id),
-            ])
-          }
-        />
-        <UploadVideoAdDialog
-          products={products}
-          onUploaded={(creative) =>
-            setCreatives((prev) => [
-              creative,
-              ...prev.filter((c) => c.id !== creative.id),
-            ])
-          }
-        />
+        >
+          <PlusIcon data-icon="inline-start" />
+          New creative
+        </Button>
       </div>
     </CatalogHeaderActions>
   );
@@ -311,8 +274,7 @@ export function CreativesList({
       <>
         {headerActions}
         <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          No creatives yet. Create a video, display, search, or audio ad, upload
-          an MP4, or describe an idea in chat.
+          No creatives yet. Use New creative to describe an idea in chat.
         </div>
       </>
     );

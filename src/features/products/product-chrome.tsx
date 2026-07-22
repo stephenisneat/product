@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAgentContext } from "@/features/agent/agent-context";
 import { UpgradeButton } from "@/features/billing/upgrade-button";
-import { CreateVideoAdDialog } from "@/features/creatives/create-video-ad-dialog";
 import { EditProductDialog } from "@/features/products/edit-product-dialog";
 import { getEntitlements } from "@/lib/billing/entitlements";
 import {
@@ -179,9 +178,16 @@ export function ProductChrome({
           {creativesLocked ? (
             <UpgradeButton size="sm">New creative</UpgradeButton>
           ) : (
-            <CreateVideoAdDialog
-              products={[{ id: product.id, title: product.title }]}
-            />
+            <Button
+              size="sm"
+              onClick={() =>
+                askAgent(
+                  `Draft a creative concept for ${product.title} and create it when ready.`,
+                )
+              }
+            >
+              New creative
+            </Button>
           )}
           <DropdownMenu>
             <DropdownMenuTrigger
