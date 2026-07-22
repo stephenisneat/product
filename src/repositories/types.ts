@@ -152,6 +152,10 @@ export interface CreativeRepository {
   listByProduct(productId: string): Promise<Creative[]>;
   listByCampaign(campaignId: string): Promise<Creative[]>;
   countByCampaign(campaignId: string): Promise<number>;
+  countByWorkspace(
+    workspaceId: string,
+    status: CreativeStatus,
+  ): Promise<number>;
   getById(id: string): Promise<Creative | null>;
   create(input: CreativeCreateInput): Promise<Creative>;
   update(id: string, patch: CreativeUpdateInput): Promise<Creative>;

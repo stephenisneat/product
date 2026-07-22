@@ -20,6 +20,7 @@ import {
 } from "@/components/icons";
 import { NavLink } from "@/components/layout/nav-link";
 import { getLastVisualizerPath } from "@/features/visualizer/visualization-store";
+import type { CatalogAttentionCounts } from "@/lib/catalog/attention-counts";
 import { cn } from "@/lib/utils";
 
 const catalogPages = [
@@ -27,26 +28,31 @@ const catalogPages = [
     href: "/",
     label: "Products",
     icon: PackageIcon,
+    attentionKey: "products",
   },
   {
     href: "/insights",
     label: "Insights",
     icon: LightbulbIcon,
+    attentionKey: "insights",
   },
   {
     href: "/creatives",
     label: "Creatives",
     icon: PaletteIcon,
+    attentionKey: "creatives",
   },
   {
     href: "/visualizer",
     label: "Visualizer",
     icon: ChartNoAxesCombinedIcon,
+    attentionKey: null,
   },
   {
     href: "/jobs",
     label: "Jobs",
     icon: BriefcaseIcon,
+    attentionKey: null,
   },
 ] as const;
 
@@ -97,6 +103,9 @@ export function CatalogNav({
   // Always start with the SSR-safe default; localStorage is only available
   // after mount, so reading it in useState causes a hydration mismatch.
   const [visualizerHref, setVisualizerHref] = useState("/visualizer");
+  const [attention, setAttention] = useState<CatalogAttentionCounts | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!workspaceId) {
@@ -115,15 +124,50 @@ export function CatalogNav({
     };
   }, [workspaceId]);
 
+  useEffect(() => {
+    if (!workspaceId) {
+      setAttention(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const res = await fetch("/api/catalog/attention");
+        if (!res.ok || cancelled) return;
+        const body = (await res.json()) as CatalogAttentionCounts;
+        if (cancelled) return;
+        setAttention(body);
+      } catch {
+        // ignore fetch errors
+      }
+    };
+
+    void load();
+    const onFocus = () => void load();
+    window.addEventListener("focus", onFocus);
+    const id = window.setInterval(() => void load(), 20_000);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+      window.clearInterval(id);
+    };
+  }, [workspaceId, pathname]);
+
   return (
     <nav className="flex h-12 items-stretch" aria-label="Catalog">
-      {catalogPages.map(({ href, label, icon }) => (
+      {catalogPages.map(({ href, label, icon, attentionKey }) => (
         <NavLink
           key={href}
           href={href === "/visualizer" ? visualizerHref : href}
           label={label}
           icon={icon}
           isActive={isCatalogNavActive(pathname, href)}
+          badge={
+            attentionKey && attention ? attention[attentionKey] : undefined
+          }
           prefetch
         />
       ))}

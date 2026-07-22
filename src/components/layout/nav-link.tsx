@@ -22,12 +22,15 @@ export function NavLink({
   label,
   icon: Icon,
   isActive,
+  badge,
   prefetch = true,
 }: {
   href: string;
   label: string;
   icon: IconComponent;
   isActive: boolean;
+  /** Attention count; only rendered when > 0. */
+  badge?: number;
   prefetch?: boolean;
 }) {
   const router = useRouter();
@@ -65,6 +68,14 @@ export function NavLink({
     >
       <Icon className="size-3.5 shrink-0" />
       {label}
+      {badge != null && badge > 0 ? (
+        <span
+          className="flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[9px] font-medium tabular-nums text-background"
+          aria-label={`${badge} need attention`}
+        >
+          {badge > 9 ? "9+" : badge}
+        </span>
+      ) : null}
     </Link>
   );
 }

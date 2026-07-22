@@ -307,6 +307,19 @@ export class SupabaseCreativeRepository {
     return count ?? 0;
   }
 
+  async countByWorkspace(
+    workspaceId: string,
+    status: CreativeStatus,
+  ): Promise<number> {
+    const { count, error } = await this.client
+      .from("creatives")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId)
+      .eq("status", status);
+    if (error) throw error;
+    return count ?? 0;
+  }
+
   async getById(id: string): Promise<Creative | null> {
     const { data, error } = await this.client
       .from("creatives")
