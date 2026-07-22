@@ -55,4 +55,9 @@ describe("creative stubs", () => {
     expect(nextStageAfterAccept("concept")).toBe("assets");
     expect(nextStageAfterAccept("assets")).toBeNull();
   });
+
+  it("advances search stages until keywords are accepted", () => {
+    expect(nextStageAfterAccept("copy")).toBe("keywords");
+    expect(nextStageAfterAccept("keywords")).toBeNull();
+  });
 });

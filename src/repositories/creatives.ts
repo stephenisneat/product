@@ -7,6 +7,8 @@ import type {
   DisplayAssetsPayload,
   DisplayConceptPayload,
   ScreenplayPayload,
+  SearchCopyPayload,
+  SearchKeywordsPayload,
   StoryboardPayload,
   VideoPayload,
 } from "@/domain";
@@ -15,6 +17,8 @@ import {
   displayAssetsPayloadSchema,
   displayConceptPayloadSchema,
   screenplayPayloadSchema,
+  searchCopyPayloadSchema,
+  searchKeywordsPayloadSchema,
   storyboardPayloadSchema,
   videoPayloadSchema,
 } from "@/domain";
@@ -33,6 +37,8 @@ type DbCreative = {
   video: unknown | null;
   concept: unknown | null;
   assets: unknown | null;
+  copy: unknown | null;
+  keywords: unknown | null;
   revision_feedback: string | null;
   external_ad_refs: unknown | null;
   active_job_id: string | null;
@@ -71,6 +77,18 @@ function parseAssets(value: unknown): DisplayAssetsPayload | null {
   return parsed.success ? parsed.data : null;
 }
 
+function parseCopy(value: unknown): SearchCopyPayload | null {
+  if (value == null) return null;
+  const parsed = searchCopyPayloadSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+function parseKeywords(value: unknown): SearchKeywordsPayload | null {
+  if (value == null) return null;
+  const parsed = searchKeywordsPayloadSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
 function parseExternalAdRefs(value: unknown): CreativeExternalAdRefs {
   const parsed = creativeExternalAdRefsSchema.safeParse(value ?? {});
   return parsed.success ? parsed.data : {};
@@ -95,6 +113,8 @@ export function mapCreative(
     video: parseVideo(row.video),
     concept: parseConcept(row.concept),
     assets: parseAssets(row.assets),
+    copy: parseCopy(row.copy),
+    keywords: parseKeywords(row.keywords),
     revisionFeedback: row.revision_feedback,
     externalAdRefs: parseExternalAdRefs(row.external_ad_refs),
     activeJobId: row.active_job_id,
@@ -129,6 +149,8 @@ export type CreativeUpdateInput = {
   video?: VideoPayload | null;
   concept?: DisplayConceptPayload | null;
   assets?: DisplayAssetsPayload | null;
+  copy?: SearchCopyPayload | null;
+  keywords?: SearchKeywordsPayload | null;
   revisionFeedback?: string | null;
   externalAdRefs?: CreativeExternalAdRefs;
   activeJobId?: string | null;
@@ -307,6 +329,8 @@ export class SupabaseCreativeRepository {
     if (patch.video !== undefined) row.video = patch.video;
     if (patch.concept !== undefined) row.concept = patch.concept;
     if (patch.assets !== undefined) row.assets = patch.assets;
+    if (patch.copy !== undefined) row.copy = patch.copy;
+    if (patch.keywords !== undefined) row.keywords = patch.keywords;
     if (patch.revisionFeedback !== undefined) {
       row.revision_feedback = patch.revisionFeedback;
     }

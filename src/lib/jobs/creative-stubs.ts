@@ -139,6 +139,10 @@ export function jobTypeForStage(stage: CreativeStage) {
       return "generate_creative_concept" as const;
     case "assets":
       return "generate_creative_assets" as const;
+    case "copy":
+      return "generate_creative_copy" as const;
+    case "keywords":
+      return "generate_creative_keywords" as const;
   }
 }
 
@@ -155,6 +159,10 @@ export function nextStageAfterAccept(
     case "concept":
       return "assets";
     case "assets":
+      return null;
+    case "copy":
+      return "keywords";
+    case "keywords":
       return null;
   }
 }

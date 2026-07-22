@@ -37,13 +37,18 @@ type CreativeTab =
   | "video"
   | "concept"
   | "assets"
+  | "copy"
+  | "keywords"
   | "performance";
 
 const VIDEO_STAGE_ORDER = ["screenplay", "storyboard", "video"] as const;
 const DISPLAY_STAGE_ORDER = ["concept", "assets"] as const;
+const SEARCH_STAGE_ORDER = ["copy", "keywords"] as const;
 
 function stageOrderFor(creative: Creative) {
-  return creative.kind === "display_ad" ? DISPLAY_STAGE_ORDER : VIDEO_STAGE_ORDER;
+  if (creative.kind === "display_ad") return DISPLAY_STAGE_ORDER;
+  if (creative.kind === "search_ad") return SEARCH_STAGE_ORDER;
+  return VIDEO_STAGE_ORDER;
 }
 
 function stageLabel(stage: Creative["stage"]): string {
@@ -58,6 +63,21 @@ function stageLabel(stage: Creative["stage"]): string {
       return "Concept";
     case "assets":
       return "Assets";
+    case "copy":
+      return "Copy";
+    case "keywords":
+      return "Keywords";
+  }
+}
+
+function kindBadgeLabel(kind: Creative["kind"]): string {
+  switch (kind) {
+    case "display_ad":
+      return "Display";
+    case "search_ad":
+      return "Search";
+    default:
+      return "Video";
   }
 }
 
@@ -107,6 +127,16 @@ function isTabEnabled(tab: CreativeTab, creative: Creative): boolean {
     if (tab === "assets") return Boolean(creative.assets);
     return false;
   }
+  if (creative.kind === "search_ad") {
+    if (tab !== "copy" && tab !== "keywords") return false;
+    const order = SEARCH_STAGE_ORDER;
+    const tabIdx = order.indexOf(tab);
+    const currentIdx = stageIndex(creative);
+    if (tabIdx < 0) return false;
+    if (tabIdx <= currentIdx) return true;
+    if (tab === "keywords") return Boolean(creative.keywords);
+    return false;
+  }
   if (isUploadedCreative(creative)) {
     return tab === "video";
   }
@@ -131,6 +161,12 @@ function defaultTab(creative: Creative): CreativeTab {
     if (creative.concept) return "concept";
     return "concept";
   }
+  if (creative.kind === "search_ad") {
+    if (isTabEnabled(creative.stage as CreativeTab, creative)) {
+      return creative.stage as CreativeTab;
+    }
+    return "copy";
+  }
   if (isUploadedCreative(creative)) return "video";
   if (isTabEnabled(creative.stage as CreativeTab, creative)) {
     return creative.stage as CreativeTab;
@@ -144,6 +180,13 @@ function tabItems(creative: Creative): readonly (readonly [CreativeTab, string])
     return [
       ["concept", "Concept"],
       ["assets", "Assets"],
+      ["performance", "Performance"],
+    ] as const;
+  }
+  if (creative.kind === "search_ad") {
+    return [
+      ["copy", "Copy"],
+      ["keywords", "Keywords"],
       ["performance", "Performance"],
     ] as const;
   }
@@ -162,7 +205,9 @@ function tabItems(creative: Creative): readonly (readonly [CreativeTab, string])
 }
 
 function primaryBriefTab(creative: Creative): CreativeTab {
-  return creative.kind === "display_ad" ? "concept" : "screenplay";
+  if (creative.kind === "display_ad") return "concept";
+  if (creative.kind === "search_ad") return "copy";
+  return "screenplay";
 }
 
 function StageEmptyState({
@@ -370,6 +415,156 @@ function AssetsView({ creative }: { creative: Creative }) {
           className="aspect-square w-full rounded-lg border border-border object-cover"
         />
       </figure>
+    </div>
+  );
+}
+
+function CopyView({ creative }: { creative: Creative }) {
+  const copy = creative.copy;
+  if (!copy) {
+    return (
+      <StageEmptyState
+        label="Copy"
+        generating={
+          creative.stage === "copy" && creative.status === "generating"
+        }
+        paused={creative.stage === "copy" && creative.status === "paused"}
+      />
+    );
+  }
+
+  const displayUrl =
+    copy.path1 || copy.path2
+      ? `example.com/${[copy.path1, copy.path2].filter(Boolean).join("/")}`
+      : null;
+
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-8 px-4 py-8">
+      <div className="space-y-1">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Angle
+        </p>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {copy.angle}
+        </p>
+      </div>
+
+      {displayUrl ? (
+        <div className="space-y-1">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            Display URL paths
+          </p>
+          <p className="text-sm text-foreground">{displayUrl}</p>
+        </div>
+      ) : null}
+
+      {copy.finalUrl ? (
+        <div className="space-y-1">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            Final URL
+          </p>
+          <p className="break-all text-sm text-foreground">{copy.finalUrl}</p>
+        </div>
+      ) : null}
+
+      <div className="space-y-2">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Headlines · {copy.headlines.length}
+        </p>
+        <ul className="space-y-1.5">
+          {copy.headlines.map((headline) => (
+            <li
+              key={headline}
+              className="flex items-baseline justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm"
+            >
+              <span>{headline}</span>
+              <span className="shrink-0 text-[10px] text-muted-foreground">
+                {headline.length}/30
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Descriptions · {copy.descriptions.length}
+        </p>
+        <ul className="space-y-1.5">
+          {copy.descriptions.map((description) => (
+            <li
+              key={description}
+              className="flex items-baseline justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground"
+            >
+              <span>{description}</span>
+              <span className="shrink-0 text-[10px]">
+                {description.length}/90
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function KeywordsView({ creative }: { creative: Creative }) {
+  const keywords = creative.keywords;
+  if (!keywords) {
+    return (
+      <StageEmptyState
+        label="Keywords"
+        generating={
+          creative.stage === "keywords" && creative.status === "generating"
+        }
+        paused={creative.stage === "keywords" && creative.status === "paused"}
+      />
+    );
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-8 px-4 py-8">
+      <div className="space-y-2">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Themes · {keywords.themes.length}
+        </p>
+        <ul className="space-y-1.5">
+          {keywords.themes.map((theme) => (
+            <li
+              key={`${theme.matchType}:${theme.phrase}`}
+              className="rounded-md border border-border px-3 py-2"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-foreground">
+                  {theme.phrase}
+                </span>
+                <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {theme.matchType}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{theme.intent}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {keywords.negatives.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            Negatives · {keywords.negatives.length}
+          </p>
+          <ul className="flex flex-wrap gap-1.5">
+            {keywords.negatives.map((negative) => (
+              <li
+                key={negative}
+                className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground"
+              >
+                −{negative}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -824,7 +1019,7 @@ export function CreativeWorkspace({
                   {creative.title}
                 </span>
                 <Badge variant="outline" className="shrink-0 text-[10px] uppercase">
-                  {creative.kind === "display_ad" ? "Display" : "Video"}
+                  {kindBadgeLabel(creative.kind)}
                 </Badge>
                 <Badge variant="outline" className="shrink-0 text-[10px] uppercase">
                   {statusLabel(creative.status)}
@@ -971,6 +1166,14 @@ export function CreativeWorkspace({
 
             <TabsContent value="assets" className="mt-0">
               <AssetsView creative={creative} />
+            </TabsContent>
+
+            <TabsContent value="copy" className="mt-0">
+              <CopyView creative={creative} />
+            </TabsContent>
+
+            <TabsContent value="keywords" className="mt-0">
+              <KeywordsView creative={creative} />
             </TabsContent>
 
             <TabsContent value="performance" className="mt-0">

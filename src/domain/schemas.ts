@@ -770,7 +770,11 @@ export const memberUsageSchema = z.object({
 });
 export type MemberUsage = z.infer<typeof memberUsageSchema>;
 
-export const creativeKindSchema = z.enum(["video_ad", "display_ad"]);
+export const creativeKindSchema = z.enum([
+  "video_ad",
+  "display_ad",
+  "search_ad",
+]);
 export type CreativeKind = z.infer<typeof creativeKindSchema>;
 
 export const creativeStageSchema = z.enum([
@@ -779,6 +783,8 @@ export const creativeStageSchema = z.enum([
   "video",
   "concept",
   "assets",
+  "copy",
+  "keywords",
 ]);
 export type CreativeStage = z.infer<typeof creativeStageSchema>;
 
@@ -883,6 +889,40 @@ export const displayAssetsPayloadSchema = z.object({
 });
 export type DisplayAssetsPayload = z.infer<typeof displayAssetsPayloadSchema>;
 
+/** RSA-shaped copy for search_ad copy stage. */
+export const searchCopyPayloadSchema = z.object({
+  headlines: z.array(z.string().trim().min(1).max(30)).min(3).max(15),
+  descriptions: z.array(z.string().trim().min(1).max(90)).min(2).max(4),
+  path1: z.string().trim().max(15).default(""),
+  path2: z.string().trim().max(15).default(""),
+  finalUrl: z.string().trim().url().optional(),
+  angle: z.string().trim().min(1),
+});
+export type SearchCopyPayload = z.infer<typeof searchCopyPayloadSchema>;
+
+export const searchKeywordMatchTypeSchema = z.enum([
+  "broad",
+  "phrase",
+  "exact",
+]);
+export type SearchKeywordMatchType = z.infer<
+  typeof searchKeywordMatchTypeSchema
+>;
+
+export const searchKeywordThemeSchema = z.object({
+  phrase: z.string().trim().min(1).max(80),
+  matchType: searchKeywordMatchTypeSchema,
+  intent: z.string().trim().min(1).max(200),
+});
+export type SearchKeywordTheme = z.infer<typeof searchKeywordThemeSchema>;
+
+/** Keyword themes for search_ad keywords stage. */
+export const searchKeywordsPayloadSchema = z.object({
+  themes: z.array(searchKeywordThemeSchema).min(3).max(20),
+  negatives: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
+});
+export type SearchKeywordsPayload = z.infer<typeof searchKeywordsPayloadSchema>;
+
 export const creativeExternalAdRefsSchema = z.object({
   googleAssetId: z.string().trim().min(1).optional(),
   metaAdId: z.string().trim().min(1).optional(),
@@ -907,6 +947,8 @@ export const creativeSchema = z.object({
   video: videoPayloadSchema.nullable(),
   concept: displayConceptPayloadSchema.nullable(),
   assets: displayAssetsPayloadSchema.nullable(),
+  copy: searchCopyPayloadSchema.nullable(),
+  keywords: searchKeywordsPayloadSchema.nullable(),
   revisionFeedback: z.string().nullable(),
   externalAdRefs: creativeExternalAdRefsSchema.default({}),
   activeJobId: z.string().uuid().nullable(),
@@ -1040,6 +1082,8 @@ export const jobRunTypeSchema = z.enum([
   "generate_creative_video",
   "generate_creative_concept",
   "generate_creative_assets",
+  "generate_creative_copy",
+  "generate_creative_keywords",
   "render_creative_video",
   "generate_insight",
   "sync_ad_performance",

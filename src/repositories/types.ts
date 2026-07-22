@@ -18,6 +18,8 @@ import type {
   Product,
   ProductIntelligence,
   ScreenplayPayload,
+  SearchCopyPayload,
+  SearchKeywordsPayload,
   StoryboardPayload,
   VideoPayload,
   Workspace,
@@ -129,6 +131,8 @@ export type CreativeUpdateInput = {
   video?: VideoPayload | null;
   concept?: DisplayConceptPayload | null;
   assets?: DisplayAssetsPayload | null;
+  copy?: SearchCopyPayload | null;
+  keywords?: SearchKeywordsPayload | null;
   revisionFeedback?: string | null;
   externalAdRefs?: CreativeExternalAdRefs;
   activeJobId?: string | null;

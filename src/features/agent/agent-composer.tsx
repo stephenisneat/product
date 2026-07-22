@@ -156,10 +156,12 @@ function extractCreativeIdsFromMessage(message: UIMessage): string[] {
     const isCreativeTool =
       p.type === "tool-create_video_creative" ||
       p.type === "tool-create_display_creative" ||
+      p.type === "tool-create_search_creative" ||
       p.type === "tool-resubmit_creative" ||
       (p.type === "dynamic-tool" &&
         (p.toolName === "create_video_creative" ||
           p.toolName === "create_display_creative" ||
+          p.toolName === "create_search_creative" ||
           p.toolName === "resubmit_creative"));
     if (!isCreativeTool || p.state !== "output-available") continue;
     const id = p.output?.ok ? p.output.creativeId : undefined;
@@ -213,10 +215,12 @@ function extractCreativeToolErrors(message: UIMessage): string[] {
     const isCreativeTool =
       p.type === "tool-create_video_creative" ||
       p.type === "tool-create_display_creative" ||
+      p.type === "tool-create_search_creative" ||
       p.type === "tool-resubmit_creative" ||
       (p.type === "dynamic-tool" &&
         (p.toolName === "create_video_creative" ||
           p.toolName === "create_display_creative" ||
+          p.toolName === "create_search_creative" ||
           p.toolName === "resubmit_creative"));
     if (!isCreativeTool || p.state !== "output-available") continue;
     if (p.output?.ok === false) {

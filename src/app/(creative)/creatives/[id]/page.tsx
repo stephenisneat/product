@@ -8,6 +8,10 @@ const CREATIVE_TABS = [
   "screenplay",
   "storyboard",
   "video",
+  "concept",
+  "assets",
+  "copy",
+  "keywords",
   "performance",
 ] as const;
 

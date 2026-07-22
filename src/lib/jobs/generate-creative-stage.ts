@@ -12,6 +12,10 @@ import {
   generateDisplayAssets,
   generateDisplayConcept,
 } from "@/lib/jobs/generate-display-creative-content";
+import {
+  generateSearchCopy,
+  generateSearchKeywords,
+} from "@/lib/jobs/generate-search-creative-content";
 import { generateVideo } from "@/lib/jobs/generate-creative-video";
 import type { GenerateCreativeStageJobPayload } from "@/lib/jobs/generate-creative-stage-payload";
 import {
@@ -194,6 +198,50 @@ export async function runGenerateCreativeStageJob(
         stage: "assets",
         status: "awaiting_review",
         assets,
+        activeJobId: null,
+        revisionFeedback: null,
+      });
+    } else if (payload.stage === "copy") {
+      if (creative.kind !== "search_ad") {
+        throw new Error("Copy stage is only valid for search ads.");
+      }
+      const intelligence = await products.getIntelligence(payload.productId);
+      const copy = await generateSearchCopy({
+        brief: briefForGen,
+        product,
+        intelligence,
+        workspaceId: payload.workspaceId,
+        userId: payload.createdBy,
+      });
+      await creatives.update(creative.id, {
+        stage: "copy",
+        status: "awaiting_review",
+        copy,
+        keywords: null,
+        activeJobId: null,
+        revisionFeedback: null,
+      });
+    } else if (payload.stage === "keywords") {
+      if (creative.kind !== "search_ad") {
+        throw new Error("Keywords stage is only valid for search ads.");
+      }
+      if (!creative.copy) {
+        throw new Error("Copy is required before keywords generation.");
+      }
+      const intelligence = await products.getIntelligence(payload.productId);
+      const keywords = await generateSearchKeywords({
+        copy: creative.copy,
+        brief: creative.brief,
+        product,
+        intelligence,
+        workspaceId: payload.workspaceId,
+        userId: payload.createdBy,
+        revisionFeedback: feedback || null,
+      });
+      await creatives.update(creative.id, {
+        stage: "keywords",
+        status: "awaiting_review",
+        keywords,
         activeJobId: null,
         revisionFeedback: null,
       });

@@ -17,6 +17,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAgentContext } from "@/features/agent/agent-context";
 import { cn } from "@/lib/utils";
 
+function kindBadgeLabel(kind: Creative["kind"]): string {
+  switch (kind) {
+    case "display_ad":
+      return "Display";
+    case "search_ad":
+      return "Search";
+    default:
+      return "Video";
+  }
+}
+
 function previewThumbnail(creative: Creative): string | null {
   if (creative.assets?.marketingImageUrl) {
     return creative.assets.marketingImageUrl;
@@ -45,6 +56,19 @@ function CreativePreviewMedia({ creative }: { creative: Creative }) {
         alt=""
         className="size-full object-cover"
       />
+    );
+  }
+
+  if (creative.copy) {
+    return (
+      <div className="flex size-full flex-col justify-end bg-gradient-to-b from-muted/40 to-muted/80 p-3">
+        <p className="line-clamp-2 text-xs font-medium text-foreground">
+          {creative.copy.headlines[0]}
+        </p>
+        <p className="mt-1.5 line-clamp-3 text-[10px] leading-relaxed text-muted-foreground">
+          {creative.copy.descriptions[0]}
+        </p>
+      </div>
     );
   }
 
@@ -422,7 +446,7 @@ export function CreativeCard({
             </Link>
           </h3>
           <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-            {creative.kind === "display_ad" ? "Display" : "Video"}
+            {kindBadgeLabel(creative.kind)}
           </span>
         </div>
 

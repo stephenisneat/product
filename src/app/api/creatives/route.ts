@@ -9,6 +9,7 @@ import { logServerError, unknownErrorMessage } from "@/lib/errors";
 import { reconcileCreativesAgainstTrigger } from "@/lib/jobs/creative-job-controls";
 import {
   startDisplayCreative,
+  startSearchCreative,
   startVideoCreative,
 } from "@/lib/jobs/enqueue";
 import { hasServiceRole } from "@/lib/supabase/service";
@@ -84,7 +85,9 @@ export async function POST(req: Request) {
     const start =
       parsed.data.kind === "display_ad"
         ? startDisplayCreative
-        : startVideoCreative;
+        : parsed.data.kind === "search_ad"
+          ? startSearchCreative
+          : startVideoCreative;
     const { creative, job } = await start({
       workspaceId: active.workspace.id,
       productId: product.id,

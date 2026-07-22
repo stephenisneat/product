@@ -85,7 +85,11 @@ const patchSchema = z.discriminatedUnion("action", [
 
 function revisePrompt(creative: Creative, feedback?: string): string {
   const kindLabel =
-    creative.kind === "display_ad" ? "display" : "video";
+    creative.kind === "display_ad"
+      ? "display"
+      : creative.kind === "search_ad"
+        ? "search"
+        : "video";
   const notes = feedback?.trim();
   const base = `Revise the ${creative.stage} for ${kindLabel} creative "${creative.title}" (id ${creative.id}).`;
   if (notes) {
