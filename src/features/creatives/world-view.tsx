@@ -159,7 +159,10 @@ export function WorldView({
   if (!world) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-24 text-sm text-muted-foreground">
-        {creative.stage === "world" && creative.status === "generating" ? (
+        {(creative.stage === "world" && creative.status === "generating") ||
+        (creative.kind === "video_ad" &&
+          creative.status === "generating" &&
+          (creative.stage === "screenplay" || creative.stage === "world")) ? (
           <>
             <Loader2 className="size-5 animate-spin" />
             Generating world…

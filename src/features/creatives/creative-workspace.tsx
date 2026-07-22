@@ -178,10 +178,12 @@ function StageEmptyState({
   label,
   generating,
   paused,
+  action,
 }: {
   label: string;
   generating?: boolean;
   paused?: boolean;
+  action?: { label: string; pending?: boolean; onClick: () => void };
 }) {
   if (generating) {
     return (
@@ -199,13 +201,50 @@ function StageEmptyState({
     );
   }
   return (
-      <div className="flex flex-col items-center justify-center gap-2 py-24 text-center text-sm text-muted-foreground">
-        <p>No {label.toLowerCase()} yet.</p>
+    <div className="flex flex-col items-center justify-center gap-3 py-24 text-center text-sm text-muted-foreground">
+      <p>No {label.toLowerCase()} yet.</p>
+      {action ? (
+        <>
+          <p className="max-w-sm text-xs leading-relaxed">
+            Screenplay, world, and storyboard are ready. Generate the video when
+            you are.
+          </p>
+          <Button
+            size="sm"
+            disabled={action.pending}
+            onClick={action.onClick}
+          >
+            {action.label}
+          </Button>
+        </>
+      ) : (
         <p className="max-w-sm text-xs leading-relaxed">
           This stage will appear here when {label.toLowerCase()} is generated.
         </p>
-      </div>
-    );
+      )}
+    </div>
+  );
+}
+
+function canGenerateVideo(creative: Creative): boolean {
+  return (
+    creative.kind === "video_ad" &&
+    creative.stage === "storyboard" &&
+    creative.status === "awaiting_review" &&
+    Boolean(creative.storyboard) &&
+    !creative.video
+  );
+}
+
+/** True while the auto screenplay → world → storyboard chain is running. */
+function isVideoPrepGenerating(creative: Creative): boolean {
+  return (
+    creative.kind === "video_ad" &&
+    creative.status === "generating" &&
+    (creative.stage === "screenplay" ||
+      creative.stage === "world" ||
+      creative.stage === "storyboard")
+  );
 }
 
 function StoryboardView({ creative }: { creative: Creative }) {
@@ -215,7 +254,9 @@ function StoryboardView({ creative }: { creative: Creative }) {
       <StageEmptyState
         label="Storyboard"
         generating={
-          creative.stage === "storyboard" && creative.status === "generating"
+          (creative.stage === "storyboard" &&
+            creative.status === "generating") ||
+          isVideoPrepGenerating(creative)
         }
         paused={
           creative.stage === "storyboard" && creative.status === "paused"
@@ -252,8 +293,17 @@ function StoryboardView({ creative }: { creative: Creative }) {
   );
 }
 
-function VideoView({ creative }: { creative: Creative }) {
+function VideoView({
+  creative,
+  pending,
+  onGenerate,
+}: {
+  creative: Creative;
+  pending?: boolean;
+  onGenerate?: () => void;
+}) {
   if (!creative.video) {
+    const readyToGenerate = canGenerateVideo(creative);
     return (
       <StageEmptyState
         label="Video"
@@ -261,6 +311,15 @@ function VideoView({ creative }: { creative: Creative }) {
           creative.stage === "video" && creative.status === "generating"
         }
         paused={creative.stage === "video" && creative.status === "paused"}
+        action={
+          readyToGenerate && onGenerate
+            ? {
+                label: "Generate video",
+                pending,
+                onClick: onGenerate,
+              }
+            : undefined
+        }
       />
     );
   }
@@ -860,7 +919,7 @@ function ReviewBar({
             disabled={pending}
             onClick={() => onAction("accept")}
           >
-            Accept
+            {creative.stage === "storyboard" ? "Generate video" : "Accept"}
           </Button>
           <Button
             size="sm"
@@ -907,7 +966,9 @@ function ReviewBar({
             </Button>
           )}
           <span className="ml-auto text-xs text-muted-foreground">
-            Reviewing {stageLabel(creative.stage).toLowerCase()}
+            {creative.stage === "storyboard"
+              ? "Ready to generate video"
+              : `Reviewing ${stageLabel(creative.stage).toLowerCase()}`}
           </span>
         </div>
       </div>
@@ -960,12 +1021,21 @@ export function CreativeWorkspace({
         if (!res.ok) return;
         const body = (await res.json()) as { creative?: Creative };
         if (!cancelled && body.creative) {
+          const finishedPrep =
+            creative.status === "generating" &&
+            body.creative.status === "awaiting_review" &&
+            body.creative.stage === "storyboard" &&
+            body.creative.kind === "video_ad";
           setCreative(body.creative);
-          setTab((current) =>
-            isKnownTab(current, body.creative!)
-              ? current
-              : defaultTab(body.creative!),
-          );
+          if (finishedPrep) {
+            setTab("video");
+          } else {
+            setTab((current) =>
+              isKnownTab(current, body.creative!)
+                ? current
+                : defaultTab(body.creative!),
+            );
+          }
           if (body.creative.status !== "generating") {
             startTransition(() => router.refresh());
           }
@@ -1018,9 +1088,13 @@ export function CreativeWorkspace({
       revisePrompt?: string;
     };
     setCreative(body.creative);
-    setTab((current) =>
-      isKnownTab(current, body.creative) ? current : defaultTab(body.creative),
-    );
+    if (action === "accept" && creative.stage === "storyboard") {
+      setTab("video");
+    } else {
+      setTab((current) =>
+        isKnownTab(current, body.creative) ? current : defaultTab(body.creative),
+      );
+    }
 
     if (action === "revise" && body.revisePrompt) {
       setComposePrefill(body.revisePrompt);
@@ -1286,7 +1360,11 @@ export function CreativeWorkspace({
             </TabsContent>
 
             <TabsContent value="video" className="mt-0 h-full overflow-y-auto">
-              <VideoView creative={creative} />
+              <VideoView
+                creative={creative}
+                pending={pending}
+                onGenerate={() => void mutate("accept")}
+              />
             </TabsContent>
 
             <TabsContent value="concept" className="mt-0 h-full overflow-y-auto">

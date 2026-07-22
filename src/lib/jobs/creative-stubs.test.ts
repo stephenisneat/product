@@ -4,6 +4,7 @@ import {
   buildTemplateScreenplay,
   buildTemplateStoryboard,
   buildTemplateWorld,
+  nextAutoAdvanceStage,
   nextStageAfterAccept,
 } from "@/lib/jobs/creative-stubs";
 
@@ -63,6 +64,14 @@ describe("creative stubs", () => {
     expect(nextStageAfterAccept("world")).toBe("storyboard");
     expect(nextStageAfterAccept("storyboard")).toBe("video");
     expect(nextStageAfterAccept("video")).toBeNull();
+  });
+
+  it("auto-advances video prep through storyboard only", () => {
+    expect(nextAutoAdvanceStage("screenplay")).toBe("world");
+    expect(nextAutoAdvanceStage("world")).toBe("storyboard");
+    expect(nextAutoAdvanceStage("storyboard")).toBeNull();
+    expect(nextAutoAdvanceStage("video")).toBeNull();
+    expect(nextAutoAdvanceStage("concept")).toBeNull();
   });
 
   it("advances display stages until assets are accepted", () => {

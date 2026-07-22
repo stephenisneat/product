@@ -4,6 +4,7 @@ import {
   assertTriggerJobEnv,
   clarifyTriggerSupabaseError,
 } from "@/lib/jobs/assert-trigger-env";
+import { nextAutoAdvanceStage } from "@/lib/jobs/creative-stubs";
 import {
   generateScreenplay,
   generateStoryboard,
@@ -106,6 +107,8 @@ export async function runGenerateCreativeStageJob(
       ? `${creative.brief}\n\nRevision notes: ${feedback}`
       : creative.brief;
 
+    const autoNext = nextAutoAdvanceStage(payload.stage);
+
     if (payload.stage === "screenplay") {
       const screenplay = await generateScreenplay({
         brief: briefForGen,
@@ -115,7 +118,8 @@ export async function runGenerateCreativeStageJob(
       });
       await creatives.update(creative.id, {
         stage: "screenplay",
-        status: "awaiting_review",
+        // Stay generating while we chain into world → storyboard.
+        status: autoNext ? "generating" : "awaiting_review",
         screenplay,
         world: null,
         storyboard: null,
@@ -137,7 +141,7 @@ export async function runGenerateCreativeStageJob(
       });
       await creatives.update(creative.id, {
         stage: "world",
-        status: "awaiting_review",
+        status: autoNext ? "generating" : "awaiting_review",
         world,
         storyboard: null,
         video: null,
@@ -346,6 +350,37 @@ export async function runGenerateCreativeStageJob(
         job: finished,
         createdBy: payload.createdBy,
       });
+    }
+
+    const chainTo = nextAutoAdvanceStage(payload.stage);
+    if (chainTo) {
+      if (await wasCanceled(payload.jobRunId)) {
+        // Cancel won after this stage finished — park so Resume can continue.
+        await creatives.update(payload.creativeId, {
+          status: "paused",
+          activeJobId: null,
+        });
+        return null;
+      }
+      try {
+        const { enqueueGenerateCreativeStageJob } = await import(
+          "@/lib/jobs/enqueue"
+        );
+        await enqueueGenerateCreativeStageJob({
+          workspaceId: payload.workspaceId,
+          createdBy: payload.createdBy,
+          trigger: "event",
+          input: {
+            creativeId: payload.creativeId,
+            productId: payload.productId,
+            stage: chainTo,
+          },
+          rollbackStage: payload.stage,
+        });
+      } catch {
+        // enqueue parks the creative as paused on failure; user can resume.
+      }
+      return result;
     }
 
     const reviewed = await creatives.getById(payload.creativeId);

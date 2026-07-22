@@ -272,6 +272,24 @@ export function nextStageAfterAccept(
   }
 }
 
+/**
+ * Video ads auto-run screenplay → world → storyboard without Accept.
+ * Returns the next stage to enqueue, or null when generation should pause
+ * for the user (storyboard ready → manual Generate video).
+ */
+export function nextAutoAdvanceStage(
+  stage: CreativeStage,
+): CreativeStage | null {
+  switch (stage) {
+    case "screenplay":
+      return "world";
+    case "world":
+      return "storyboard";
+    default:
+      return null;
+  }
+}
+
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

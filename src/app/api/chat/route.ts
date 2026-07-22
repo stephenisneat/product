@@ -740,7 +740,7 @@ export async function POST(req: Request) {
         }),
         create_video_creative: tool({
           description:
-            "Start a video ad creative pipeline (screenplay → world → storyboard → video) for the current product. Returns a creativeId; the user reviews each stage with Accept / Reject / Revise. Omit campaignIds unless attaching to existing campaign ids from a prior tool result — never invent campaign ids.",
+            "Start a video ad creative pipeline for the current product. Automatically writes the screenplay, builds the world, and generates the storyboard; the user then clicks Generate video on the Video tab. Returns a creativeId. Omit campaignIds unless attaching to existing campaign ids from a prior tool result — never invent campaign ids.",
           inputSchema: z.object({
             title: z.string().trim().min(1).max(120),
             brief: z.string().trim().min(1).max(4000),
@@ -771,7 +771,7 @@ export async function POST(req: Request) {
                 creativeId: creative.id,
                 jobId: job.id,
                 href: `/creatives/${creative.id}`,
-                message: `Started video creative "${creative.title}". Review it in chat or on /creatives/${creative.id}.`,
+                message: `Started video creative "${creative.title}". Screenplay, world, and storyboard will generate automatically — open /creatives/${creative.id} and click Generate video when ready.`,
               };
             } catch (err) {
               if (err instanceof PlanEntitlementError) {
@@ -1321,7 +1321,7 @@ export async function POST(req: Request) {
       }),
       create_video_creative: tool({
         description:
-          "Start a video ad creative pipeline (screenplay → world → storyboard → video) for a product in the catalog. Returns a creativeId for Accept / Reject / Revise review. Omit campaignIds unless attaching to existing campaign ids from a prior tool result — never invent campaign ids.",
+          "Start a video ad creative pipeline for a product in the catalog. Automatically writes the screenplay, builds the world, and generates the storyboard; the user then clicks Generate video on the Video tab. Returns a creativeId. Omit campaignIds unless attaching to existing campaign ids from a prior tool result — never invent campaign ids.",
         inputSchema: z.object({
           productId: z.string(),
           title: z.string().trim().min(1).max(120),
@@ -1359,7 +1359,7 @@ export async function POST(req: Request) {
               creativeId: creative.id,
               jobId: job.id,
               href: `/creatives/${creative.id}`,
-              message: `Started video creative "${creative.title}". Review it in chat or on /creatives/${creative.id}.`,
+              message: `Started video creative "${creative.title}". Screenplay, world, and storyboard will generate automatically — open /creatives/${creative.id} and click Generate video when ready.`,
             };
           } catch (err) {
             if (err instanceof PlanEntitlementError) {

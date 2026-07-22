@@ -234,7 +234,7 @@ function CardFooterActions({
           disabled={pending}
           onClick={() => onAction("accept")}
         >
-          Accept
+          {creative.stage === "storyboard" ? "Generate video" : "Accept"}
         </Button>
         <Button
           size="sm"

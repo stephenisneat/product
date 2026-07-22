@@ -23,7 +23,7 @@ const ROWS: {
   {
     key: "creativeReview",
     label: "Creative review",
-    description: "When a video creative stage is ready for Accept / Reject / Revise.",
+    description: "When a video creative is ready for review or Generate video.",
   },
   {
     key: "workspaceInvites",
