@@ -3,7 +3,13 @@ import { AgentProductSync } from "@/features/agent/agent-context";
 import { ProductWorkspace } from "@/features/products/product-workspace";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
-import { getArtifactRepository, getCreativeRepository, getProductRepository } from "@/repositories";
+import {
+  getArtifactRepository,
+  getCreativeRepository,
+  getGoalRepository,
+  getInsightRepository,
+  getProductRepository,
+} from "@/repositories";
 
 export default async function ProductPage({
   params,
@@ -27,13 +33,21 @@ export default async function ProductPage({
     notFound();
   }
 
-  const [intelligence, campaigns, performance, artifacts, creatives] =
+  if (product.workspaceId !== active.workspace.id) {
+    notFound();
+  }
+
+  const [intelligence, campaigns, performance, artifacts, creatives, goals, insights] =
     await Promise.all([
       products.getIntelligence(id),
       products.listCampaigns(id),
       products.getPerformance(id),
       (await getArtifactRepository()).listByProduct(id),
       (await getCreativeRepository()).listByProduct(id),
+      (await getGoalRepository()).listByProduct(active.workspace.id, id),
+      (await getInsightRepository()).listByProduct(active.workspace.id, id, {
+        limit: 40,
+      }),
     ]);
 
   return (
@@ -46,6 +60,8 @@ export default async function ProductPage({
         creatives={creatives}
         campaigns={campaigns}
         performance={performance}
+        goals={goals}
+        insights={insights}
         plan={active.workspace.plan ?? "free"}
       />
     </>

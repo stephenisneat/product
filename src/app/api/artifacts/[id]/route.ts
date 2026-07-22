@@ -122,6 +122,35 @@ export async function PATCH(
       };
       await products.upsertIntelligence(intelligence);
     }
+
+    if (next.type === "listing_update") {
+      const products = await getProductRepository();
+      const product = await products.getProduct(next.productId);
+      if (product) {
+        const payload = next.payload;
+        const title =
+          typeof payload.title === "string" && payload.title.trim()
+            ? payload.title.trim()
+            : product.title;
+        let description =
+          typeof payload.description === "string"
+            ? payload.description
+            : product.description;
+        if (Array.isArray(payload.bulletPoints) && payload.bulletPoints.length > 0) {
+          const bullets = payload.bulletPoints
+            .map(String)
+            .map((b) => b.trim())
+            .filter(Boolean);
+          if (bullets.length > 0) {
+            const bulletBlock = bullets.map((b) => `• ${b}`).join("\n");
+            description = description.trim()
+              ? `${description.trim()}\n\n${bulletBlock}`
+              : bulletBlock;
+          }
+        }
+        await products.updateProduct(next.productId, { title, description });
+      }
+    }
   }
 
   const saved = await artifacts.update(next);

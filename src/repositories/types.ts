@@ -9,6 +9,8 @@ import type {
   CreativeExternalAdRefs,
   CreativeStage,
   CreativeStatus,
+  DisplayAssetsPayload,
+  DisplayConceptPayload,
   JobRun,
   JobRunStatus,
   JobRunTrigger,
@@ -59,10 +61,23 @@ export type WorkspaceUpdateInput = {
   stripeSubscriptionStatus?: string | null;
 };
 
+export type ProductUpdateInput = {
+  title?: string;
+  description?: string;
+  status?: Product["status"];
+  price?: number;
+  currency?: string;
+  sku?: string | null;
+  category?: string | null;
+  images?: string[];
+  imageAvgColors?: string[];
+};
+
 export interface ProductRepository {
   listProducts(workspaceId: string): Promise<Product[]>;
   getProduct(id: string): Promise<Product | null>;
   createProduct(product: Product): Promise<Product>;
+  updateProduct(id: string, patch: ProductUpdateInput): Promise<Product>;
   upsertImportedProduct(
     canonical: CanonicalProduct,
     workspaceId: string,
@@ -123,6 +138,8 @@ export type CreativeUpdateInput = {
   screenplay?: ScreenplayPayload | null;
   storyboard?: StoryboardPayload | null;
   video?: VideoPayload | null;
+  concept?: DisplayConceptPayload | null;
+  assets?: DisplayAssetsPayload | null;
   revisionFeedback?: string | null;
   externalAdRefs?: CreativeExternalAdRefs;
   activeJobId?: string | null;

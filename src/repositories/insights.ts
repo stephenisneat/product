@@ -94,6 +94,7 @@ export class SupabaseInsightRepository {
     workspaceId: string,
     opts: {
       status?: InsightStatus | InsightStatus[];
+      productId?: string;
       limit?: number;
       offset?: number;
     } = {},
@@ -114,10 +115,28 @@ export class SupabaseInsightRepository {
         query = query.eq("status", opts.status);
       }
     }
+    if (opts.productId) {
+      query = query.eq("product_id", opts.productId);
+    }
 
     const { data, error } = await query;
     if (error) throw error;
     return (data as DbInsight[]).map(mapInsight);
+  }
+
+  async listByProduct(
+    workspaceId: string,
+    productId: string,
+    opts: {
+      status?: InsightStatus | InsightStatus[];
+      limit?: number;
+    } = {},
+  ): Promise<Insight[]> {
+    return this.listByWorkspace(workspaceId, {
+      ...opts,
+      productId,
+      limit: opts.limit ?? 50,
+    });
   }
 
   async countByWorkspace(

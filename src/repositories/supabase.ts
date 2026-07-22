@@ -22,7 +22,6 @@ import {
   productTypeSchema,
   websiteMetadataSchema,
 } from "@/domain";
-import { buildPerformanceSeries } from "@/lib/performance/sample-series";
 import {
   createCollectionId,
   createOptionId,
@@ -33,6 +32,7 @@ import type {
   ArtifactRepository,
   CommerceConnectionRecord,
   ProductRepository,
+  ProductUpdateInput,
 } from "./types";
 
 type DbProduct = {
@@ -454,6 +454,40 @@ export class SupabaseProductRepository implements ProductRepository {
     return product;
   }
 
+  async updateProduct(
+    id: string,
+    patch: ProductUpdateInput,
+  ): Promise<Product> {
+    const existing = await this.getProduct(id);
+    if (!existing) {
+      throw new Error(`Product not found: ${id}`);
+    }
+
+    const now = new Date().toISOString();
+    const row: Record<string, unknown> = { updated_at: now };
+
+    if (patch.title !== undefined) row.title = patch.title;
+    if (patch.description !== undefined) row.description = patch.description;
+    if (patch.status !== undefined) row.status = patch.status;
+    if (patch.price !== undefined) row.price = patch.price;
+    if (patch.currency !== undefined) row.currency = patch.currency;
+    if (patch.sku !== undefined) row.sku = patch.sku;
+    if (patch.category !== undefined) row.category = patch.category;
+    if (patch.images !== undefined) row.images = patch.images;
+    if (patch.imageAvgColors !== undefined) {
+      row.image_avg_colors = patch.imageAvgColors;
+    }
+
+    const { error } = await this.client.from("products").update(row).eq("id", id);
+    if (error) throw error;
+
+    const updated = await this.getProduct(id);
+    if (!updated) {
+      throw new Error(`Product missing after update: ${id}`);
+    }
+    return updated;
+  }
+
   async upsertImportedProduct(
     canonical: CanonicalProduct,
     workspaceId: string,
@@ -783,9 +817,10 @@ export class SupabaseProductRepository implements ProductRepository {
     };
   }
 
-  async getPerformance(productId: string): Promise<PerformancePoint[]> {
-    // Live analytics ingestion is out of milestone scope; keep a consistent demo series.
-    return buildPerformanceSeries(productId);
+  async getPerformance(_productId: string): Promise<PerformancePoint[]> {
+    // Live product-level channel ingestion is not wired yet — return empty so the UI
+    // can show an honest empty state instead of a synthetic series.
+    return [];
   }
 
   async listConnections(workspaceId: string): Promise<CommerceConnection[]> {

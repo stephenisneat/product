@@ -78,7 +78,7 @@ export class SupabaseGoalRepository {
 
   async listByWorkspace(
     workspaceId: string,
-    opts: { status?: GoalStatus; limit?: number } = {},
+    opts: { status?: GoalStatus; productId?: string; limit?: number } = {},
   ): Promise<Goal[]> {
     const limit = opts.limit ?? 100;
     let query = this.client
@@ -90,9 +90,24 @@ export class SupabaseGoalRepository {
     if (opts.status) {
       query = query.eq("status", opts.status);
     }
+    if (opts.productId) {
+      query = query.eq("product_id", opts.productId);
+    }
     const { data, error } = await query;
     if (error) throw error;
     return (data as DbGoal[]).map(mapGoal);
+  }
+
+  async listByProduct(
+    workspaceId: string,
+    productId: string,
+    opts: { status?: GoalStatus; limit?: number } = {},
+  ): Promise<Goal[]> {
+    return this.listByWorkspace(workspaceId, {
+      ...opts,
+      productId,
+      limit: opts.limit ?? 100,
+    });
   }
 
   async listActiveByWorkspace(workspaceId: string): Promise<Goal[]> {
