@@ -10,6 +10,7 @@ import {
   Analytics01Icon,
   ArrowDown01Icon,
   ArrowLeft01Icon,
+  ArrowLeft02Icon as ArrowLeft02SolidIcon,
   ArrowRight01Icon,
   ArrowTurnBackwardIcon,
   ArrowUp01Icon,
@@ -101,6 +102,7 @@ function createIcon(icon: IconSvgElement): IconComponent {
 export const ArrowDownIcon = createIcon(ArrowDown01Icon);
 export const ArrowLeft = createIcon(ArrowLeft01Icon);
 export const ArrowLeftIcon = ArrowLeft;
+export const ArrowLeft02Icon = createIcon(ArrowLeft02SolidIcon);
 export const ArrowRight = createIcon(ArrowRight01Icon);
 export const ArrowUpDownIcon = createIcon(ArrowUpDownSolidIcon);
 export const BarChart3Icon = createIcon(BarChartIcon);

@@ -175,6 +175,94 @@ Return aspectRatio "16:9". Give each scene a stable id like "scene-1".`,
   return screenplayPayloadSchema.parse(payload);
 }
 
+/**
+ * Apply a localized review comment to a screenplay selection.
+ * Returns a full proposed screenplay the user can accept or reject.
+ */
+export async function suggestScreenplayEdit(opts: {
+  screenplay: ScreenplayPayload;
+  selectedText: string;
+  comment: string;
+  workspaceId: string;
+  userId: string | null;
+}): Promise<{ screenplay: ScreenplayPayload; summary: string }> {
+  assertAiGatewayConfigured();
+
+  const selectedText = opts.selectedText.trim();
+  const comment = opts.comment.trim();
+  if (!selectedText || !comment) {
+    throw new Error("Selection and comment are required.");
+  }
+
+  const result = await generateText({
+    model: CREATIVE_TEXT_MODEL,
+    output: Output.object({
+      schema: z.object({
+        summary: z.string(),
+        logline: z.string(),
+        aspectRatio: z.string(),
+        scenes: z.array(generatedSceneSchema).min(1).max(12),
+      }),
+    }),
+    system: `You revise short-form video ad screenplays based on a reviewer's inline comment.
+
+Rules:
+- Change only what the comment asks for. Preserve scene ids, structure, tone, and untouched scenes.
+- Keep filmable, concrete action lines — never vague marketing language.
+- dialogue is spoken words only. spokenKind is "voiceover" or "dialogue"; character is UPPERCASE when dialogue.
+- Keep aspectRatio and roughly the same total duration unless the comment requires otherwise.
+- summary is one short sentence describing the edit for the reviewer.`,
+    prompt: `Current screenplay JSON:
+${JSON.stringify(opts.screenplay, null, 2)}
+
+Selected text the reviewer highlighted:
+"""
+${selectedText}
+"""
+
+Reviewer comment:
+"""
+${comment}
+"""
+
+Return the full revised screenplay (all scenes), with minimal changes.`,
+  });
+
+  await maybeCharge({
+    workspaceId: opts.workspaceId,
+    userId: opts.userId,
+    model: CREATIVE_TEXT_MODEL,
+    inputTokens: result.usage.inputTokens ?? 0,
+    outputTokens: result.usage.outputTokens ?? 0,
+  });
+
+  const raw = result.output;
+  if (!raw) {
+    throw new Error("Screenplay edit model returned no structured output.");
+  }
+
+  const scenes = raw.scenes.map((scene, index) => ({
+    ...scene,
+    id: scene.id || `scene-${index + 1}`,
+    character:
+      scene.spokenKind === "dialogue" ? scene.character.trim() : "",
+    dialogue: scene.dialogue.trim(),
+  }));
+
+  const screenplay = screenplayPayloadSchema.parse({
+    logline: raw.logline.trim(),
+    script: buildScriptFromScenes(scenes),
+    scenes,
+    aspectRatio: raw.aspectRatio || opts.screenplay.aspectRatio || "16:9",
+    targetDurationSec: scenes.reduce((sum, s) => sum + s.durationSec, 0),
+  });
+
+  return {
+    screenplay,
+    summary: raw.summary.trim() || "Proposed edit based on your comment.",
+  };
+}
+
 async function uploadCreativeFrameImage(opts: {
   workspaceId: string;
   creativeId: string;

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
+  ArrowLeft02Icon,
   Ellipsis,
   Loader2,
 } from "@/components/icons";
@@ -22,12 +22,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAgentContext } from "@/features/agent/agent-context";
 import { CampaignAssociation } from "@/features/campaigns/campaign-association";
 import { CreativeVideoEditor } from "@/features/creatives/creative-video-editor";
-import { ScreenplayDocument } from "@/features/creatives/screenplay-document";
+import { ScreenplayView } from "@/features/creatives/screenplay-view";
 import { WorldView } from "@/features/creatives/world-view";
 import { PerformanceChartLazy } from "@/features/reporting/performance-chart-lazy";
 import { cn } from "@/lib/utils";
@@ -79,19 +86,6 @@ function stageLabel(stage: Creative["stage"]): string {
       return "Script";
     case "audio":
       return "Audio";
-  }
-}
-
-function kindBadgeLabel(kind: Creative["kind"]): string {
-  switch (kind) {
-    case "display_ad":
-      return "Display";
-    case "search_ad":
-      return "Search";
-    case "audio_ad":
-      return "Audio";
-    default:
-      return "Video";
   }
 }
 
@@ -1018,9 +1012,13 @@ export function CreativeWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [titleOpen, setTitleOpen] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(initial.title);
+  const [renaming, setRenaming] = useState(false);
 
   useEffect(() => {
     setCreative(initial);
+    setTitleDraft(initial.title);
     setTab((current) =>
       isTabEnabled(current, initial) ? current : defaultTab(initial),
     );
@@ -1113,6 +1111,38 @@ export function CreativeWorkspace({
     startTransition(() => router.refresh());
   }
 
+  async function renameCreative(nextTitle: string) {
+    const title = nextTitle.trim();
+    if (!title || title === creative.title) {
+      setTitleOpen(false);
+      setTitleDraft(creative.title);
+      return;
+    }
+    setError(null);
+    setRenaming(true);
+    try {
+      const res = await fetch(`/api/creatives/${creative.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "rename", title }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        setError(body?.error ?? "Rename failed");
+        return;
+      }
+      const body = (await res.json()) as { creative: Creative };
+      setCreative(body.creative);
+      setTitleDraft(body.creative.title);
+      setTitleOpen(false);
+      startTransition(() => router.refresh());
+    } finally {
+      setRenaming(false);
+    }
+  }
+
   async function removeCreative() {
     setError(null);
     setDeleting(true);
@@ -1151,34 +1181,87 @@ export function CreativeWorkspace({
       className="h-full gap-0"
     >
       <PageCanvas
-        headerClassName="border-border bg-black backdrop-blur-none supports-backdrop-filter:bg-black"
+        headerHeightClassName="h-14"
+        contentTopClassName="top-14"
+        headerClassName="border-b-0 bg-black backdrop-blur-none supports-backdrop-filter:bg-black"
         contentClassName="flex flex-col overflow-hidden bg-black"
         header={
           <div className="relative flex w-full items-center">
-            <div className="z-10 flex min-w-0 max-w-[28%] items-center gap-2">
+            <div className="z-10 flex min-w-0 max-w-[34%] items-center gap-2">
               <Button
                 variant="ghost"
-                size="sm"
-                className="-ml-2 gap-1.5 text-muted-foreground"
+                size="icon-sm"
+                className="-ml-1 size-7 shrink-0 rounded-md text-muted-foreground"
+                aria-label="Back to creatives"
                 render={<Link href="/creatives" />}
               >
-                <ArrowLeft className="size-3.5" />
-                Back
+                <ArrowLeft02Icon className="size-4" />
               </Button>
-              <div className="hidden min-w-0 items-center gap-1.5 lg:flex">
-                <span className="truncate text-sm font-medium">
-                  {creative.title}
-                </span>
-                <Badge variant="outline" className="shrink-0 text-[10px] uppercase">
-                  {kindBadgeLabel(creative.kind)}
-                </Badge>
+              <div className="hidden min-w-0 items-center gap-1.5 sm:flex">
+                <Popover
+                  open={titleOpen}
+                  onOpenChange={(open) => {
+                    setTitleOpen(open);
+                    if (open) setTitleDraft(creative.title);
+                  }}
+                >
+                  <PopoverTrigger
+                    render={
+                      <button
+                        type="button"
+                        className="truncate rounded-md px-1.5 py-0.5 text-left text-sm font-medium hover:bg-white/5"
+                      />
+                    }
+                  >
+                    {creative.title}
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-80 gap-3 p-3">
+                    <PopoverHeader>
+                      <PopoverTitle>Rename creative</PopoverTitle>
+                    </PopoverHeader>
+                    <form
+                      className="flex flex-col gap-2"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void renameCreative(titleDraft);
+                      }}
+                    >
+                      <Input
+                        value={titleDraft}
+                        onChange={(e) => setTitleDraft(e.target.value)}
+                        maxLength={200}
+                        disabled={renaming}
+                        autoFocus
+                        aria-label="Creative title"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={renaming}
+                          onClick={() => setTitleOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          size="sm"
+                          disabled={renaming || !titleDraft.trim()}
+                        >
+                          {renaming ? "Saving…" : "Save"}
+                        </Button>
+                      </div>
+                    </form>
+                  </PopoverContent>
+                </Popover>
                 <Badge variant="outline" className="shrink-0 text-[10px] uppercase">
                   {statusLabel(creative.status)}
                 </Badge>
               </div>
             </div>
 
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-16 sm:px-28">
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-14 sm:px-28">
               <TabsList
                 variant="line"
                 className="pointer-events-auto h-auto max-w-full gap-0 overflow-x-auto bg-transparent p-0"
@@ -1191,7 +1274,7 @@ export function CreativeWorkspace({
                       value={value}
                       disabled={!enabled}
                       className={cn(
-                        "rounded-none px-3 py-1.5 text-xs sm:text-sm",
+                        "rounded-none px-3 py-2 text-xs sm:text-sm",
                         !enabled && "opacity-40",
                       )}
                     >
@@ -1282,12 +1365,14 @@ export function CreativeWorkspace({
             </div>
           ) : null}
 
-          <div className="min-h-0 flex-1 overflow-y-auto bg-black">
-            <TabsContent value="screenplay" className="mt-0 h-full">
+          <div className="min-h-0 flex-1 overflow-hidden bg-black">
+            <TabsContent value="screenplay" className="mt-0 h-full overflow-hidden">
               {creative.screenplay ? (
-                <div className="min-h-full bg-black px-3 py-8 sm:px-6">
-                  <ScreenplayDocument screenplay={creative.screenplay} />
-                </div>
+                <ScreenplayView
+                  creative={creative}
+                  screenplay={creative.screenplay}
+                  onCreativeChange={setCreative}
+                />
               ) : (
                 <StageEmptyState
                   label="Screenplay"
@@ -1303,46 +1388,46 @@ export function CreativeWorkspace({
               )}
             </TabsContent>
 
-            <TabsContent value="world" className="mt-0">
+            <TabsContent value="world" className="mt-0 h-full overflow-y-auto">
               <WorldView
                 creative={creative}
                 onCreativeChange={setCreative}
               />
             </TabsContent>
 
-            <TabsContent value="storyboard" className="mt-0">
+            <TabsContent value="storyboard" className="mt-0 h-full overflow-y-auto">
               <StoryboardView creative={creative} />
             </TabsContent>
 
-            <TabsContent value="video" className="mt-0">
+            <TabsContent value="video" className="mt-0 h-full overflow-y-auto">
               <VideoView creative={creative} />
             </TabsContent>
 
-            <TabsContent value="concept" className="mt-0">
+            <TabsContent value="concept" className="mt-0 h-full overflow-y-auto">
               <ConceptView creative={creative} />
             </TabsContent>
 
-            <TabsContent value="assets" className="mt-0">
+            <TabsContent value="assets" className="mt-0 h-full overflow-y-auto">
               <AssetsView creative={creative} />
             </TabsContent>
 
-            <TabsContent value="copy" className="mt-0">
+            <TabsContent value="copy" className="mt-0 h-full overflow-y-auto">
               <CopyView creative={creative} />
             </TabsContent>
 
-            <TabsContent value="keywords" className="mt-0">
+            <TabsContent value="keywords" className="mt-0 h-full overflow-y-auto">
               <KeywordsView creative={creative} />
             </TabsContent>
 
-            <TabsContent value="script" className="mt-0">
+            <TabsContent value="script" className="mt-0 h-full overflow-y-auto">
               <ScriptView creative={creative} />
             </TabsContent>
 
-            <TabsContent value="audio" className="mt-0">
+            <TabsContent value="audio" className="mt-0 h-full overflow-y-auto">
               <AudioSpotView creative={creative} />
             </TabsContent>
 
-            <TabsContent value="distribution" className="mt-0">
+            <TabsContent value="distribution" className="mt-0 h-full overflow-y-auto">
               <DistributionView
                 creative={creative}
                 performance={performance}

@@ -27,6 +27,7 @@ import { hasServiceRole } from "@/lib/supabase/service";
 import { getCreativeRepository } from "@/repositories";
 import {
   creativeExternalAdRefsSchema,
+  screenplayPayloadSchema,
   videoClipSchema,
 } from "@/domain";
 
@@ -85,6 +86,19 @@ const patchSchema = z.discriminatedUnion("action", [
   }),
   z.object({
     action: z.literal("resume"),
+  }),
+  z.object({
+    action: z.literal("rename"),
+    title: z.string().trim().min(1).max(200),
+  }),
+  z.object({
+    action: z.literal("suggest_screenplay_edit"),
+    selectedText: z.string().trim().min(1).max(4000),
+    comment: z.string().trim().min(1).max(2000),
+  }),
+  z.object({
+    action: z.literal("apply_screenplay"),
+    screenplay: screenplayPayloadSchema,
   }),
 ]);
 
@@ -522,6 +536,64 @@ export async function PATCH(
     };
 
     const creative = await creatives.update(id, { world });
+    return NextResponse.json({ creative });
+  }
+
+  if (action === "rename") {
+    const creative = await creatives.update(id, {
+      title: parsed.data.title.trim(),
+    });
+    return NextResponse.json({ creative });
+  }
+
+  if (action === "suggest_screenplay_edit") {
+    if (!existing.screenplay) {
+      return NextResponse.json(
+        { error: "Screenplay has not been generated yet." },
+        { status: 409 },
+      );
+    }
+    try {
+      const { suggestScreenplayEdit } = await import(
+        "@/lib/jobs/generate-creative-content"
+      );
+      const suggestion = await suggestScreenplayEdit({
+        screenplay: existing.screenplay,
+        selectedText: parsed.data.selectedText,
+        comment: parsed.data.comment,
+        workspaceId: active.workspace.id,
+        userId: user.id,
+      });
+      return NextResponse.json({
+        creative: existing,
+        proposedScreenplay: suggestion.screenplay,
+        summary: suggestion.summary,
+      });
+    } catch (err) {
+      const message = unknownErrorMessage(err, "Failed to suggest edit.");
+      logServerError("api.creatives.suggest_screenplay_edit", err, {
+        creativeId: id,
+      });
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  }
+
+  if (action === "apply_screenplay") {
+    if (!existing.screenplay) {
+      return NextResponse.json(
+        { error: "Screenplay has not been generated yet." },
+        { status: 409 },
+      );
+    }
+    if (existing.status === "generating") {
+      return NextResponse.json(
+        { error: "Wait for generation to finish before editing." },
+        { status: 409 },
+      );
+    }
+    const creative = await creatives.update(id, {
+      screenplay: parsed.data.screenplay,
+    });
     return NextResponse.json({ creative });
   }
 
