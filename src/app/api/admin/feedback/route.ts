@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { kind, title, body } = parsed.data;
+  const { kind, title, body, screenshotUrl } = parsed.data;
   const supabase = await createClient();
   const { error } = await supabase.from("admin_feedback").insert({
     user_id: user.id,
@@ -33,6 +33,7 @@ export async function POST(req: Request) {
     kind,
     title,
     body: body?.trim() ? body.trim() : null,
+    screenshot_url: screenshotUrl ?? null,
   });
 
   if (error) {

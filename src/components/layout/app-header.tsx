@@ -6,6 +6,7 @@ import type { AppUser, WorkspaceRole } from "@/domain";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Button } from "@/components/ui/button";
 import { ChannelsMenu } from "@/features/channels/channels-menu";
+import { FeedbackHeaderMenu } from "@/features/feedback/feedback-header-menu";
 import { ProductPluginMenu } from "@/features/plugin/product-plugin-menu";
 import { WalletMenu } from "@/features/wallet/wallet-menu";
 import { WorkspacePicker } from "@/features/workspaces/workspace-picker";
@@ -47,6 +48,7 @@ export function AppHeader({
         </div>
       </div>
       <div className="flex items-center gap-0.5">
+        <FeedbackHeaderMenu />
         <Button
           render={<Link href="/settings/profile" />}
           variant="ghost"

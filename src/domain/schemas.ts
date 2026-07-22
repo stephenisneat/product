@@ -586,13 +586,18 @@ export const appUserSchema = z.object({
 
 export type AppUser = z.infer<typeof appUserSchema>;
 
-export const adminFeedbackKindSchema = z.enum(["channel_request"]);
+export const adminFeedbackKindSchema = z.enum([
+  "channel_request",
+  "bug",
+  "feature",
+]);
 export type AdminFeedbackKind = z.infer<typeof adminFeedbackKindSchema>;
 
 export const createAdminFeedbackSchema = z.object({
   kind: adminFeedbackKindSchema,
   title: z.string().trim().min(1).max(200),
   body: z.string().trim().max(2000).optional(),
+  screenshotUrl: z.string().url().max(2000).optional(),
 });
 export type CreateAdminFeedbackInput = z.infer<typeof createAdminFeedbackSchema>;
 
@@ -603,6 +608,7 @@ export const adminFeedbackSchema = z.object({
   kind: adminFeedbackKindSchema,
   title: z.string(),
   body: z.string().nullable(),
+  screenshotUrl: z.string().nullable(),
   createdAt: z.string().datetime(),
 });
 export type AdminFeedback = z.infer<typeof adminFeedbackSchema>;

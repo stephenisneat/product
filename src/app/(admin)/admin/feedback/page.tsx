@@ -7,6 +7,7 @@ type FeedbackRow = {
   kind: string;
   title: string;
   body: string | null;
+  screenshot_url: string | null;
   created_at: string;
 };
 
@@ -23,6 +24,8 @@ function formatWhen(iso: string) {
 
 function kindLabel(kind: string) {
   if (kind === "channel_request") return "Channel request";
+  if (kind === "bug") return "Bug";
+  if (kind === "feature") return "Feature request";
   return kind;
 }
 
@@ -30,7 +33,9 @@ export default async function AdminFeedbackPage() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("admin_feedback")
-    .select("id, user_id, user_email, kind, title, body, created_at")
+    .select(
+      "id, user_id, user_email, kind, title, body, screenshot_url, created_at",
+    )
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -43,7 +48,7 @@ export default async function AdminFeedbackPage() {
           Feedback
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Channel suggestions and other requests from users.
+          Bugs, feature requests, and channel suggestions from users.
         </p>
       </div>
 
@@ -71,6 +76,21 @@ export default async function AdminFeedbackPage() {
                 <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
                   {row.body}
                 </p>
+              ) : null}
+              {row.screenshot_url ? (
+                <a
+                  href={row.screenshot_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 block overflow-hidden rounded-md border border-border"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={row.screenshot_url}
+                    alt="Attached screenshot"
+                    className="max-h-64 w-full object-contain bg-muted/30"
+                  />
+                </a>
               ) : null}
             </li>
           ))}

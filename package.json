@@ -46,6 +46,7 @@
     "clsx": "^2.1.1",
     "echarts": "^6.1.0",
     "echarts-for-react": "^3.0.6",
+    "html-to-image": "^1.11.13",
     "lexical": "^0.47.0",
     "lexical-beautiful-mentions": "^0.1.48",
     "next": "16.2.10",
