@@ -829,6 +829,66 @@ export class GoogleAdsClient {
     });
   }
 
+  /** Daily campaign metrics for scheduled performance ingestion. */
+  async getCampaignPerformanceDaily(opts: {
+    startDate: string;
+    endDate: string;
+    campaignId?: string;
+  }): Promise<
+    {
+      date: string;
+      campaignId: string;
+      campaignName: string;
+      campaignStatus: string;
+      channelType: string;
+      impressions: number;
+      clicks: number;
+      cost: number;
+      conversions: number;
+      conversionsValue: number;
+    }[]
+  > {
+    const filters = [
+      `segments.date BETWEEN '${opts.startDate}' AND '${opts.endDate}'`,
+      `campaign.status != 'REMOVED'`,
+    ];
+    if (opts.campaignId) {
+      filters.push(`campaign.id = ${opts.campaignId.replace(/\D/g, "")}`);
+    }
+    const rows = await this.searchAll(`
+      SELECT
+        segments.date,
+        campaign.id,
+        campaign.name,
+        campaign.status,
+        campaign.advertising_channel_type,
+        metrics.impressions,
+        metrics.clicks,
+        metrics.cost_micros,
+        metrics.conversions,
+        metrics.conversions_value
+      FROM campaign
+      WHERE ${filters.join(" AND ")}
+    `);
+    return rows.map((row) => {
+      const segments = row.segments as Record<string, unknown>;
+      const campaign = row.campaign as Record<string, unknown>;
+      const metrics = row.metrics as Record<string, unknown>;
+      return {
+        date: String(segments.date ?? ""),
+        campaignId: String(campaign.id ?? ""),
+        campaignName: String(campaign.name ?? ""),
+        campaignStatus: String(campaign.status ?? ""),
+        channelType: String(campaign.advertisingChannelType ?? ""),
+        impressions: Number(metrics.impressions ?? 0),
+        clicks: Number(metrics.clicks ?? 0),
+        cost: amountFromMicros(metrics.costMicros as string) ?? 0,
+        conversions: Number(metrics.conversions ?? 0),
+        conversionsValue: Number(metrics.conversionsValue ?? 0),
+      };
+    });
+  }
+
   async getAssetPerformance(opts: {
     startDate: string;
     endDate: string;

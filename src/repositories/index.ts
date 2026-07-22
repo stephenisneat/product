@@ -8,6 +8,7 @@ import { SupabaseCreativeRepository } from "./creatives";
 import { SupabaseGoalRepository } from "./goals";
 import { SupabaseInsightRepository } from "./insights";
 import { SupabaseJobRepository } from "./jobs";
+import { SupabasePerformanceRepository } from "./performance";
 import { SupabaseProductRepository } from "./supabase";
 import { SupabaseWalletRepository } from "./wallet";
 import { SupabaseWorkspaceRepository } from "./workspaces";
@@ -26,6 +27,16 @@ export async function getAdConnectionRepository(): Promise<AdConnectionRepositor
 /** Service-role ad connection writes for token refresh from background jobs. */
 export function getAdConnectionWriteRepository(): AdConnectionRepository {
   return new SupabaseAdConnectionRepository(createServiceClient());
+}
+
+export async function getPerformanceRepository(): Promise<SupabasePerformanceRepository> {
+  const client = await createClient();
+  return new SupabasePerformanceRepository(client);
+}
+
+/** Service-role performance writes for sync jobs. */
+export function getPerformanceWriteRepository(): SupabasePerformanceRepository {
+  return new SupabasePerformanceRepository(createServiceClient());
 }
 
 export async function getProductRepository(): Promise<ProductRepository> {
@@ -124,6 +135,12 @@ export type { SupabaseWalletRepository } from "./wallet";
 export type { SupabaseJobRepository } from "./jobs";
 export type { SupabaseGoalRepository } from "./goals";
 export type { SupabaseInsightRepository } from "./insights";
+export type { SupabasePerformanceRepository } from "./performance";
+export type {
+  PerformanceBreakdownRow,
+  PerformanceQueryInput,
+  PerformanceQueryResult,
+} from "./performance";
 export {
   effectiveIncludedAllotmentCents,
   getWalletBlockedReason,

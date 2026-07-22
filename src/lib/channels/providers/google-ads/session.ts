@@ -4,7 +4,10 @@ import {
   refreshGoogleAdsAccessToken,
   type GoogleAdsClientCredentials,
 } from "@/lib/channels/providers/google-ads";
-import type { AdConnectionRecord } from "@/repositories/ad-connections";
+import type {
+  AdConnectionRecord,
+  AdConnectionRepository,
+} from "@/repositories/ad-connections";
 import { getAdConnectionRepository } from "@/repositories";
 
 export { toPublicAdConnection } from "@/lib/channels/ad-connection";
@@ -12,6 +15,8 @@ export { toPublicAdConnection } from "@/lib/channels/ad-connection";
 /** Build an authenticated Google Ads client from a stored connection. */
 export async function createGoogleAdsClientFromConnection(
   connection: AdConnectionRecord,
+  /** Prefer service-role repo in background jobs (no user session). */
+  connectionRepo?: AdConnectionRepository,
 ): Promise<GoogleAdsClient> {
   if (!connection.externalAccountId) {
     throw new Error("Google Ads connection has no customer account selected.");
@@ -30,7 +35,7 @@ export async function createGoogleAdsClientFromConnection(
   const needsRefresh =
     !accessToken || !expiresAt || expiresAt < Date.now() + 60_000;
 
-  const repo = await getAdConnectionRepository();
+  const repo = connectionRepo ?? (await getAdConnectionRepository());
 
   const persistTokens = async (tokens: {
     accessToken: string;

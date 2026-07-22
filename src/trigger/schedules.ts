@@ -6,6 +6,7 @@
 
 import { schedules } from "@trigger.dev/sdk";
 import { getEntitlements } from "@/lib/billing/entitlements";
+import { enqueueAdPerformanceSyncForAllConnections } from "@/lib/jobs/enqueue-ad-performance";
 import { maybeEnqueueHeartbeatInsight } from "@/lib/jobs/enqueue-insight";
 import { createServiceClient, hasServiceRole } from "@/lib/supabase/service";
 import { normalizeWorkspacePlan } from "@/lib/billing/entitlements";
@@ -40,6 +41,27 @@ export const insightsHeartbeat = schedules.task({
       workspaces: results.length,
       enqueued: results.filter((r) => r.insightId).length,
       results,
+    };
+  },
+});
+
+/** Daily ad performance sync: one job per active ad connection with a linked account. */
+export const adPerformanceHeartbeat = schedules.task({
+  id: "ad-performance-heartbeat",
+  // Every day at 06:00 UTC
+  cron: "0 6 * * *",
+  run: async () => {
+    if (!hasServiceRole()) {
+      return { skipped: true, reason: "no_service_role" };
+    }
+
+    const result = await enqueueAdPerformanceSyncForAllConnections({
+      trigger: "cron",
+    });
+
+    return {
+      enqueued: result.enqueued,
+      connectionIds: result.connectionIds,
     };
   },
 });

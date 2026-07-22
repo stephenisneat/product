@@ -481,6 +481,35 @@ export const performancePointSchema = z.object({
 
 export type PerformancePoint = z.infer<typeof performancePointSchema>;
 
+export const externalCampaignSchema = z.object({
+  id: z.string().uuid(),
+  workspaceId: z.string().uuid(),
+  connectionId: z.string(),
+  provider: adChannelProviderSchema,
+  externalId: z.string(),
+  name: z.string(),
+  status: z.string().nullable(),
+  channelType: z.string().nullable(),
+  currencyCode: z.string().nullable(),
+  productId: z.string().nullable(),
+  campaignId: z.string().nullable(),
+  lastSyncedAt: z.string().datetime().nullable(),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export type ExternalCampaign = z.infer<typeof externalCampaignSchema>;
+
+export const syncAdPerformanceJobInputSchema = z.object({
+  connectionId: z.string(),
+  /** Force a longer backfill window (30 days) instead of incremental (3 days). */
+  backfill: z.boolean().optional(),
+});
+export type SyncAdPerformanceJobInput = z.infer<
+  typeof syncAdPerformanceJobInputSchema
+>;
+
 export const visualizationKindSchema = z.enum([
   "sankey",
   "timeseries",
@@ -1013,6 +1042,7 @@ export const jobRunTypeSchema = z.enum([
   "generate_creative_assets",
   "render_creative_video",
   "generate_insight",
+  "sync_ad_performance",
 ]);
 export type JobRunType = z.infer<typeof jobRunTypeSchema>;
 

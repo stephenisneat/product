@@ -17,6 +17,7 @@ import type {
   WorkspacePlan,
 } from "@/domain";
 import {
+  adChannelProviderSchema,
   deliverableTypeSchema,
   goalHorizonSchema,
   goalMetricSchema,
@@ -53,34 +54,126 @@ import { hasServiceRole } from "@/lib/supabase/service";
 import { assertWalletAllowsAi, chargeAiUsage } from "@/lib/wallet/gate";
 import {
   buildCreateVisualizationResult,
+  buildCreateVisualizationResultSync,
   inferVisualizationFromPrompt,
 } from "@/features/visualizer/create-visualization";
-import { getGoalRepository, getProductRepository } from "@/repositories";
-
+import {
+  getGoalRepository,
+  getPerformanceRepository,
+  getProductRepository,
+} from "@/repositories";
+import { daysAgoUtc, isoDateUtc } from "@/lib/performance/date-range";
 const createVisualizationToolSchema = z.object({
   title: z.string().trim().min(1).max(120),
   kind: visualizationKindSchema,
   prompt: z.string().trim().max(500).optional(),
   periodA: z.string().trim().max(40).optional(),
   periodB: z.string().trim().max(40).optional(),
+  /** Omit to use page product (product chat); pass null for workspace-wide. */
+  productId: z.string().nullable().optional(),
+  provider: adChannelProviderSchema.optional(),
+  startDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  endDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 });
 
-const createVisualizationTool = tool({
-  description:
-    "Create a chart visualization and open it as a new visualizer tab. Use for performance questions, funnel/flow questions, campaign comparisons (e.g. Q1 vs Q2), or when the user asks to chart or visualize data. Prefer comparison for period-over-period, sankey for funnels/flows, timeseries for trends, bar for channel or category breakdowns.",
-  inputSchema: createVisualizationToolSchema,
-  execute: async (input) => {
-    const result = buildCreateVisualizationResult({
-      title: input.title,
-      kind: input.kind,
-      prompt: input.prompt,
-      periodA: input.periodA,
-      periodB: input.periodB,
-    });
-    return result;
-  },
+const queryPerformanceToolSchema = z.object({
+  startDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  endDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  /** Omit to use page product (product chat); pass null for workspace-wide. */
+  productId: z.string().nullable().optional(),
+  provider: adChannelProviderSchema.optional(),
+  groupBy: z.enum(["date", "provider", "campaign"]).optional(),
 });
 
+function resolveToolProductId(
+  inputProductId: string | null | undefined,
+  defaultProductId?: string,
+): string | undefined {
+  if (inputProductId === null) return undefined;
+  return inputProductId ?? defaultProductId;
+}
+function makeQueryPerformanceTool(
+  workspaceId: string,
+  defaultProductId?: string,
+) {
+  return tool({
+    description:
+      "Query synced campaign performance metrics (impressions, clicks, spend, conversions, revenue) for this workspace. Use for numeric performance questions. Prefer create_visualization when the user wants a chart.",
+    inputSchema: queryPerformanceToolSchema,
+    execute: async (input) => {
+      const endDate = input.endDate ?? isoDateUtc();
+      const startDate = input.startDate ?? daysAgoUtc(30);
+      try {
+        const performance = await getPerformanceRepository();
+        const result = await performance.queryPerformance({
+          workspaceId,
+          productId: resolveToolProductId(input.productId, defaultProductId),
+          provider: input.provider,
+          startDate,
+          endDate,
+          groupBy: input.groupBy ?? "date",
+        });
+        return {
+          ok: true,
+          startDate,
+          endDate,
+          ...result,
+          message:
+            result.campaignCount === 0
+              ? "No synced external campaigns yet. Connect an ad account and wait for the daily sync (or trigger a manual sync)."
+              : undefined,
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          error:
+            err instanceof Error
+              ? err.message
+              : "Failed to query performance.",
+        };
+      }
+    },
+  });
+}
+
+function makeCreateVisualizationTool(
+  workspaceId: string,
+  defaultProductId?: string,
+) {
+  return tool({
+    description:
+      "Create a chart visualization from live synced performance data and open it as a new visualizer tab. Use for performance questions, funnel/flow questions, campaign comparisons (e.g. Q1 vs Q2), or when the user asks to chart or visualize data. Prefer comparison for period-over-period, sankey for funnels/flows, timeseries for trends, bar for channel breakdowns.",
+    inputSchema: createVisualizationToolSchema,
+    execute: async (input) => {
+      return buildCreateVisualizationResult({
+        title: input.title,
+        kind: input.kind,
+        prompt: input.prompt,
+        periodA: input.periodA,
+        periodB: input.periodB,
+        filters: {
+          workspaceId,
+          productId: resolveToolProductId(input.productId, defaultProductId),
+          provider: input.provider,
+          startDate: input.startDate,
+          endDate: input.endDate,
+        },
+      });
+    },
+  });
+}
 export const runtime = "nodejs";
 
 function buildProductSystemPrompt(
@@ -102,7 +195,7 @@ When the user is revising an existing creative (they mention a creative id or ar
 When proposing ad_copy deliverables for campaigns, pass campaignIds with real ids only (or omit / [] for unassigned); never invent.
 Goals and auto-generated insights require Pro. When the user states a measurable objective, call create_goal (product or workspace scope). Use list_goals to see active goals. For proactive recommendations without ready content, call propose_insight without action fields; when revising an insight, call resubmit_insight.
 Use propose_insight for all reviewable next steps the user Accepts / Rejects / Revises — including concrete marketing deliverables.
-When the user asks about performance, funnels, comparisons (e.g. Q1 vs Q2), trends, or wants a chart/visualization, call create_visualization with an appropriate kind (sankey, timeseries, comparison, or bar) and a clear title.
+When the user asks for performance numbers, totals, or trends as text, call query_performance. When they want a chart/visualization, call create_visualization with an appropriate kind (sankey, timeseries, comparison, or bar) and a clear title. Both tools read synced ad campaign metrics — do not invent figures.
 Never invent inventory or prices that contradict the product context.
 The user may navigate between pages during a conversation. Treat the product below as the current page context for this turn.
 
@@ -149,7 +242,7 @@ When the user wants a video ad, call create_video_creative immediately with prod
 When the user wants a display ad (static/banner/RDA/image ads), call create_display_creative immediately with productId from the catalog plus title and brief.
 When the user is revising an existing creative, call resubmit_creative with that creativeId — do not create a new creative.
 Goals and auto-generated insights require Pro. When the user states a measurable objective, call create_goal. Use list_goals to inspect goals. For proactive recommendations without ready content, call propose_insight without action fields; when revising, call resubmit_insight.
-When the user asks about performance, funnels, comparisons (e.g. Q1 vs Q2), trends, or wants a chart/visualization, call create_visualization with an appropriate kind (sankey, timeseries, comparison, or bar) and a clear title.
+When the user asks for performance numbers, totals, or trends as text, call query_performance. When they want a chart/visualization, call create_visualization with an appropriate kind (sankey, timeseries, comparison, or bar) and a clear title. Both tools read synced ad campaign metrics — do not invent figures.
 Never invent inventory or prices that contradict the catalog.
 The user may navigate between pages during a conversation. Treat this workspace context as the current page for this turn.
 
@@ -232,7 +325,7 @@ function writeVisualizationToolEvents(
   const inferred = inferVisualizationFromPrompt(prompt);
   if (!inferred) return null;
 
-  const result = buildCreateVisualizationResult({
+  const result = buildCreateVisualizationResultSync({
     title: inferred.title,
     kind: inferred.kind,
     prompt,
@@ -946,7 +1039,14 @@ export async function POST(req: Request) {
             }
           },
         }),
-        create_visualization: createVisualizationTool,
+        query_performance: makeQueryPerformanceTool(
+          active.workspace.id,
+          product.id,
+        ),
+        create_visualization: makeCreateVisualizationTool(
+          active.workspace.id,
+          product.id,
+        ),
       },
     });
 
@@ -1439,7 +1539,10 @@ export async function POST(req: Request) {
           }
         },
       }),
-      create_visualization: createVisualizationTool,
+      query_performance: makeQueryPerformanceTool(activeWorkspace.workspace.id),
+      create_visualization: makeCreateVisualizationTool(
+        activeWorkspace.workspace.id,
+      ),
     },
   });
 

@@ -86,12 +86,18 @@ export interface AdConnectionRepository {
     workspaceId: string,
     provider: AdChannelProvider,
   ): Promise<AdConnection[]>;
+  /** Active connections with a linked account (service-role sync cron). */
+  listAllActiveWithAccount(): Promise<AdConnection[]>;
   upsertConnection(connection: AdConnectionRecord): Promise<AdConnection>;
   updateTokens(
     id: string,
     tokens: { accessToken: string; tokenExpiresAt: string },
   ): Promise<void>;
   updateStatus(id: string, status: ConnectionStatus): Promise<void>;
+  patchMetadata(
+    id: string,
+    patch: Record<string, unknown>,
+  ): Promise<void>;
   deleteConnection(id: string): Promise<void>;
 }
 
@@ -171,6 +177,38 @@ export class SupabaseAdConnectionRepository implements AdConnectionRepository {
       .eq("status", "active")
       .not("external_account_id", "is", null)
       .order("account_name", { ascending: true });
+    if (error) throw error;
+    return ((data ?? []) as Omit<
+      DbAdConnection,
+      "refresh_token" | "access_token" | "token_expires_at"
+    >[]).map((row) => ({
+      id: row.id,
+      workspaceId: row.workspace_id,
+      provider: row.provider,
+      externalAccountId: row.external_account_id,
+      loginCustomerId: row.login_customer_id,
+      accountName: row.account_name,
+      currencyCode: row.currency_code,
+      timeZone: row.time_zone,
+      isManager: row.is_manager,
+      scope: row.scope,
+      status: row.status,
+      connectedBy: row.connected_by,
+      metadata: row.metadata ?? {},
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  }
+
+  async listAllActiveWithAccount(): Promise<AdConnection[]> {
+    const { data, error } = await this.client
+      .from("ad_connections")
+      .select(
+        "id, workspace_id, provider, external_account_id, login_customer_id, account_name, currency_code, time_zone, is_manager, scope, status, connected_by, metadata, created_at, updated_at",
+      )
+      .eq("status", "active")
+      .not("external_account_id", "is", null)
+      .order("updated_at", { ascending: false });
     if (error) throw error;
     return ((data ?? []) as Omit<
       DbAdConnection,
@@ -281,6 +319,22 @@ export class SupabaseAdConnectionRepository implements AdConnectionRepository {
       .from("ad_connections")
       .update({
         status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+    if (error) throw error;
+  }
+
+  async patchMetadata(
+    id: string,
+    patch: Record<string, unknown>,
+  ): Promise<void> {
+    const existing = await this.getConnection(id);
+    if (!existing) throw new Error("Ad connection not found");
+    const { error } = await this.client
+      .from("ad_connections")
+      .update({
+        metadata: { ...existing.metadata, ...patch },
         updated_at: new Date().toISOString(),
       })
       .eq("id", id);

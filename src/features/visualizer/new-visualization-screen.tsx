@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import type { Visualization } from "@/domain";
+import { createLiveVisualization } from "@/features/visualizer/create-live-visualization";
 import {
-  createVisualization,
   VISUALIZATION_TEMPLATES,
   type VisualizationTemplate,
 } from "@/features/visualizer/dummy-data";
@@ -28,6 +28,7 @@ export function NewVisualizationScreen({
   const router = useRouter();
   // SSR-safe default; localStorage is read after mount to avoid hydration mismatch.
   const [recents, setRecents] = useState<Visualization[]>([]);
+  const [pending, startTransition] = useTransition();
 
   useEffect(() => {
     function refresh() {
@@ -49,14 +50,16 @@ export function NewVisualizationScreen({
   }
 
   function openTemplate(template: VisualizationTemplate) {
-    const viz = createVisualization({
-      title: template.title,
-      kind: template.kind,
-      periodA: template.periodA,
-      periodB: template.periodB,
-      prompt: `Template: ${template.title}`,
+    startTransition(async () => {
+      const viz = await createLiveVisualization({
+        title: template.title,
+        kind: template.kind,
+        periodA: template.periodA,
+        periodB: template.periodB,
+        prompt: `Template: ${template.title}`,
+      });
+      openViz(viz);
     });
-    openViz(viz);
   }
 
   function openRecent(viz: Visualization) {
@@ -84,7 +87,8 @@ export function NewVisualizationScreen({
               key={template.id}
               type="button"
               onClick={() => openTemplate(template)}
-              className="rounded-lg border border-border bg-background/40 p-4 text-left transition-colors hover:border-foreground/20 hover:bg-muted/40"
+              disabled={pending}
+              className="rounded-lg border border-border bg-background/40 p-4 text-left transition-colors hover:border-foreground/20 hover:bg-muted/40 disabled:opacity-60"
             >
               <div className="mb-1 flex items-center justify-between gap-2">
                 <span className="text-sm font-medium">{template.title}</span>

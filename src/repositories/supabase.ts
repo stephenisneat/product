@@ -815,10 +815,52 @@ export class SupabaseProductRepository implements ProductRepository {
     };
   }
 
-  async getPerformance(_productId: string): Promise<PerformancePoint[]> {
-    // Live product-level channel ingestion is not wired yet — return empty so the UI
-    // can show an honest empty state instead of a synthetic series.
-    return [];
+  async getPerformance(productId: string): Promise<PerformancePoint[]> {
+    const { data: campaigns, error: campaignError } = await this.client
+      .from("external_campaigns")
+      .select("id")
+      .eq("product_id", productId);
+    if (campaignError) throw campaignError;
+    const ids = (campaigns ?? []).map((c) => String(c.id));
+    if (ids.length === 0) return [];
+
+    const { data, error } = await this.client
+      .from("campaign_performance_points")
+      .select("date, impressions, clicks, spend, conversions, revenue")
+      .in("external_campaign_id", ids)
+      .order("date", { ascending: true });
+    if (error) throw error;
+
+    const byDate = new Map<
+      string,
+      {
+        impressions: number;
+        clicks: number;
+        spend: number;
+        conversions: number;
+        revenue: number;
+      }
+    >();
+    for (const row of data ?? []) {
+      const date = String(row.date);
+      const prev = byDate.get(date) ?? {
+        impressions: 0,
+        clicks: 0,
+        spend: 0,
+        conversions: 0,
+        revenue: 0,
+      };
+      byDate.set(date, {
+        impressions: prev.impressions + Number(row.impressions ?? 0),
+        clicks: prev.clicks + Number(row.clicks ?? 0),
+        spend: prev.spend + Number(row.spend ?? 0),
+        conversions: prev.conversions + Number(row.conversions ?? 0),
+        revenue: prev.revenue + Number(row.revenue ?? 0),
+      });
+    }
+    return [...byDate.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, m]) => ({ date, ...m }));
   }
 
   async listConnections(workspaceId: string): Promise<CommerceConnection[]> {
