@@ -60,6 +60,7 @@ import {
   inferVisualizationFromPrompt,
 } from "@/features/visualizer/create-visualization";
 import {
+  getCreativeRepository,
   getGoalRepository,
   getPerformanceRepository,
   getProductRepository,
@@ -182,7 +183,29 @@ function buildProductSystemPrompt(
   product: Product,
   intelligence: ProductIntelligence | null,
   plan: WorkspacePlan,
+  creativeContext?: {
+    id: string;
+    title: string;
+    kind: string;
+    stage: string;
+    status: string;
+    tab?: string;
+  } | null,
 ): string {
+  const creativeBlock = creativeContext
+    ? `
+
+The user is editing an existing creative in the creative workspace. Prefer editing this creative over creating a new one.
+When they ask for changes to screenplay, world, storyboard, video, or other stage content, call resubmit_creative with creativeId "${creativeContext.id}" and their feedback — do not create a new creative.
+Creative:
+- id: ${creativeContext.id}
+- title: ${creativeContext.title}
+- kind: ${creativeContext.kind}
+- stage: ${creativeContext.stage}
+- status: ${creativeContext.status}
+- active tab: ${creativeContext.tab ?? creativeContext.stage}`
+    : "";
+
   return `You are Product Agent, an AI marketing collaborator for commerce products.
 You help develop positioning, ad copy, campaign concepts, listing updates, video ad creatives, and display ad creatives.
 Workspace plan: ${plan}. Video/display/search/audio creatives and saved campaigns require Growth or Pro.
@@ -216,7 +239,7 @@ ${
   intelligence
     ? JSON.stringify(intelligence, null, 2)
     : "None yet — propose positioning if asked."
-}`;
+}${creativeBlock}`;
 }
 
 function buildWorkspaceSystemPrompt(
@@ -576,10 +599,14 @@ export async function POST(req: Request) {
   const body = (await req.json()) as {
     messages?: UIMessage[];
     productId?: string;
+    creativeId?: string;
+    creativeTab?: string;
     model?: string;
   };
 
   const productId = body.productId;
+  const creativeId = body.creativeId;
+  const creativeTab = body.creativeTab;
   const productsRepo = await getProductRepository();
   const messages = body.messages ?? [];
   const { modelId: chatModel, model: gatewayModel } = await resolveChatModel(
@@ -598,6 +625,33 @@ export async function POST(req: Request) {
 
     const intelligence = await productsRepo.getIntelligence(productId);
 
+    let creativeContext: {
+      id: string;
+      title: string;
+      kind: string;
+      stage: string;
+      status: string;
+      tab?: string;
+    } | null = null;
+    if (creativeId) {
+      const creativesRepo = await getCreativeRepository();
+      const creative = await creativesRepo.getById(creativeId);
+      if (
+        creative &&
+        creative.workspaceId === active.workspace.id &&
+        creative.productId === productId
+      ) {
+        creativeContext = {
+          id: creative.id,
+          title: creative.title,
+          kind: creative.kind,
+          stage: creative.stage,
+          status: creative.status,
+          tab: creativeTab,
+        };
+      }
+    }
+
     if (!hasAiGateway()) {
       return offlineProductStreamResponse(
         product,
@@ -613,12 +667,22 @@ export async function POST(req: Request) {
     const plan = normalizeWorkspacePlan(active.workspace.plan);
     const result = streamText({
       model: gateway(chatModel),
-      system: buildProductSystemPrompt(product, intelligence, plan),
+      system: buildProductSystemPrompt(
+        product,
+        intelligence,
+        plan,
+        creativeContext,
+      ),
       messages: await convertToModelMessages(messages),
       providerOptions: {
         gateway: {
           user: user.id,
-          tags: ["feature:chat", "scope:product", `model:${chatModel}`],
+          tags: [
+            "feature:chat",
+            "scope:product",
+            `model:${chatModel}`,
+            ...(creativeId ? ["surface:creative"] : []),
+          ],
         },
       },
       onFinish: async ({ usage }) => {

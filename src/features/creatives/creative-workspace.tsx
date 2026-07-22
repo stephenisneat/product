@@ -29,15 +29,15 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { SlidingTabs } from "@/components/ui/sliding-tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAgentContext } from "@/features/agent/agent-context";
-import { CampaignAssociation } from "@/features/campaigns/campaign-association";
+import { CreativeFloatingPrompt } from "@/features/creatives/creative-floating-prompt";
 import { CreativeVideoEditor } from "@/features/creatives/creative-video-editor";
 import { ScreenplayView } from "@/features/creatives/screenplay-view";
 import { WorldView } from "@/features/creatives/world-view";
 import { PerformanceChartLazy } from "@/features/reporting/performance-chart-lazy";
-import { cn } from "@/lib/utils";
 
 type CreativeTab =
   | "screenplay"
@@ -51,18 +51,6 @@ type CreativeTab =
   | "script"
   | "audio"
   | "distribution";
-
-const VIDEO_STAGE_ORDER = ["screenplay", "world", "storyboard", "video"] as const;
-const DISPLAY_STAGE_ORDER = ["concept", "assets"] as const;
-const SEARCH_STAGE_ORDER = ["copy", "keywords"] as const;
-const AUDIO_STAGE_ORDER = ["script", "audio"] as const;
-
-function stageOrderFor(creative: Creative) {
-  if (creative.kind === "display_ad") return DISPLAY_STAGE_ORDER;
-  if (creative.kind === "search_ad") return SEARCH_STAGE_ORDER;
-  if (creative.kind === "audio_ad") return AUDIO_STAGE_ORDER;
-  return VIDEO_STAGE_ORDER;
-}
 
 function stageLabel(stage: Creative["stage"]): string {
   switch (stage) {
@@ -106,10 +94,6 @@ function statusLabel(status: Creative["status"]): string {
   }
 }
 
-function stageIndex(creative: Creative) {
-  return (stageOrderFor(creative) as readonly string[]).indexOf(creative.stage);
-}
-
 /** User-uploaded ads skip screenplay/world/storyboard and land as ready video. */
 function isUploadedCreative(creative: Creative): boolean {
   return (
@@ -122,132 +106,72 @@ function isUploadedCreative(creative: Creative): boolean {
   );
 }
 
-function isTabEnabled(tab: CreativeTab, creative: Creative): boolean {
-  if (tab === "distribution") {
-    return creative.status === "ready";
-  }
-  if (creative.kind === "display_ad") {
-    if (tab !== "concept" && tab !== "assets") return false;
-    const order = DISPLAY_STAGE_ORDER;
-    const tabIdx = order.indexOf(tab);
-    const currentIdx = stageIndex(creative);
-    if (tabIdx < 0) return false;
-    if (tabIdx <= currentIdx) return true;
-    if (tab === "assets") return Boolean(creative.assets);
-    return false;
-  }
-  if (creative.kind === "search_ad") {
-    if (tab !== "copy" && tab !== "keywords") return false;
-    const order = SEARCH_STAGE_ORDER;
-    const tabIdx = order.indexOf(tab);
-    const currentIdx = stageIndex(creative);
-    if (tabIdx < 0) return false;
-    if (tabIdx <= currentIdx) return true;
-    if (tab === "keywords") return Boolean(creative.keywords);
-    return false;
-  }
-  if (creative.kind === "audio_ad") {
-    if (tab !== "script" && tab !== "audio") return false;
-    const order = AUDIO_STAGE_ORDER;
-    const tabIdx = order.indexOf(tab);
-    const currentIdx = stageIndex(creative);
-    if (tabIdx < 0) return false;
-    if (tabIdx <= currentIdx) return true;
-    if (tab === "audio") return Boolean(creative.audio);
-    return false;
-  }
-  if (isUploadedCreative(creative)) {
-    return tab === "video";
-  }
-  if (
-    tab !== "screenplay" &&
-    tab !== "world" &&
-    tab !== "storyboard" &&
-    tab !== "video"
-  ) {
-    return false;
-  }
-  const tabIdx = VIDEO_STAGE_ORDER.indexOf(tab);
-  const currentIdx = stageIndex(creative);
-  if (tabIdx < 0) return false;
-  // Current and prior stages are reachable; later stages unlock once payload exists.
-  if (tabIdx <= currentIdx) return true;
-  if (tab === "world") return Boolean(creative.world);
-  if (tab === "storyboard") return Boolean(creative.storyboard);
-  if (tab === "video") return Boolean(creative.video);
-  return false;
+function isKnownTab(tab: string, creative: Creative): tab is CreativeTab {
+  return tabItems(creative).some((item) => item.value === tab);
 }
 
 function defaultTab(creative: Creative): CreativeTab {
   if (creative.kind === "display_ad") {
-    if (isTabEnabled(creative.stage as CreativeTab, creative)) {
-      return creative.stage as CreativeTab;
+    if (creative.stage === "concept" || creative.stage === "assets") {
+      return creative.stage;
     }
-    if (creative.concept) return "concept";
     return "concept";
   }
   if (creative.kind === "search_ad") {
-    if (isTabEnabled(creative.stage as CreativeTab, creative)) {
-      return creative.stage as CreativeTab;
+    if (creative.stage === "copy" || creative.stage === "keywords") {
+      return creative.stage;
     }
     return "copy";
   }
   if (creative.kind === "audio_ad") {
-    if (isTabEnabled(creative.stage as CreativeTab, creative)) {
-      return creative.stage as CreativeTab;
+    if (creative.stage === "script" || creative.stage === "audio") {
+      return creative.stage;
     }
     return "script";
   }
   if (isUploadedCreative(creative)) return "video";
-  if (isTabEnabled(creative.stage as CreativeTab, creative)) {
-    return creative.stage as CreativeTab;
+  if (
+    creative.stage === "screenplay" ||
+    creative.stage === "world" ||
+    creative.stage === "storyboard" ||
+    creative.stage === "video"
+  ) {
+    return creative.stage;
   }
-  if (creative.screenplay) return "screenplay";
   return "screenplay";
 }
 
-function tabItems(creative: Creative): readonly (readonly [CreativeTab, string])[] {
+function tabItems(
+  creative: Creative,
+): readonly { value: CreativeTab; label: string }[] {
   if (creative.kind === "display_ad") {
     return [
-      ["concept", "Concept"],
-      ["assets", "Assets"],
-      ["distribution", "Distribution"],
-    ] as const;
+      { value: "concept", label: "Concept" },
+      { value: "assets", label: "Assets" },
+      { value: "distribution", label: "Distribution" },
+    ];
   }
   if (creative.kind === "search_ad") {
     return [
-      ["copy", "Copy"],
-      ["keywords", "Keywords"],
-      ["distribution", "Distribution"],
-    ] as const;
+      { value: "copy", label: "Copy" },
+      { value: "keywords", label: "Keywords" },
+      { value: "distribution", label: "Distribution" },
+    ];
   }
   if (creative.kind === "audio_ad") {
     return [
-      ["script", "Script"],
-      ["audio", "Audio"],
-      ["distribution", "Distribution"],
-    ] as const;
-  }
-  if (isUploadedCreative(creative)) {
-    return [
-      ["video", "Video"],
-      ["distribution", "Distribution"],
-    ] as const;
+      { value: "script", label: "Script" },
+      { value: "audio", label: "Audio" },
+      { value: "distribution", label: "Distribution" },
+    ];
   }
   return [
-    ["screenplay", "Screenplay"],
-    ["world", "World"],
-    ["storyboard", "Storyboard"],
-    ["video", "Video"],
-    ["distribution", "Distribution"],
-  ] as const;
-}
-
-function primaryBriefTab(creative: Creative): CreativeTab {
-  if (creative.kind === "display_ad") return "concept";
-  if (creative.kind === "search_ad") return "copy";
-  if (creative.kind === "audio_ad") return "script";
-  return "screenplay";
+    { value: "screenplay", label: "Screenplay" },
+    { value: "world", label: "World" },
+    { value: "storyboard", label: "Storyboard" },
+    { value: "video", label: "Video" },
+    { value: "distribution", label: "Distribution" },
+  ];
 }
 
 function StageEmptyState({
@@ -275,10 +199,13 @@ function StageEmptyState({
     );
   }
   return (
-    <div className="flex flex-col items-center justify-center py-24 text-sm text-muted-foreground">
-      No {label.toLowerCase()} yet.
-    </div>
-  );
+      <div className="flex flex-col items-center justify-center gap-2 py-24 text-center text-sm text-muted-foreground">
+        <p>No {label.toLowerCase()} yet.</p>
+        <p className="max-w-sm text-xs leading-relaxed">
+          This stage will appear here when {label.toLowerCase()} is generated.
+        </p>
+      </div>
+    );
 }
 
 function StoryboardView({ creative }: { creative: Creative }) {
@@ -767,10 +694,10 @@ function DistributionView({
   if (creative.status !== "ready") {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center justify-center gap-2 px-4 py-24 text-center text-sm text-muted-foreground">
-        <p>Distribution unlocks when this creative is ready.</p>
-        <p className="text-xs">
-          Download the MP4 and link campaigns from the workspace once generation
-          finishes.
+        <p>No distribution yet.</p>
+        <p className="text-xs leading-relaxed">
+          Distribution opens once this creative is ready — accept the final stage
+          to unlock ad IDs, downloads, and performance.
         </p>
       </div>
     );
@@ -1003,7 +930,7 @@ export function CreativeWorkspace({
   const { setComposePrefill } = useAgentContext();
   const [creative, setCreative] = useState(initial);
   const [tab, setTab] = useState<CreativeTab>(() => {
-    if (initialTab && isTabEnabled(initialTab, initial)) return initialTab;
+    if (initialTab && isKnownTab(initialTab, initial)) return initialTab;
     return defaultTab(initial);
   });
   const [pending, startTransition] = useTransition();
@@ -1020,7 +947,7 @@ export function CreativeWorkspace({
     setCreative(initial);
     setTitleDraft(initial.title);
     setTab((current) =>
-      isTabEnabled(current, initial) ? current : defaultTab(initial),
+      isKnownTab(current, initial) ? current : defaultTab(initial),
     );
   }, [initial]);
 
@@ -1035,7 +962,7 @@ export function CreativeWorkspace({
         if (!cancelled && body.creative) {
           setCreative(body.creative);
           setTab((current) =>
-            isTabEnabled(current, body.creative!)
+            isKnownTab(current, body.creative!)
               ? current
               : defaultTab(body.creative!),
           );
@@ -1092,9 +1019,7 @@ export function CreativeWorkspace({
     };
     setCreative(body.creative);
     setTab((current) =>
-      isTabEnabled(current, body.creative)
-        ? current
-        : defaultTab(body.creative),
+      isKnownTab(current, body.creative) ? current : defaultTab(body.creative),
     );
 
     if (action === "revise" && body.revisePrompt) {
@@ -1174,8 +1099,8 @@ export function CreativeWorkspace({
     <Tabs
       value={tab}
       onValueChange={(value) => {
-        if (isTabEnabled(value as CreativeTab, creative)) {
-          setTab(value as CreativeTab);
+        if (isKnownTab(value, creative)) {
+          setTab(value);
         }
       }}
       className="h-full gap-0"
@@ -1262,27 +1187,15 @@ export function CreativeWorkspace({
             </div>
 
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-14 sm:px-28">
-              <TabsList
-                variant="line"
-                className="pointer-events-auto h-auto max-w-full gap-0 overflow-x-auto bg-transparent p-0"
-              >
-                {tabItems(creative).map(([value, label]) => {
-                  const enabled = isTabEnabled(value, creative);
-                  return (
-                    <TabsTrigger
-                      key={value}
-                      value={value}
-                      disabled={!enabled}
-                      className={cn(
-                        "rounded-none px-3 py-2 text-xs sm:text-sm",
-                        !enabled && "opacity-40",
-                      )}
-                    >
-                      {label}
-                    </TabsTrigger>
-                  );
-                })}
-              </TabsList>
+              <SlidingTabs
+                className="pointer-events-auto"
+                aria-label="Creative stages"
+                value={tab}
+                onValueChange={(value) => {
+                  if (isKnownTab(value, creative)) setTab(value);
+                }}
+                items={tabItems(creative)}
+              />
             </div>
 
             <div className="z-10 ml-auto flex items-center gap-1">
@@ -1338,34 +1251,7 @@ export function CreativeWorkspace({
         }
       >
         <div className="flex min-h-0 flex-1 flex-col bg-black">
-          {(product || creative.brief) && tab !== primaryBriefTab(creative) ? (
-            <div className="shrink-0 border-b border-border px-4 py-2">
-              <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-2">
-                {product ? (
-                  <Badge variant="outline" className="text-[10px]">
-                    <Link
-                      href={`/products/${product.id}`}
-                      className="hover:underline"
-                    >
-                      {product.title}
-                    </Link>
-                  </Badge>
-                ) : null}
-                <p className="line-clamp-1 text-xs text-muted-foreground">
-                  {creative.brief}
-                </p>
-                <CampaignAssociation
-                  className="ml-auto"
-                  productId={creative.productId}
-                  campaignIds={creative.campaignIds}
-                  patchUrl={`/api/creatives/${creative.id}`}
-                  compact
-                />
-              </div>
-            </div>
-          ) : null}
-
-          <div className="min-h-0 flex-1 overflow-hidden bg-black">
+          <div className="min-h-0 flex-1 overflow-hidden bg-black pb-24">
             <TabsContent value="screenplay" className="mt-0 h-full overflow-hidden">
               {creative.screenplay ? (
                 <ScreenplayView
@@ -1451,6 +1337,13 @@ export function CreativeWorkspace({
           />
         </div>
       </PageCanvas>
+
+      <CreativeFloatingPrompt
+        creative={creative}
+        activeTab={tab}
+        productId={creative.productId}
+        onCreativeChange={setCreative}
+      />
 
       <ConfirmDeleteDialog
         open={deleteOpen}

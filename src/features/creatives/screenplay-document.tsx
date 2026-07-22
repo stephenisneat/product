@@ -15,6 +15,17 @@ export type ScreenplayFieldDiff = {
   after: string;
 };
 
+/** Anchored highlight for a single text range inside one field. */
+export type ScreenplayTextHighlight = {
+  sceneId: string | null;
+  field: ScreenplayFieldKey;
+  start: number;
+  end: number;
+};
+
+/** Matches native selection + mark tint (amber-400 @ 35%). */
+export const SCREENPLAY_HIGHLIGHT_BG = "rgb(251 191 36 / 0.35)";
+
 /**
  * Final Draft–inspired screenplay layout.
  * Uses US screenplay conventions: Courier, sluglines, action, dialogue column.
@@ -22,13 +33,13 @@ export type ScreenplayFieldDiff = {
 export function ScreenplayDocument({
   screenplay,
   className,
-  highlightText,
+  highlight,
   diffs,
 }: {
   screenplay: ScreenplayPayload;
   className?: string;
-  /** Currently selected / commented text to tint when present in the sheet. */
-  highlightText?: string | null;
+  /** Currently selected / commented range to tint in the sheet. */
+  highlight?: ScreenplayTextHighlight | null;
   /** Accepted proposal preview — render before/after for changed fields. */
   diffs?: ScreenplayFieldDiff[];
 }) {
@@ -40,6 +51,7 @@ export function ScreenplayDocument({
     <div
       className={cn(
         "mx-auto w-full max-w-[8.5in] border border-white/15 bg-neutral-800 text-neutral-100 shadow-[0_1px_0_rgba(255,255,255,0.04),0_12px_40px_rgba(0,0,0,0.45)]",
+        "[&_*::selection]:bg-[rgb(251_191_36_/_0.35)] [&_*::selection]:text-inherit",
         className,
       )}
       data-screenplay-sheet
@@ -50,8 +62,10 @@ export function ScreenplayDocument({
         </p>
         <FieldText
           className="mt-3 font-mono text-sm leading-relaxed text-neutral-300"
+          sceneId={null}
+          field="logline"
           text={screenplay.logline}
-          highlightText={highlightText}
+          highlight={highlight}
           diff={diffMap.get("meta:logline")}
         />
         <p className="mt-2 font-mono text-[10px] text-neutral-500">
@@ -65,7 +79,7 @@ export function ScreenplayDocument({
             key={scene.id}
             scene={scene}
             className={cn(index > 0 && "mt-8")}
-            highlightText={highlightText}
+            highlight={highlight}
             diffs={diffMap}
           />
         ))}
@@ -77,12 +91,12 @@ export function ScreenplayDocument({
 function SceneBlock({
   scene,
   className,
-  highlightText,
+  highlight,
   diffs,
 }: {
   scene: ScreenplayScene;
   className?: string;
-  highlightText?: string | null;
+  highlight?: ScreenplayTextHighlight | null;
   diffs: Map<string, ScreenplayFieldDiff>;
 }) {
   const headingDiff = diffs.get(`${scene.id}:heading`);
@@ -99,8 +113,10 @@ function SceneBlock({
     <section className={className} data-scene-id={scene.id}>
       <h2 className="mb-4 font-bold uppercase tracking-wide">
         <FieldText
+          sceneId={scene.id}
+          field="heading"
           text={scene.heading}
-          highlightText={highlightText}
+          highlight={highlight}
           diff={headingDiff}
         />
       </h2>
@@ -108,8 +124,10 @@ function SceneBlock({
       {scene.action || actionDiff ? (
         <p className="mb-4 whitespace-pre-wrap">
           <FieldText
+            sceneId={scene.id}
+            field="action"
             text={scene.action}
-            highlightText={highlightText}
+            highlight={highlight}
             diff={actionDiff}
           />
         </p>
@@ -119,15 +137,19 @@ function SceneBlock({
         <div className="mx-auto mb-4 w-[70%] max-w-[3.5in] sm:w-[55%]">
           <p className="mb-1 text-center font-bold uppercase">
             <FieldText
+              sceneId={scene.id}
+              field="character"
               text={characterLabel}
-              highlightText={highlightText}
+              highlight={highlight}
               diff={characterDiff}
             />
           </p>
           <p className="whitespace-pre-wrap text-center">
             <FieldText
+              sceneId={scene.id}
+              field="dialogue"
               text={scene.dialogue}
-              highlightText={highlightText}
+              highlight={highlight}
               diff={dialogueDiff}
             />
           </p>
@@ -142,19 +164,33 @@ function SceneBlock({
 }
 
 function FieldText({
+  sceneId,
+  field,
   text,
-  highlightText,
+  highlight,
   diff,
   className,
 }: {
+  sceneId: string | null;
+  field: ScreenplayFieldKey;
   text: string;
-  highlightText?: string | null;
+  highlight?: ScreenplayTextHighlight | null;
   diff?: ScreenplayFieldDiff;
   className?: string;
 }) {
+  const isHighlighted =
+    highlight &&
+    highlight.field === field &&
+    highlight.sceneId === sceneId &&
+    highlight.start < highlight.end;
+
   if (diff && diff.before !== diff.after) {
     return (
-      <span className={className}>
+      <span
+        className={className}
+        data-screenplay-field={field}
+        data-scene-id={sceneId ?? "meta"}
+      >
         {diff.before ? (
           <span className="mr-1 rounded-sm bg-red-500/20 text-red-200 line-through decoration-red-400/80">
             {diff.before}
@@ -169,34 +205,35 @@ function FieldText({
     );
   }
 
-  if (!highlightText || !text) {
-    return <span className={className}>{text}</span>;
-  }
-
   return (
-    <span className={className}>
-      {renderHighlighted(text, highlightText)}
+    <span
+      className={className}
+      data-screenplay-field={field}
+      data-scene-id={sceneId ?? "meta"}
+    >
+      {isHighlighted ? renderRangeHighlight(text, highlight) : text}
     </span>
   );
 }
 
-function renderHighlighted(text: string, highlight: string) {
-  const needle = highlight.trim();
-  if (!needle) return text;
-
-  const lower = text.toLowerCase();
-  const index = lower.indexOf(needle.toLowerCase());
-  if (index < 0) return text;
-
-  const before = text.slice(0, index);
-  const match = text.slice(index, index + needle.length);
-  const after = text.slice(index + needle.length);
+function renderRangeHighlight(
+  text: string,
+  highlight: ScreenplayTextHighlight,
+) {
+  const start = Math.max(0, Math.min(highlight.start, text.length));
+  const end = Math.max(start, Math.min(highlight.end, text.length));
+  if (start >= end) return text;
 
   return (
     <>
-      {before}
-      <mark className="rounded-sm bg-amber-400/35 text-inherit">{match}</mark>
-      {after}
+      {text.slice(0, start)}
+      <mark
+        className="rounded-sm text-inherit"
+        style={{ backgroundColor: SCREENPLAY_HIGHLIGHT_BG }}
+      >
+        {text.slice(start, end)}
+      </mark>
+      {text.slice(end)}
     </>
   );
 }

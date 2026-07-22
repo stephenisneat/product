@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Creative, ScreenplayPayload } from "@/domain";
 import { Loader2 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -8,15 +8,21 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   ScreenplayDocument,
   diffScreenplays,
+  type ScreenplayFieldKey,
+  type ScreenplayTextHighlight,
 } from "@/features/creatives/screenplay-document";
 import { cn } from "@/lib/utils";
 
+/** US Letter page width in CSS pixels (8.5in at 96dpi). */
+const BASE_SHEET_WIDTH_PX = 8.5 * 96;
+/** Fraction of the scroll viewport the sheet should fill at max scale. */
+const MAX_WIDTH_RATIO = 0.96;
 const MIN_SCALE = 0.5;
-const MAX_SCALE = 1.25;
-const DEFAULT_SCALE = 1;
+const DEFAULT_SCALE_T = 0.55;
 
 type CommentDraft = {
   selectedText: string;
+  highlight: ScreenplayTextHighlight;
   comment: string;
   top: number;
   left: number;
@@ -24,10 +30,49 @@ type CommentDraft = {
 
 type Proposal = {
   selectedText: string;
+  highlight: ScreenplayTextHighlight;
   comment: string;
   summary: string;
   screenplay: ScreenplayPayload;
 };
+
+function fieldFromElement(
+  el: Element | null,
+): { sceneId: string | null; field: ScreenplayFieldKey } | null {
+  const fieldEl = el?.closest("[data-screenplay-field]");
+  if (!fieldEl) return null;
+  const field = fieldEl.getAttribute("data-screenplay-field");
+  const sceneRaw = fieldEl.getAttribute("data-scene-id");
+  if (
+    field !== "logline" &&
+    field !== "heading" &&
+    field !== "action" &&
+    field !== "character" &&
+    field !== "dialogue"
+  ) {
+    return null;
+  }
+  return {
+    field,
+    sceneId: !sceneRaw || sceneRaw === "meta" ? null : sceneRaw,
+  };
+}
+
+function rangeOffsetsInField(
+  range: Range,
+  fieldEl: Element,
+): { start: number; end: number } | null {
+  try {
+    const pre = range.cloneRange();
+    pre.selectNodeContents(fieldEl);
+    pre.setEnd(range.startContainer, range.startOffset);
+    const start = pre.toString().length;
+    const length = range.toString().length;
+    return { start, end: start + length };
+  } catch {
+    return null;
+  }
+}
 
 export function ScreenplayView({
   creative,
@@ -41,11 +86,34 @@ export function ScreenplayView({
   const scrollRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(DEFAULT_SCALE);
+  const [scaleT, setScaleT] = useState(DEFAULT_SCALE_T);
+  const [maxScale, setMaxScale] = useState(1);
   const [draft, setDraft] = useState<CommentDraft | null>(null);
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const minScale = Math.min(MIN_SCALE, maxScale * 0.55);
+  const scale = minScale + scaleT * Math.max(maxScale - minScale, 0);
+
+  useLayoutEffect(() => {
+    const scroll = scrollRef.current;
+    if (!scroll) return;
+
+    const update = () => {
+      const available = Math.max(scroll.clientWidth - 24, BASE_SHEET_WIDTH_PX * 0.5);
+      const nextMax = Math.max(
+        MIN_SCALE,
+        (available * MAX_WIDTH_RATIO) / BASE_SHEET_WIDTH_PX,
+      );
+      setMaxScale(nextMax);
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(scroll);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -64,7 +132,6 @@ export function ScreenplayView({
       const target = event.target as Node | null;
       if (!target) return;
       if (composerRef.current?.contains(target)) return;
-      if (sheetRef.current?.contains(target)) return;
       setDraft(null);
     }
     window.addEventListener("pointerdown", onPointerDown);
@@ -90,6 +157,35 @@ export function ScreenplayView({
       return;
     }
 
+    const startMeta = fieldFromElement(
+      range.startContainer.nodeType === Node.ELEMENT_NODE
+        ? (range.startContainer as Element)
+        : range.startContainer.parentElement,
+    );
+    const endMeta = fieldFromElement(
+      range.endContainer.nodeType === Node.ELEMENT_NODE
+        ? (range.endContainer as Element)
+        : range.endContainer.parentElement,
+    );
+    if (
+      !startMeta ||
+      !endMeta ||
+      startMeta.field !== endMeta.field ||
+      startMeta.sceneId !== endMeta.sceneId
+    ) {
+      return;
+    }
+
+    const fieldEl = (
+      range.startContainer.nodeType === Node.ELEMENT_NODE
+        ? (range.startContainer as Element)
+        : range.startContainer.parentElement
+    )?.closest("[data-screenplay-field]");
+    if (!fieldEl || !sheet.contains(fieldEl)) return;
+
+    const offsets = rangeOffsetsInField(range, fieldEl);
+    if (!offsets || offsets.end - offsets.start < 2) return;
+
     const selectedText = selection.toString().replace(/\s+/g, " ").trim();
     if (selectedText.length < 2) return;
 
@@ -104,6 +200,12 @@ export function ScreenplayView({
     setError(null);
     setDraft({
       selectedText,
+      highlight: {
+        sceneId: startMeta.sceneId,
+        field: startMeta.field,
+        start: offsets.start,
+        end: offsets.end,
+      },
       comment: "",
       top,
       left,
@@ -135,6 +237,7 @@ export function ScreenplayView({
       }
       setProposal({
         selectedText: draft.selectedText,
+        highlight: draft.highlight,
         comment: draft.comment.trim(),
         summary: body.summary ?? "Proposed edit",
         screenplay: body.proposedScreenplay,
@@ -183,6 +286,8 @@ export function ScreenplayView({
   const diffs = proposal
     ? diffScreenplays(screenplay, proposal.screenplay)
     : undefined;
+  const activeHighlight =
+    proposal?.highlight ?? draft?.highlight ?? null;
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-black">
@@ -199,9 +304,7 @@ export function ScreenplayView({
           <ScreenplayDocument
             screenplay={displayScreenplay}
             className="max-w-none"
-            highlightText={
-              proposal?.selectedText ?? draft?.selectedText ?? null
-            }
+            highlight={activeHighlight}
             diffs={diffs}
           />
         </div>
@@ -313,27 +416,22 @@ export function ScreenplayView({
         </div>
       ) : null}
 
-      <div className="shrink-0 border-t border-border bg-black px-4 py-2.5">
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-3">
-          <label
-            htmlFor="screenplay-scale"
-            className="shrink-0 text-xs text-muted-foreground"
-          >
-            Scale
-          </label>
+      <div className="shrink-0 border-t border-border bg-black px-4 py-2">
+        <div className="flex w-full items-center justify-end gap-2">
           <input
             id="screenplay-scale"
             type="range"
-            min={MIN_SCALE}
-            max={MAX_SCALE}
-            step={0.05}
-            value={scale}
-            onChange={(e) => setScale(Number(e.target.value))}
+            min={0}
+            max={1}
+            step={0.01}
+            value={scaleT}
+            aria-label="Screenplay scale"
+            onChange={(e) => setScaleT(Number(e.target.value))}
             className={cn(
-              "h-1.5 w-full max-w-xs flex-1 cursor-pointer appearance-none rounded-full bg-neutral-700 accent-neutral-200",
+              "h-1 w-24 cursor-pointer appearance-none rounded-full bg-neutral-700 accent-neutral-200",
             )}
           />
-          <span className="w-10 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+          <span className="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
             {Math.round(scale * 100)}%
           </span>
         </div>

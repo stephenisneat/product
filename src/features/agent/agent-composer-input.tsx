@@ -277,12 +277,14 @@ export function AgentComposerInput({
   busy,
   productId,
   onSubmit,
+  className,
 }: {
   placeholder: string;
   disabled?: boolean;
   busy: boolean;
   productId?: string;
   onSubmit: (payload: { text: string; files: File[] }) => void | Promise<void>;
+  className?: string;
 }) {
   const { composePrefill, setComposePrefill } = useAgentContext();
   const [text, setText] = useState("");
@@ -367,7 +369,7 @@ export function AgentComposerInput({
   };
 
   return (
-    <form onSubmit={onFormSubmit} className="p-3 pb-1.5">
+    <form onSubmit={onFormSubmit} className={cn("p-3 pb-1.5", className)}>
       {files.length > 0 ? (
         <ul className="mb-2 flex flex-wrap gap-1.5">
           {files.map((file, index) => (
