@@ -370,14 +370,14 @@ export function ProductCatalog({
           >
             {grouped.map((group) => (
               <AccordionItem key={group.status} value={group.status}>
-                <AccordionTrigger className="hover:no-underline">
+                <AccordionTrigger>
                   <span className="flex items-center gap-2">
                     <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                       {CATALOG_STATUS_LABELS[group.status]}
                     </span>
-                    <span className="text-xs tabular-nums text-muted-foreground">
+                    <Badge variant="secondary" className="tabular-nums">
                       {group.products.length}
-                    </span>
+                    </Badge>
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="pb-4 [&_a]:no-underline">

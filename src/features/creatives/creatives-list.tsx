@@ -16,6 +16,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -253,14 +254,14 @@ export function CreativesList({
         >
           {grouped.map((group) => (
             <AccordionItem key={group.status} value={group.status}>
-              <AccordionTrigger className="hover:no-underline">
+              <AccordionTrigger>
                 <span className="flex items-center gap-2">
                   <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                     {CREATIVE_STATUS_LABELS[group.status]}
                   </span>
-                  <span className="text-xs tabular-nums text-muted-foreground">
+                  <Badge variant="secondary" className="tabular-nums">
                     {group.creatives.length}
-                  </span>
+                  </Badge>
                 </span>
               </AccordionTrigger>
               <AccordionContent className="pb-4 [&_a]:no-underline">
