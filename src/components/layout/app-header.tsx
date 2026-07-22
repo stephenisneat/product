@@ -16,11 +16,13 @@ export function AppHeader({
   workspaces,
   activeWorkspaceId,
   activeRole,
+  isPlatformAdmin = false,
 }: {
   user: AppUser;
   workspaces: WorkspaceWithRole[];
   activeWorkspaceId: string | null;
   activeRole: WorkspaceRole | null;
+  isPlatformAdmin?: boolean;
 }) {
   return (
     <header className="flex h-12 shrink-0 items-center justify-between gap-4 px-4">
@@ -54,7 +56,11 @@ export function AppHeader({
         >
           <SettingsIcon />
         </Button>
-        <UserMenu user={user} showLabel />
+        <UserMenu
+          user={user}
+          showLabel
+          isPlatformAdmin={isPlatformAdmin}
+        />
       </div>
     </header>
   );

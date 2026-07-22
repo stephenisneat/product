@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { SearchIcon, Send, XIcon } from "@/components/icons";
+import { SearchIcon, Send, UsersIcon, XIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -12,6 +12,12 @@ const adminGroups = [
     label: "Inbox",
     items: [
       { href: "/admin/feedback", label: "Feedback", icon: Send },
+    ],
+  },
+  {
+    label: "Access",
+    items: [
+      { href: "/admin/team", label: "Team", icon: UsersIcon },
     ],
   },
 ] as const;

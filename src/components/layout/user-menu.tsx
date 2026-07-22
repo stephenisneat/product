@@ -20,9 +20,11 @@ const menuItemClass =
 export function UserMenu({
   user,
   showLabel = false,
+  isPlatformAdmin = false,
 }: {
   user: AppUser;
   showLabel?: boolean;
+  isPlatformAdmin?: boolean;
 }) {
   const router = useRouter();
 
@@ -75,6 +77,11 @@ export function UserMenu({
         <Link href="/settings/profile" className={menuItemClass}>
           Profile
         </Link>
+        {isPlatformAdmin ? (
+          <Link href="/admin" className={menuItemClass}>
+            Admin Center
+          </Link>
+        ) : null}
         <Separator className="my-2" />
         <button
           type="button"

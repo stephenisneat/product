@@ -61,12 +61,14 @@ function AppShellFrame({
   workspaces,
   activeWorkspaceId,
   activeRole,
+  isPlatformAdmin,
   children,
 }: {
   user: AppUser;
   workspaces: WorkspaceWithRole[];
   activeWorkspaceId: string | null;
   activeRole: WorkspaceRole | null;
+  isPlatformAdmin: boolean;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -113,6 +115,7 @@ function AppShellFrame({
         workspaces={workspaces}
         activeWorkspaceId={activeWorkspaceId}
         activeRole={activeRole}
+        isPlatformAdmin={isPlatformAdmin}
       />
       <div className="flex min-h-0 flex-1 gap-2 px-3 pb-3">
         <VisualizationDraftProvider>
@@ -153,12 +156,14 @@ export function AppShell({
   workspaces = [],
   activeWorkspaceId = null,
   activeRole = null,
+  isPlatformAdmin = false,
   children,
 }: {
   user: AppUser;
   workspaces?: WorkspaceWithRole[];
   activeWorkspaceId?: string | null;
   activeRole?: WorkspaceRole | null;
+  isPlatformAdmin?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -170,6 +175,7 @@ export function AppShell({
             workspaces={workspaces}
             activeWorkspaceId={activeWorkspaceId}
             activeRole={activeRole}
+            isPlatformAdmin={isPlatformAdmin}
           >
             {children}
           </AppShellFrame>
