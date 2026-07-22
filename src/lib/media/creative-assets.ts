@@ -94,6 +94,28 @@ export async function uploadCreativeThumbnail(opts: {
   });
 }
 
+export async function uploadDisplayCreativeImage(opts: {
+  workspaceId: string;
+  creativeId: string;
+  variant: "marketing" | "square";
+  bytes: Uint8Array;
+  contentType?: string;
+}): Promise<string> {
+  const ext = opts.contentType?.includes("jpeg")
+    ? "jpg"
+    : opts.contentType?.includes("webp")
+      ? "webp"
+      : "png";
+  return uploadBytes({
+    workspaceId: opts.workspaceId,
+    creativeId: opts.creativeId,
+    folder: "display",
+    filename: `${opts.variant}-${crypto.randomUUID().slice(0, 8)}.${ext}`,
+    bytes: opts.bytes,
+    contentType: opts.contentType || "image/png",
+  });
+}
+
 export async function downloadUrlToBytes(url: string): Promise<{
   bytes: Uint8Array;
   contentType: string | null;

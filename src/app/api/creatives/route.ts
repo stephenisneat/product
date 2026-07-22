@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { creativeKindSchema } from "@/domain";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import { PlanEntitlementError } from "@/lib/billing/gates";
 import { normalizeWorkspacePlan } from "@/lib/billing/entitlements";
 import { logServerError, unknownErrorMessage } from "@/lib/errors";
 import { reconcileCreativesAgainstTrigger } from "@/lib/jobs/creative-job-controls";
-import { startVideoCreative } from "@/lib/jobs/enqueue";
+import {
+  startDisplayCreative,
+  startVideoCreative,
+} from "@/lib/jobs/enqueue";
 import { hasServiceRole } from "@/lib/supabase/service";
 import { getCreativeRepository, getProductRepository } from "@/repositories";
 
@@ -16,6 +20,7 @@ const createSchema = z.object({
   productId: z.string().min(1),
   title: z.string().trim().min(1).max(120),
   brief: z.string().trim().min(1).max(4000),
+  kind: creativeKindSchema.optional().default("video_ad"),
   campaignIds: z.array(z.string().min(1)).optional(),
   campaignId: z.string().min(1).optional(),
 });
@@ -76,7 +81,11 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { creative, job } = await startVideoCreative({
+    const start =
+      parsed.data.kind === "display_ad"
+        ? startDisplayCreative
+        : startVideoCreative;
+    const { creative, job } = await start({
       workspaceId: active.workspace.id,
       productId: product.id,
       campaignIds: parsed.data.campaignIds,

@@ -87,6 +87,8 @@ export type StartVideoCreativeInput = {
   plan: WorkspacePlan;
 };
 
+export type StartDisplayCreativeInput = StartVideoCreativeInput;
+
 function hasTriggerSecret(): boolean {
   return Boolean(process.env.TRIGGER_SECRET_KEY);
 }
@@ -311,6 +313,77 @@ export async function startVideoCreative(
     if (err instanceof PlanEntitlementError) throw err;
     const message = unknownErrorMessage(err, "Failed to start video creative.");
     logServerError("startVideoCreative", err, {
+      creativeId: creative.id,
+      workspaceId: opts.workspaceId,
+      productId: opts.productId,
+      plan: opts.plan,
+      hasTriggerSecret: hasTriggerSecret(),
+    });
+    await creatives.update(creative.id, {
+      status: "paused",
+      activeJobId: null,
+    });
+    throw new Error(message, { cause: err });
+  }
+}
+
+/** Create a display ad creative and enqueue concept generation. */
+export async function startDisplayCreative(
+  opts: StartDisplayCreativeInput,
+): Promise<{ creative: Creative; job: JobRun }> {
+  if (!hasServiceRole()) {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY is required to start creatives.",
+    );
+  }
+
+  const creatives = getCreativeWriteRepository();
+  const campaignIds = await resolveProductCampaignIds(
+    opts.productId,
+    normalizeCampaignIds({
+      campaignIds: opts.campaignIds,
+      campaignId: opts.campaignId,
+    }),
+  );
+
+  await assertCanLinkCreativesToCampaigns({
+    plan: opts.plan,
+    campaignIds,
+    countByCampaign: (id) => creatives.countByCampaign(id),
+  });
+
+  const creative = await creatives.create({
+    workspaceId: opts.workspaceId,
+    productId: opts.productId,
+    campaignIds,
+    kind: "display_ad",
+    title: opts.title,
+    brief: opts.brief,
+    stage: "concept",
+    status: "generating",
+    createdBy: opts.createdBy,
+  });
+
+  try {
+    const job = await enqueueGenerateCreativeStageJob({
+      workspaceId: opts.workspaceId,
+      createdBy: opts.createdBy,
+      trigger: opts.trigger,
+      input: {
+        creativeId: creative.id,
+        productId: opts.productId,
+        stage: "concept",
+      },
+    });
+    const refreshed = await creatives.getById(creative.id);
+    return { creative: refreshed ?? creative, job };
+  } catch (err) {
+    if (err instanceof PlanEntitlementError) throw err;
+    const message = unknownErrorMessage(
+      err,
+      "Failed to start display creative.",
+    );
+    logServerError("startDisplayCreative", err, {
       creativeId: creative.id,
       workspaceId: opts.workspaceId,
       productId: opts.productId,

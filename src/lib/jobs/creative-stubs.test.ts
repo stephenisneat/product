@@ -50,4 +50,9 @@ describe("creative stubs", () => {
     expect(nextStageAfterAccept("storyboard")).toBe("video");
     expect(nextStageAfterAccept("video")).toBeNull();
   });
+
+  it("advances display stages until assets are accepted", () => {
+    expect(nextStageAfterAccept("concept")).toBe("assets");
+    expect(nextStageAfterAccept("assets")).toBeNull();
+  });
 });

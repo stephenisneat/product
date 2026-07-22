@@ -8,6 +8,10 @@ import {
   generateScreenplay,
   generateStoryboard,
 } from "@/lib/jobs/generate-creative-content";
+import {
+  generateDisplayAssets,
+  generateDisplayConcept,
+} from "@/lib/jobs/generate-display-creative-content";
 import { generateVideo } from "@/lib/jobs/generate-creative-video";
 import type { GenerateCreativeStageJobPayload } from "@/lib/jobs/generate-creative-stage-payload";
 import {
@@ -129,7 +133,7 @@ export async function runGenerateCreativeStageJob(
         activeJobId: null,
         revisionFeedback: null,
       });
-    } else {
+    } else if (payload.stage === "video") {
       if (!creative.storyboard) {
         throw new Error("Storyboard is required before video generation.");
       }
@@ -151,6 +155,50 @@ export async function runGenerateCreativeStageJob(
         activeJobId: null,
         revisionFeedback: null,
       });
+    } else if (payload.stage === "concept") {
+      if (creative.kind !== "display_ad") {
+        throw new Error("Concept stage is only valid for display ads.");
+      }
+      const intelligence = await products.getIntelligence(payload.productId);
+      const concept = await generateDisplayConcept({
+        brief: briefForGen,
+        product,
+        intelligence,
+        workspaceId: payload.workspaceId,
+        userId: payload.createdBy,
+      });
+      await creatives.update(creative.id, {
+        stage: "concept",
+        status: "awaiting_review",
+        concept,
+        assets: null,
+        activeJobId: null,
+        revisionFeedback: null,
+      });
+    } else if (payload.stage === "assets") {
+      if (creative.kind !== "display_ad") {
+        throw new Error("Assets stage is only valid for display ads.");
+      }
+      if (!creative.concept) {
+        throw new Error("Concept is required before assets generation.");
+      }
+      const assets = await generateDisplayAssets({
+        concept: creative.concept,
+        product,
+        workspaceId: payload.workspaceId,
+        creativeId: creative.id,
+        userId: payload.createdBy,
+        revisionFeedback: feedback || null,
+      });
+      await creatives.update(creative.id, {
+        stage: "assets",
+        status: "awaiting_review",
+        assets,
+        activeJobId: null,
+        revisionFeedback: null,
+      });
+    } else {
+      throw new Error(`Unsupported creative stage: ${payload.stage}`);
     }
 
     if (await wasCanceled(payload.jobRunId)) {

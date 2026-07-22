@@ -18,6 +18,12 @@ import { useAgentContext } from "@/features/agent/agent-context";
 import { cn } from "@/lib/utils";
 
 function previewThumbnail(creative: Creative): string | null {
+  if (creative.assets?.marketingImageUrl) {
+    return creative.assets.marketingImageUrl;
+  }
+  if (creative.assets?.squareImageUrl) {
+    return creative.assets.squareImageUrl;
+  }
   if (creative.video?.thumbnailUrl) return creative.video.thumbnailUrl;
   const frames = creative.storyboard?.frames;
   if (frames && frames.length > 0) {
@@ -39,6 +45,19 @@ function CreativePreviewMedia({ creative }: { creative: Creative }) {
         alt=""
         className="size-full object-cover"
       />
+    );
+  }
+
+  if (creative.concept) {
+    return (
+      <div className="flex size-full flex-col justify-end bg-gradient-to-b from-muted/40 to-muted/80 p-3">
+        <p className="line-clamp-2 text-xs font-medium text-foreground">
+          {creative.concept.longHeadline}
+        </p>
+        <p className="mt-1.5 line-clamp-3 text-[10px] leading-relaxed text-muted-foreground">
+          {creative.concept.headlines.join(" · ")}
+        </p>
+      </div>
     );
   }
 
@@ -393,14 +412,19 @@ export function CreativeCard({
       </div>
 
       <div className="space-y-2 p-3">
-        <h3 className="truncate text-sm font-medium">
-          <Link
-            href={`/creatives/${creative.id}`}
-            className="hover:underline"
-          >
-            {creative.title}
-          </Link>
-        </h3>
+        <div className="flex items-center gap-1.5">
+          <h3 className="min-w-0 flex-1 truncate text-sm font-medium">
+            <Link
+              href={`/creatives/${creative.id}`}
+              className="hover:underline"
+            >
+              {creative.title}
+            </Link>
+          </h3>
+          <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+            {creative.kind === "display_ad" ? "Display" : "Video"}
+          </span>
+        </div>
 
         {error ? <p className="text-xs text-destructive">{error}</p> : null}
 

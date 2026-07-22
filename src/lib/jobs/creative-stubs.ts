@@ -135,6 +135,10 @@ export function jobTypeForStage(stage: CreativeStage) {
       return "generate_creative_storyboard" as const;
     case "video":
       return "generate_creative_video" as const;
+    case "concept":
+      return "generate_creative_concept" as const;
+    case "assets":
+      return "generate_creative_assets" as const;
   }
 }
 
@@ -147,6 +151,10 @@ export function nextStageAfterAccept(
     case "storyboard":
       return "video";
     case "video":
+      return null;
+    case "concept":
+      return "assets";
+    case "assets":
       return null;
   }
 }

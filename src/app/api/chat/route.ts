@@ -38,6 +38,7 @@ import {
 import {
   enqueueCreateCampaignJob,
   resubmitCreativeStage,
+  startDisplayCreative,
   startVideoCreative,
 } from "@/lib/jobs/enqueue";
 import {
@@ -89,15 +90,16 @@ function buildProductSystemPrompt(
   plan: WorkspacePlan,
 ): string {
   return `You are Product Agent, an AI marketing collaborator for commerce products.
-You help develop positioning, ad copy, campaign concepts, listing updates, and video ad creatives.
-Workspace plan: ${plan}. Video creatives and saved campaigns require Growth or Pro.
+You help develop positioning, ad copy, campaign concepts, listing updates, video ad creatives, and display ad creatives.
+Workspace plan: ${plan}. Video/display creatives and saved campaigns require Growth or Pro.
 If the workspace plan is free and a tool returns plan_upgrade_required, tell the user to upgrade and stop asking for creative details.
-If the workspace plan is growth or pro, creatives are allowed — treat any earlier plan_upgrade tool errors in this conversation as stale. When the user asks to retry, call create_video_creative again; do not invent extra permission restrictions.
+If the workspace plan is growth or pro, creatives are allowed — treat any earlier plan_upgrade tool errors in this conversation as stale. When the user asks to retry, call create_video_creative or create_display_creative again; do not invent extra permission restrictions.
 Always prefer calling propose_artifact when you have a concrete text proposal ready for review.
 When the user wants to create a campaign (not just a concept proposal), call run_job with type create_campaign.
 Keep propose_artifact for reviewable copy, positioning, and campaign concepts; use run_job to actually create a draft campaign.
 When the user wants a video ad, call create_video_creative immediately with a short title and brief. If they ask you to invent the concept (e.g. "come up with something"), invent the title and brief yourself and call the tool — do not ask follow-up questions first. Omit campaignIds unless you have real campaign ids from a prior tool result — never invent them.
-When the user is revising an existing video creative (they mention a creative id or are iterating on feedback), call resubmit_creative with that creativeId — do not create a new creative.
+When the user wants a display ad (static/banner/RDA/image ads), call create_display_creative immediately with a short title and brief. Invent title and brief when asked to invent — do not ask follow-up questions first.
+When the user is revising an existing creative (they mention a creative id or are iterating on feedback), call resubmit_creative with that creativeId — do not create a new creative.
 When proposing ad_copy creatives for campaigns, pass campaignIds with real ids only (or omit / [] for unassigned); never invent.
 Insights require Pro. When the user states a measurable objective, call create_goal (product or workspace scope). Use list_goals to see active goals. For proactive recommendations, call propose_insight; when revising an insight, call resubmit_insight.
 Keep propose_artifact for reviewable copy, positioning, and campaign concepts; use propose_insight for goal-oriented next steps the user Accepts / Rejects / Revises.
@@ -138,14 +140,15 @@ function buildWorkspaceSystemPrompt(
   return `You are Product Agent, an AI marketing collaborator for a commerce workspace.
 The user is chatting at the workspace (catalog) level, not a single product page.
 Help prioritize work, compare products, and propose marketing artifacts for specific products.
-Workspace plan: ${plan}. Video creatives and saved campaigns require Growth or Pro.
+Workspace plan: ${plan}. Video/display creatives and saved campaigns require Growth or Pro.
 If the workspace plan is free and a tool returns plan_upgrade_required, tell the user to upgrade and stop asking for creative details.
-If the workspace plan is growth or pro, creatives are allowed — treat any earlier plan_upgrade tool errors in this conversation as stale. When the user asks to retry, call create_video_creative again; do not invent extra permission restrictions.
+If the workspace plan is growth or pro, creatives are allowed — treat any earlier plan_upgrade tool errors in this conversation as stale. When the user asks to retry, call create_video_creative or create_display_creative again; do not invent extra permission restrictions.
 When proposing an artifact, always call propose_artifact with the target productId from the catalog.
 When the user wants to create a campaign for a product, call run_job with type create_campaign and that productId.
 Keep propose_artifact for reviewable copy and concepts; use run_job to create a draft campaign.
 When the user wants a video ad, call create_video_creative immediately with productId from the catalog (match @mentions to catalog ids), plus a short title and brief. If they ask you to invent the concept, invent title and brief yourself and call the tool — do not ask follow-up questions first. Omit campaignIds unless you have real campaign ids from a prior tool result — never invent them.
-When the user is revising an existing video creative, call resubmit_creative with that creativeId — do not create a new creative.
+When the user wants a display ad (static/banner/RDA/image ads), call create_display_creative immediately with productId from the catalog plus title and brief.
+When the user is revising an existing creative, call resubmit_creative with that creativeId — do not create a new creative.
 Insights require Pro. When the user states a measurable objective, call create_goal. Use list_goals to inspect goals. For proactive recommendations, call propose_insight; when revising, call resubmit_insight.
 Keep propose_artifact for reviewable copy and concepts; use propose_insight for goal-oriented recommendations.
 When the user asks about performance, funnels, comparisons (e.g. Q1 vs Q2), trends, or wants a chart/visualization, call create_visualization with an appropriate kind (sankey, timeseries, comparison, or bar) and a clear title.
@@ -663,9 +666,63 @@ export async function POST(req: Request) {
             }
           },
         }),
+        create_display_creative: tool({
+          description:
+            "Start a display ad creative pipeline (concept copy → marketing/square images) for the current product. Returns a creativeId; the user reviews each stage with Accept / Reject / Revise. Omit campaignIds unless attaching to existing campaign ids from a prior tool result — never invent campaign ids.",
+          inputSchema: z.object({
+            title: z.string().trim().min(1).max(120),
+            brief: z.string().trim().min(1).max(4000),
+            campaignIds: z.array(z.string()).optional(),
+            campaignId: z.string().optional(),
+          }),
+          execute: async (input) => {
+            if (!hasServiceRole()) {
+              return {
+                ok: false,
+                error: "Jobs service is not configured.",
+              };
+            }
+            try {
+              const { creative, job } = await startDisplayCreative({
+                workspaceId: active.workspace.id,
+                productId,
+                campaignIds: input.campaignIds,
+                campaignId: input.campaignId ?? null,
+                title: input.title,
+                brief: input.brief,
+                createdBy: user.id,
+                trigger: "agent",
+                plan,
+              });
+              return {
+                ok: true,
+                creativeId: creative.id,
+                jobId: job.id,
+                href: `/creatives/${creative.id}`,
+                message: `Started display creative "${creative.title}". Review it in chat or on /creatives/${creative.id}.`,
+              };
+            } catch (err) {
+              if (err instanceof PlanEntitlementError) {
+                return { ok: false, error: err.message, code: err.code };
+              }
+              logServerError("chat.create_display_creative", err, {
+                workspaceId: active.workspace.id,
+                productId,
+                plan,
+              });
+              return {
+                ok: false,
+                error: unknownErrorMessage(
+                  err,
+                  "Failed to start display creative.",
+                ),
+              };
+            }
+          },
+        }),
         resubmit_creative: tool({
           description:
-            "Re-run generation for an existing video creative's current stage after the user requested revisions. Pass creativeId and optional feedback or an updated brief.",
+            "Re-run generation for an existing creative's current stage (video or display) after the user requested revisions. Pass creativeId and optional feedback or an updated brief.",
           inputSchema: z.object({
             creativeId: z.string().uuid(),
             feedback: z.string().trim().max(2000).optional(),
@@ -1093,9 +1150,70 @@ export async function POST(req: Request) {
           }
         },
       }),
+      create_display_creative: tool({
+        description:
+          "Start a display ad creative pipeline (concept copy → marketing/square images) for a product in the catalog. Returns a creativeId for Accept / Reject / Revise review. Omit campaignIds unless attaching to existing campaign ids from a prior tool result — never invent campaign ids.",
+        inputSchema: z.object({
+          productId: z.string(),
+          title: z.string().trim().min(1).max(120),
+          brief: z.string().trim().min(1).max(4000),
+          campaignIds: z.array(z.string()).optional(),
+          campaignId: z.string().optional(),
+        }),
+        execute: async (input) => {
+          if (!ownedIds.has(input.productId)) {
+            return {
+              ok: false,
+              message: "productId is not in this workspace catalog.",
+            };
+          }
+          if (!hasServiceRole()) {
+            return {
+              ok: false,
+              error: "Jobs service is not configured.",
+            };
+          }
+          try {
+            const { creative, job } = await startDisplayCreative({
+              workspaceId: activeWorkspace.workspace.id,
+              productId: input.productId,
+              campaignIds: input.campaignIds,
+              campaignId: input.campaignId ?? null,
+              title: input.title,
+              brief: input.brief,
+              createdBy: user.id,
+              trigger: "agent",
+              plan,
+            });
+            return {
+              ok: true,
+              creativeId: creative.id,
+              jobId: job.id,
+              href: `/creatives/${creative.id}`,
+              message: `Started display creative "${creative.title}". Review it in chat or on /creatives/${creative.id}.`,
+            };
+          } catch (err) {
+            if (err instanceof PlanEntitlementError) {
+              return { ok: false, error: err.message, code: err.code };
+            }
+            logServerError("chat.create_display_creative", err, {
+              workspaceId: activeWorkspace.workspace.id,
+              productId: input.productId,
+              plan,
+            });
+            return {
+              ok: false,
+              error: unknownErrorMessage(
+                err,
+                "Failed to start display creative.",
+              ),
+            };
+          }
+        },
+      }),
       resubmit_creative: tool({
         description:
-          "Re-run generation for an existing video creative's current stage after revision feedback. Pass creativeId and optional feedback or brief.",
+          "Re-run generation for an existing creative's current stage (video or display) after revision feedback. Pass creativeId and optional feedback or brief.",
         inputSchema: z.object({
           creativeId: z.string().uuid(),
           feedback: z.string().trim().max(2000).optional(),

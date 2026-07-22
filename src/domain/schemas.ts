@@ -745,13 +745,15 @@ export const memberUsageSchema = z.object({
 });
 export type MemberUsage = z.infer<typeof memberUsageSchema>;
 
-export const creativeKindSchema = z.enum(["video_ad"]);
+export const creativeKindSchema = z.enum(["video_ad", "display_ad"]);
 export type CreativeKind = z.infer<typeof creativeKindSchema>;
 
 export const creativeStageSchema = z.enum([
   "screenplay",
   "storyboard",
   "video",
+  "concept",
+  "assets",
 ]);
 export type CreativeStage = z.infer<typeof creativeStageSchema>;
 
@@ -835,6 +837,27 @@ export const videoPayloadSchema = z.object({
 });
 export type VideoPayload = z.infer<typeof videoPayloadSchema>;
 
+/** RDA-shaped copy + image direction for display_ad concept stage. */
+export const displayConceptPayloadSchema = z.object({
+  headlines: z.array(z.string().trim().min(1).max(30)).min(1).max(5),
+  longHeadline: z.string().trim().min(1).max(90),
+  descriptions: z.array(z.string().trim().min(1).max(90)).min(1).max(5),
+  businessName: z.string().trim().min(1).max(25),
+  styleBrief: z.string().trim().min(1),
+  imagePrompts: z.object({
+    marketing: z.string().trim().min(1),
+    square: z.string().trim().min(1),
+  }),
+});
+export type DisplayConceptPayload = z.infer<typeof displayConceptPayloadSchema>;
+
+/** Sized marketing images for display_ad assets stage. */
+export const displayAssetsPayloadSchema = z.object({
+  marketingImageUrl: z.string().url(),
+  squareImageUrl: z.string().url(),
+});
+export type DisplayAssetsPayload = z.infer<typeof displayAssetsPayloadSchema>;
+
 export const creativeExternalAdRefsSchema = z.object({
   googleAssetId: z.string().trim().min(1).optional(),
   metaAdId: z.string().trim().min(1).optional(),
@@ -857,6 +880,8 @@ export const creativeSchema = z.object({
   screenplay: screenplayPayloadSchema.nullable(),
   storyboard: storyboardPayloadSchema.nullable(),
   video: videoPayloadSchema.nullable(),
+  concept: displayConceptPayloadSchema.nullable(),
+  assets: displayAssetsPayloadSchema.nullable(),
   revisionFeedback: z.string().nullable(),
   externalAdRefs: creativeExternalAdRefsSchema.default({}),
   activeJobId: z.string().uuid().nullable(),
@@ -971,6 +996,8 @@ export const jobRunTypeSchema = z.enum([
   "generate_creative_screenplay",
   "generate_creative_storyboard",
   "generate_creative_video",
+  "generate_creative_concept",
+  "generate_creative_assets",
   "render_creative_video",
   "generate_insight",
 ]);

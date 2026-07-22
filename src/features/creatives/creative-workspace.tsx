@@ -31,9 +31,20 @@ import { ScreenplayDocument } from "@/features/creatives/screenplay-document";
 import { PerformanceChartLazy } from "@/features/reporting/performance-chart-lazy";
 import { cn } from "@/lib/utils";
 
-type CreativeTab = "screenplay" | "storyboard" | "video" | "performance";
+type CreativeTab =
+  | "screenplay"
+  | "storyboard"
+  | "video"
+  | "concept"
+  | "assets"
+  | "performance";
 
-const STAGE_ORDER = ["screenplay", "storyboard", "video"] as const;
+const VIDEO_STAGE_ORDER = ["screenplay", "storyboard", "video"] as const;
+const DISPLAY_STAGE_ORDER = ["concept", "assets"] as const;
+
+function stageOrderFor(creative: Creative) {
+  return creative.kind === "display_ad" ? DISPLAY_STAGE_ORDER : VIDEO_STAGE_ORDER;
+}
 
 function stageLabel(stage: Creative["stage"]): string {
   switch (stage) {
@@ -43,6 +54,10 @@ function stageLabel(stage: Creative["stage"]): string {
       return "Storyboard";
     case "video":
       return "Video";
+    case "concept":
+      return "Concept";
+    case "assets":
+      return "Assets";
   }
 }
 
@@ -63,13 +78,14 @@ function statusLabel(status: Creative["status"]): string {
   }
 }
 
-function stageIndex(stage: Creative["stage"]) {
-  return STAGE_ORDER.indexOf(stage);
+function stageIndex(creative: Creative) {
+  return (stageOrderFor(creative) as readonly string[]).indexOf(creative.stage);
 }
 
 /** User-uploaded ads skip screenplay/storyboard and land as ready video. */
 function isUploadedCreative(creative: Creative): boolean {
   return (
+    creative.kind === "video_ad" &&
     creative.stage === "video" &&
     Boolean(creative.video) &&
     !creative.screenplay &&
@@ -81,11 +97,24 @@ function isTabEnabled(tab: CreativeTab, creative: Creative): boolean {
   if (tab === "performance") {
     return creative.status === "ready";
   }
+  if (creative.kind === "display_ad") {
+    if (tab !== "concept" && tab !== "assets") return false;
+    const order = DISPLAY_STAGE_ORDER;
+    const tabIdx = order.indexOf(tab);
+    const currentIdx = stageIndex(creative);
+    if (tabIdx < 0) return false;
+    if (tabIdx <= currentIdx) return true;
+    if (tab === "assets") return Boolean(creative.assets);
+    return false;
+  }
   if (isUploadedCreative(creative)) {
     return tab === "video";
   }
-  const tabIdx = STAGE_ORDER.indexOf(tab);
-  const currentIdx = stageIndex(creative.stage);
+  if (tab !== "screenplay" && tab !== "storyboard" && tab !== "video") {
+    return false;
+  }
+  const tabIdx = VIDEO_STAGE_ORDER.indexOf(tab);
+  const currentIdx = stageIndex(creative);
   if (tabIdx < 0) return false;
   // Current and prior stages are reachable; later stages unlock once payload exists.
   if (tabIdx <= currentIdx) return true;
@@ -95,10 +124,45 @@ function isTabEnabled(tab: CreativeTab, creative: Creative): boolean {
 }
 
 function defaultTab(creative: Creative): CreativeTab {
+  if (creative.kind === "display_ad") {
+    if (isTabEnabled(creative.stage as CreativeTab, creative)) {
+      return creative.stage as CreativeTab;
+    }
+    if (creative.concept) return "concept";
+    return "concept";
+  }
   if (isUploadedCreative(creative)) return "video";
-  if (isTabEnabled(creative.stage, creative)) return creative.stage;
+  if (isTabEnabled(creative.stage as CreativeTab, creative)) {
+    return creative.stage as CreativeTab;
+  }
   if (creative.screenplay) return "screenplay";
   return "screenplay";
+}
+
+function tabItems(creative: Creative): readonly (readonly [CreativeTab, string])[] {
+  if (creative.kind === "display_ad") {
+    return [
+      ["concept", "Concept"],
+      ["assets", "Assets"],
+      ["performance", "Performance"],
+    ] as const;
+  }
+  if (isUploadedCreative(creative)) {
+    return [
+      ["video", "Video"],
+      ["performance", "Performance"],
+    ] as const;
+  }
+  return [
+    ["screenplay", "Screenplay"],
+    ["storyboard", "Storyboard"],
+    ["video", "Video"],
+    ["performance", "Performance"],
+  ] as const;
+}
+
+function primaryBriefTab(creative: Creative): CreativeTab {
+  return creative.kind === "display_ad" ? "concept" : "screenplay";
 }
 
 function StageEmptyState({
@@ -190,6 +254,124 @@ function VideoView({ creative }: { creative: Creative }) {
   }
 
   return <CreativeVideoEditor creative={creative} />;
+}
+
+function ConceptView({ creative }: { creative: Creative }) {
+  const concept = creative.concept;
+  if (!concept) {
+    return (
+      <StageEmptyState
+        label="Concept"
+        generating={
+          creative.stage === "concept" && creative.status === "generating"
+        }
+        paused={creative.stage === "concept" && creative.status === "paused"}
+      />
+    );
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-8 px-4 py-8">
+      <div className="space-y-1">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Business name
+        </p>
+        <p className="text-sm text-foreground">{concept.businessName}</p>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Long headline
+        </p>
+        <p className="text-lg font-medium leading-snug text-foreground">
+          {concept.longHeadline}
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Headlines
+        </p>
+        <ul className="space-y-1.5">
+          {concept.headlines.map((headline) => (
+            <li
+              key={headline}
+              className="rounded-md border border-border px-3 py-2 text-sm"
+            >
+              {headline}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Descriptions
+        </p>
+        <ul className="space-y-1.5">
+          {concept.descriptions.map((description) => (
+            <li
+              key={description}
+              className="rounded-md border border-border px-3 py-2 text-sm text-muted-foreground"
+            >
+              {description}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Style brief
+        </p>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {concept.styleBrief}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function AssetsView({ creative }: { creative: Creative }) {
+  const assets = creative.assets;
+  if (!assets) {
+    return (
+      <StageEmptyState
+        label="Assets"
+        generating={
+          creative.stage === "assets" && creative.status === "generating"
+        }
+        paused={creative.stage === "assets" && creative.status === "paused"}
+      />
+    );
+  }
+
+  return (
+    <div className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-8 sm:grid-cols-2">
+      <figure className="space-y-2">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Marketing · 1.91:1
+        </p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={assets.marketingImageUrl}
+          alt="Marketing display image"
+          className="aspect-[1.91/1] w-full rounded-lg border border-border object-cover"
+        />
+      </figure>
+      <figure className="space-y-2">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Square · 1:1
+        </p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={assets.squareImageUrl}
+          alt="Square display image"
+          className="aspect-square w-full rounded-lg border border-border object-cover"
+        />
+      </figure>
+    </div>
+  );
 }
 
 function PerformanceView({
@@ -642,6 +824,9 @@ export function CreativeWorkspace({
                   {creative.title}
                 </span>
                 <Badge variant="outline" className="shrink-0 text-[10px] uppercase">
+                  {creative.kind === "display_ad" ? "Display" : "Video"}
+                </Badge>
+                <Badge variant="outline" className="shrink-0 text-[10px] uppercase">
                   {statusLabel(creative.status)}
                 </Badge>
               </div>
@@ -652,21 +837,7 @@ export function CreativeWorkspace({
                 variant="line"
                 className="pointer-events-auto h-auto max-w-full gap-0 overflow-x-auto bg-transparent p-0"
               >
-                {(
-                  (
-                    isUploadedCreative(creative)
-                      ? ([
-                          ["video", "Video"],
-                          ["performance", "Performance"],
-                        ] as const)
-                      : ([
-                          ["screenplay", "Screenplay"],
-                          ["storyboard", "Storyboard"],
-                          ["video", "Video"],
-                          ["performance", "Performance"],
-                        ] as const)
-                  )
-                ).map(([value, label]) => {
+                {tabItems(creative).map(([value, label]) => {
                   const enabled = isTabEnabled(value, creative);
                   return (
                     <TabsTrigger
@@ -738,7 +909,7 @@ export function CreativeWorkspace({
         }
       >
         <div className="flex min-h-0 flex-1 flex-col bg-black">
-          {(product || creative.brief) && tab !== "screenplay" ? (
+          {(product || creative.brief) && tab !== primaryBriefTab(creative) ? (
             <div className="shrink-0 border-b border-border px-4 py-2">
               <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-2">
                 {product ? (
@@ -792,6 +963,14 @@ export function CreativeWorkspace({
 
             <TabsContent value="video" className="mt-0">
               <VideoView creative={creative} />
+            </TabsContent>
+
+            <TabsContent value="concept" className="mt-0">
+              <ConceptView creative={creative} />
+            </TabsContent>
+
+            <TabsContent value="assets" className="mt-0">
+              <AssetsView creative={creative} />
             </TabsContent>
 
             <TabsContent value="performance" className="mt-0">

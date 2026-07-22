@@ -11,6 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { CreateDisplayAdDialog } from "@/features/creatives/create-display-ad-dialog";
 import { CreateVideoAdDialog } from "@/features/creatives/create-video-ad-dialog";
 import { CreativeCard } from "@/features/creatives/creative-card";
 import { UploadVideoAdDialog } from "@/features/creatives/upload-video-ad-dialog";
@@ -181,6 +182,15 @@ export function CreativesList({
             ])
           }
         />
+        <CreateDisplayAdDialog
+          products={products}
+          onCreated={(creative) =>
+            setCreatives((prev) => [
+              creative,
+              ...prev.filter((c) => c.id !== creative.id),
+            ])
+          }
+        />
         <UploadVideoAdDialog
           products={products}
           onUploaded={(creative) =>
@@ -199,8 +209,8 @@ export function CreativesList({
       <>
         {headerActions}
         <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          No video creatives yet. Create one to generate screenplay → storyboard
-          → video, upload your own MP4, or describe an idea in chat.
+          No creatives yet. Create a video or display ad, upload an MP4, or
+          describe an idea in chat.
         </div>
       </>
     );

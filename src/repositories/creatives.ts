@@ -4,12 +4,16 @@ import type {
   CreativeExternalAdRefs,
   CreativeStage,
   CreativeStatus,
+  DisplayAssetsPayload,
+  DisplayConceptPayload,
   ScreenplayPayload,
   StoryboardPayload,
   VideoPayload,
 } from "@/domain";
 import {
   creativeExternalAdRefsSchema,
+  displayAssetsPayloadSchema,
+  displayConceptPayloadSchema,
   screenplayPayloadSchema,
   storyboardPayloadSchema,
   videoPayloadSchema,
@@ -27,6 +31,8 @@ type DbCreative = {
   screenplay: unknown | null;
   storyboard: unknown | null;
   video: unknown | null;
+  concept: unknown | null;
+  assets: unknown | null;
   revision_feedback: string | null;
   external_ad_refs: unknown | null;
   active_job_id: string | null;
@@ -53,6 +59,18 @@ function parseVideo(value: unknown): VideoPayload | null {
   return parsed.success ? parsed.data : null;
 }
 
+function parseConcept(value: unknown): DisplayConceptPayload | null {
+  if (value == null) return null;
+  const parsed = displayConceptPayloadSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+function parseAssets(value: unknown): DisplayAssetsPayload | null {
+  if (value == null) return null;
+  const parsed = displayAssetsPayloadSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
 function parseExternalAdRefs(value: unknown): CreativeExternalAdRefs {
   const parsed = creativeExternalAdRefsSchema.safeParse(value ?? {});
   return parsed.success ? parsed.data : {};
@@ -75,6 +93,8 @@ export function mapCreative(
     screenplay: parseScreenplay(row.screenplay),
     storyboard: parseStoryboard(row.storyboard),
     video: parseVideo(row.video),
+    concept: parseConcept(row.concept),
+    assets: parseAssets(row.assets),
     revisionFeedback: row.revision_feedback,
     externalAdRefs: parseExternalAdRefs(row.external_ad_refs),
     activeJobId: row.active_job_id,
@@ -107,6 +127,8 @@ export type CreativeUpdateInput = {
   screenplay?: ScreenplayPayload | null;
   storyboard?: StoryboardPayload | null;
   video?: VideoPayload | null;
+  concept?: DisplayConceptPayload | null;
+  assets?: DisplayAssetsPayload | null;
   revisionFeedback?: string | null;
   externalAdRefs?: CreativeExternalAdRefs;
   activeJobId?: string | null;
@@ -283,6 +305,8 @@ export class SupabaseCreativeRepository {
     if (patch.screenplay !== undefined) row.screenplay = patch.screenplay;
     if (patch.storyboard !== undefined) row.storyboard = patch.storyboard;
     if (patch.video !== undefined) row.video = patch.video;
+    if (patch.concept !== undefined) row.concept = patch.concept;
+    if (patch.assets !== undefined) row.assets = patch.assets;
     if (patch.revisionFeedback !== undefined) {
       row.revision_feedback = patch.revisionFeedback;
     }
