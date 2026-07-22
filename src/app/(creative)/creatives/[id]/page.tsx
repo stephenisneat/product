@@ -47,7 +47,7 @@ export default async function CreativeDetailPage({
 
   const [product, performance] = await Promise.all([
     products.getProduct(creative.productId),
-    products.getPerformance(creative.productId),
+    creatives.getCreativePerformance(creative.id),
   ]);
 
   return (

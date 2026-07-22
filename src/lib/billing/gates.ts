@@ -48,20 +48,23 @@ export function assertCanCreateCampaign(
 export function assertCanCreateCreative(
   plan: WorkspacePlan,
   currentCount: number,
+  kind: "video" | "ad_copy" = "video",
 ): void {
   const ents = getEntitlements(plan);
-  if (ents.maxCreativesPerCampaign === 0) {
+  const max =
+    kind === "video"
+      ? ents.maxVideoCreativesPerCampaign
+      : ents.maxAdCopyPerCampaign;
+  const label = kind === "video" ? "video creatives" : "ad copy";
+  if (max === 0) {
     throw new PlanEntitlementError(
-      "Creatives require Growth or Pro. Upgrade to continue.",
+      `${kind === "video" ? "Video creatives" : "Ad copy"} require Growth or Pro. Upgrade to continue.`,
       "plan_upgrade_required",
     );
   }
-  if (
-    ents.maxCreativesPerCampaign != null &&
-    currentCount >= ents.maxCreativesPerCampaign
-  ) {
+  if (max != null && currentCount >= max) {
     throw new PlanEntitlementError(
-      `Growth allows ${ents.maxCreativesPerCampaign} creatives per campaign. Upgrade to Pro for unlimited.`,
+      `Growth allows ${max} ${label} per campaign. Upgrade to Pro for unlimited.`,
       "creative_limit_reached",
     );
   }

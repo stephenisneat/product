@@ -84,12 +84,11 @@ function CardFooterActions({
   feedback: string;
   onFeedbackChange: (value: string) => void;
   onReviseToggle: (open: boolean) => void;
-  onAction: (action: "accept" | "reject" | "revise") => void;
+  onAction: (
+    action: "accept" | "reject" | "revise" | "resubmit" | "reopen",
+  ) => void;
 }) {
-  const isWorking =
-    creative.status === "generating" || creative.status === "revising";
-
-  if (isWorking) {
+  if (creative.status === "generating") {
     return (
       <div className="flex h-7 items-center gap-1.5 text-xs text-muted-foreground">
         <Loader2 className="size-3.5 animate-spin" />
@@ -108,6 +107,51 @@ function CardFooterActions({
       >
         View performance
       </Button>
+    );
+  }
+
+  if (creative.status === "rejected") {
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        className="w-full"
+        disabled={pending}
+        onClick={() => onAction("reopen")}
+      >
+        Reopen
+      </Button>
+    );
+  }
+
+  if (creative.status === "revising") {
+    return (
+      <div className="space-y-2">
+        <Textarea
+          className="text-xs"
+          rows={3}
+          placeholder="What should change?"
+          value={feedback}
+          onChange={(e) => onFeedbackChange(e.target.value)}
+        />
+        <div className="flex flex-wrap gap-1.5">
+          <Button
+            size="sm"
+            disabled={pending}
+            onClick={() => onAction("resubmit")}
+          >
+            Resubmit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={pending}
+            onClick={() => onAction("reject")}
+          >
+            Reject
+          </Button>
+        </div>
+      </div>
     );
   }
 
@@ -144,6 +188,13 @@ function CardFooterActions({
         </Button>
         {revising ? (
           <>
+            <Button
+              size="sm"
+              disabled={pending}
+              onClick={() => onAction("resubmit")}
+            >
+              Resubmit
+            </Button>
             <Button
               size="sm"
               variant="secondary"
@@ -227,14 +278,19 @@ export function CreativeCard({
     };
   }, [creative.id, creative.status, pollWhileGenerating, router]);
 
-  async function mutate(action: "accept" | "reject" | "revise") {
+  async function mutate(
+    action: "accept" | "reject" | "revise" | "resubmit" | "reopen",
+  ) {
     setError(null);
     const res = await fetch(`/api/creatives/${creative.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action,
-        feedback: action === "revise" ? feedback.trim() || undefined : undefined,
+        feedback:
+          action === "revise" || action === "resubmit"
+            ? feedback.trim() || undefined
+            : undefined,
       }),
     });
 
@@ -254,6 +310,11 @@ export function CreativeCard({
 
     if (action === "revise" && body.revisePrompt) {
       setComposePrefill(body.revisePrompt);
+      setRevising(false);
+      setFeedback("");
+    }
+
+    if (action === "resubmit") {
       setRevising(false);
       setFeedback("");
     }

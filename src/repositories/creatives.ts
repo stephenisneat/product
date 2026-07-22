@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   Creative,
+  CreativeExternalAdRefs,
   CreativeStage,
   CreativeStatus,
   ScreenplayPayload,
@@ -8,6 +9,7 @@ import type {
   VideoPayload,
 } from "@/domain";
 import {
+  creativeExternalAdRefsSchema,
   screenplayPayloadSchema,
   storyboardPayloadSchema,
   videoPayloadSchema,
@@ -26,6 +28,7 @@ type DbCreative = {
   storyboard: unknown | null;
   video: unknown | null;
   revision_feedback: string | null;
+  external_ad_refs: unknown | null;
   active_job_id: string | null;
   created_by: string | null;
   created_at: string;
@@ -50,6 +53,11 @@ function parseVideo(value: unknown): VideoPayload | null {
   return parsed.success ? parsed.data : null;
 }
 
+function parseExternalAdRefs(value: unknown): CreativeExternalAdRefs {
+  const parsed = creativeExternalAdRefsSchema.safeParse(value ?? {});
+  return parsed.success ? parsed.data : {};
+}
+
 export function mapCreative(
   row: DbCreative,
   campaignIds: string[] = [],
@@ -68,6 +76,7 @@ export function mapCreative(
     storyboard: parseStoryboard(row.storyboard),
     video: parseVideo(row.video),
     revisionFeedback: row.revision_feedback,
+    externalAdRefs: parseExternalAdRefs(row.external_ad_refs),
     activeJobId: row.active_job_id,
     createdBy: row.created_by ?? "",
     createdAt: row.created_at,
@@ -99,6 +108,7 @@ export type CreativeUpdateInput = {
   storyboard?: StoryboardPayload | null;
   video?: VideoPayload | null;
   revisionFeedback?: string | null;
+  externalAdRefs?: CreativeExternalAdRefs;
   activeJobId?: string | null;
 };
 
@@ -276,6 +286,9 @@ export class SupabaseCreativeRepository {
     if (patch.revisionFeedback !== undefined) {
       row.revision_feedback = patch.revisionFeedback;
     }
+    if (patch.externalAdRefs !== undefined) {
+      row.external_ad_refs = patch.externalAdRefs;
+    }
     if (patch.activeJobId !== undefined) {
       row.active_job_id = patch.activeJobId;
     }
@@ -304,6 +317,47 @@ export class SupabaseCreativeRepository {
     if (linkError) throw linkError;
 
     const { error } = await this.client.from("creatives").delete().eq("id", id);
+    if (error) throw error;
+  }
+
+  async getCreativePerformance(
+    creativeId: string,
+  ): Promise<import("@/domain").PerformancePoint[]> {
+    const { data, error } = await this.client
+      .from("creative_performance_points")
+      .select("date, impressions, clicks, spend, conversions, revenue")
+      .eq("creative_id", creativeId)
+      .order("date", { ascending: true });
+    if (error) throw error;
+    return (data ?? []).map((row) => ({
+      date: String(row.date),
+      impressions: Number(row.impressions ?? 0),
+      clicks: Number(row.clicks ?? 0),
+      spend: Number(row.spend ?? 0),
+      conversions: Number(row.conversions ?? 0),
+      revenue: Number(row.revenue ?? 0),
+    }));
+  }
+
+  async upsertCreativePerformance(
+    creativeId: string,
+    points: import("@/domain").PerformancePoint[],
+  ): Promise<void> {
+    if (points.length === 0) return;
+    const { error } = await this.client
+      .from("creative_performance_points")
+      .upsert(
+        points.map((p) => ({
+          creative_id: creativeId,
+          date: p.date,
+          impressions: p.impressions,
+          clicks: p.clicks,
+          spend: p.spend,
+          conversions: p.conversions,
+          revenue: p.revenue,
+        })),
+        { onConflict: "creative_id,date" },
+      );
     if (error) throw error;
   }
 }

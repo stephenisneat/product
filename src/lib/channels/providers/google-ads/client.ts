@@ -829,6 +829,64 @@ export class GoogleAdsClient {
     });
   }
 
+  async getAssetPerformance(opts: {
+    startDate: string;
+    endDate: string;
+    assetId: string;
+  }): Promise<
+    {
+      date: string;
+      impressions: number;
+      clicks: number;
+      cost: number;
+      conversions: number;
+      conversionsValue: number;
+    }[]
+  > {
+    const assetId = opts.assetId.replace(/\D/g, "");
+    let rows: Awaited<ReturnType<typeof this.searchAll>>;
+    try {
+      rows = await this.searchAll(`
+      SELECT
+        segments.date,
+        metrics.impressions,
+        metrics.clicks,
+        metrics.cost_micros,
+        metrics.conversions,
+        metrics.conversions_value
+      FROM ad_group_ad
+      WHERE segments.date BETWEEN '${opts.startDate}' AND '${opts.endDate}'
+        AND ad_group_ad.ad.id = ${assetId}
+    `);
+    } catch {
+      rows = await this.searchAll(`
+      SELECT
+        segments.date,
+        metrics.impressions,
+        metrics.clicks,
+        metrics.cost_micros,
+        metrics.conversions,
+        metrics.conversions_value
+      FROM campaign
+      WHERE segments.date BETWEEN '${opts.startDate}' AND '${opts.endDate}'
+        AND campaign.id = ${assetId}
+    `);
+    }
+
+    return rows.map((row) => {
+      const segments = row.segments as Record<string, unknown>;
+      const metrics = row.metrics as Record<string, unknown>;
+      return {
+        date: String(segments.date ?? ""),
+        impressions: Number(metrics.impressions ?? 0),
+        clicks: Number(metrics.clicks ?? 0),
+        cost: amountFromMicros(metrics.costMicros as string) ?? 0,
+        conversions: Number(metrics.conversions ?? 0),
+        conversionsValue: Number(metrics.conversionsValue ?? 0),
+      };
+    });
+  }
+
   /** Upload an image asset (Display). Data must be base64. */
   async createImageAsset(input: {
     name: string;

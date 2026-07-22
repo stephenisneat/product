@@ -181,6 +181,14 @@ export async function runGenerateCreativeStageJob(
       });
     }
 
+    const reviewed = await creatives.getById(payload.creativeId);
+    if (reviewed?.status === "awaiting_review") {
+      const { notifyCreativeAwaitingReview } = await import(
+        "@/lib/email/creative-review"
+      );
+      void notifyCreativeAwaitingReview(reviewed);
+    }
+
     return result;
   } catch (err) {
     if (await wasCanceled(payload.jobRunId).catch(() => false)) {

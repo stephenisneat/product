@@ -12,8 +12,9 @@ const STUB_THUMBNAIL_URL =
   "https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerEscapes.jpg";
 
 /**
- * Deterministic fallback when AI Gateway is unavailable (tests / local misconfig).
- * Keeps spokenKind mix and concrete action lines so UI/schema stay exercised.
+ * Deterministic screenplay / storyboard / video builders for **unit tests only**.
+ * Production generation requires AI Gateway, ElevenLabs, and Runway — there is
+ * intentionally no offline stub fallback in job runners.
  */
 export function buildTemplateScreenplay(
   brief: string,

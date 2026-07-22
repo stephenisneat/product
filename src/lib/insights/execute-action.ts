@@ -59,6 +59,7 @@ async function createArtifactFromInsight(opts: {
       plan: opts.plan,
       campaignIds,
       countByCampaign: (id) => artifacts.countCreativesByCampaign(id),
+      kind: "ad_copy",
     });
   }
 

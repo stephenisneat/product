@@ -21,7 +21,8 @@ describe("plan entitlements", () => {
       includedActions: 100,
       hasInsights: false,
       maxCampaignsPerProduct: 0,
-      maxCreativesPerCampaign: 0,
+      maxVideoCreativesPerCampaign: 0,
+      maxAdCopyPerCampaign: 0,
       canSpendAndLaunch: false,
       allowUsageTopOff: true,
       allowIncludedRollover: true,
@@ -33,7 +34,8 @@ describe("plan entitlements", () => {
       includedActions: null,
       hasInsights: false,
       maxCampaignsPerProduct: 10,
-      maxCreativesPerCampaign: 3,
+      maxVideoCreativesPerCampaign: 3,
+      maxAdCopyPerCampaign: 3,
       canSpendAndLaunch: true,
       allowUsageTopOff: true,
       badgeColor: "blue",
@@ -43,7 +45,8 @@ describe("plan entitlements", () => {
       includedUsageCentsPerSeat: 9900,
       hasInsights: true,
       maxCampaignsPerProduct: null,
-      maxCreativesPerCampaign: null,
+      maxVideoCreativesPerCampaign: null,
+      maxAdCopyPerCampaign: null,
       canSpendAndLaunch: true,
       allowUsageTopOff: true,
       badgeColor: "green",
@@ -54,7 +57,7 @@ describe("plan entitlements", () => {
     expect(normalizeWorkspacePlan("hobby")).toBe("growth");
     expect(getEntitlements("hobby" as WorkspacePlan)).toMatchObject({
       plan: "growth",
-      maxCreativesPerCampaign: 3,
+      maxVideoCreativesPerCampaign: 3,
       canSpendAndLaunch: true,
     });
   });

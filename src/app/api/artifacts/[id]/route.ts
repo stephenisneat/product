@@ -65,6 +65,7 @@ export async function PATCH(
           campaignIds,
           countByCampaign: (cid) => artifacts.countCreativesByCampaign(cid),
           alreadyLinked: existing.campaignIds,
+          kind: "ad_copy",
         });
       }
 

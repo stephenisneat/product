@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 type PrefsRow = {
   product_updates: boolean;
   job_completions: boolean;
+  creative_review: boolean | null;
   workspace_invites: boolean;
   billing_alerts: boolean;
   marketing: boolean;
@@ -25,7 +26,7 @@ export default async function NotificationsSettingsPage() {
   const { data } = await supabase
     .from("notification_preferences")
     .select(
-      "product_updates, job_completions, workspace_invites, billing_alerts, marketing",
+      "product_updates, job_completions, creative_review, workspace_invites, billing_alerts, marketing",
     )
     .eq("user_id", user.id)
     .maybeSingle();
@@ -34,6 +35,9 @@ export default async function NotificationsSettingsPage() {
     ? {
         productUpdates: (data as PrefsRow).product_updates,
         jobCompletions: (data as PrefsRow).job_completions,
+        creativeReview:
+          (data as PrefsRow).creative_review ??
+          (data as PrefsRow).job_completions,
         workspaceInvites: (data as PrefsRow).workspace_invites,
         billingAlerts: (data as PrefsRow).billing_alerts,
         marketing: (data as PrefsRow).marketing,

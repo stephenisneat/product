@@ -16,12 +16,32 @@ import {
   resumeCreativeGeneration,
 } from "@/lib/jobs/creative-job-controls";
 import { nextStageAfterAccept } from "@/lib/jobs/creative-stubs";
-import { enqueueGenerateCreativeStageJob } from "@/lib/jobs/enqueue";
+import {
+  enqueueGenerateCreativeStageJob,
+  enqueueRenderCreativeVideoJob,
+  reopenCreative,
+  resubmitCreativeStage,
+} from "@/lib/jobs/enqueue";
 import { logServerError, unknownErrorMessage } from "@/lib/errors";
 import { hasServiceRole } from "@/lib/supabase/service";
 import { getCreativeRepository } from "@/repositories";
+import {
+  creativeExternalAdRefsSchema,
+  videoClipSchema,
+} from "@/domain";
 
 export const runtime = "nodejs";
+
+const videoEditClipSchema = videoClipSchema.pick({
+  sceneId: true,
+  url: true,
+  audioUrl: true,
+  thumbnailUrl: true,
+  durationSec: true,
+  sourceDurationSec: true,
+  caption: true,
+  prompt: true,
+});
 
 const patchSchema = z.discriminatedUnion("action", [
   z.object({
@@ -33,6 +53,23 @@ const patchSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("revise"),
     feedback: z.string().trim().max(2000).optional(),
+  }),
+  z.object({
+    action: z.literal("resubmit"),
+    feedback: z.string().trim().max(2000).optional(),
+    brief: z.string().trim().max(4000).optional(),
+  }),
+  z.object({
+    action: z.literal("reopen"),
+  }),
+  z.object({
+    action: z.literal("update_video_edits"),
+    clips: z.array(videoEditClipSchema).min(1),
+    reexport: z.boolean().optional(),
+  }),
+  z.object({
+    action: z.literal("set_external_ad_refs"),
+    externalAdRefs: creativeExternalAdRefsSchema,
   }),
   z.object({
     action: z.literal("set_campaigns"),
@@ -268,6 +305,150 @@ export async function PATCH(
     });
   }
 
+  if (action === "resubmit") {
+    if (!hasServiceRole()) {
+      return NextResponse.json(
+        { error: "Jobs service is not configured." },
+        { status: 503 },
+      );
+    }
+    if (
+      existing.status !== "revising" &&
+      existing.status !== "awaiting_review"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Only revising or awaiting-review creatives can be resubmitted.",
+        },
+        { status: 409 },
+      );
+    }
+    try {
+      const { creative, job } = await resubmitCreativeStage({
+        workspaceId: active.workspace.id,
+        creativeId: id,
+        createdBy: user.id,
+        trigger: "api",
+        feedback: parsed.data.feedback ?? existing.revisionFeedback ?? undefined,
+        brief: parsed.data.brief,
+      });
+      return NextResponse.json({ creative, jobId: job.id });
+    } catch (err) {
+      const message = unknownErrorMessage(err, "Failed to resubmit.");
+      if (
+        message.includes("can no longer") ||
+        message.includes("already in progress") ||
+        message.includes("Resume the paused")
+      ) {
+        return NextResponse.json({ error: message }, { status: 409 });
+      }
+      logServerError("api.creatives.resubmit", err, { creativeId: id });
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  }
+
+  if (action === "reopen") {
+    try {
+      const creative = await reopenCreative({
+        workspaceId: active.workspace.id,
+        creativeId: id,
+      });
+      return NextResponse.json({ creative });
+    } catch (err) {
+      const message = unknownErrorMessage(err, "Failed to reopen.");
+      if (message.includes("Only rejected")) {
+        return NextResponse.json({ error: message }, { status: 409 });
+      }
+      logServerError("api.creatives.reopen", err, { creativeId: id });
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  }
+
+  if (action === "set_external_ad_refs") {
+    const creative = await creatives.update(id, {
+      externalAdRefs: parsed.data.externalAdRefs,
+    });
+    return NextResponse.json({ creative });
+  }
+
+  if (action === "update_video_edits") {
+    if (!existing.video?.clips?.length) {
+      return NextResponse.json(
+        { error: "This creative has no editable clips." },
+        { status: 409 },
+      );
+    }
+    if (existing.status === "generating") {
+      return NextResponse.json(
+        { error: "Wait for generation to finish before editing." },
+        { status: 409 },
+      );
+    }
+    if (existing.status === "rejected") {
+      return NextResponse.json(
+        { error: "Reopen the creative before editing." },
+        { status: 409 },
+      );
+    }
+
+    const clips = parsed.data.clips.map((clip) => {
+      const source =
+        clip.sourceDurationSec ??
+        existing.video?.clips.find((c) => c.sceneId === clip.sceneId)
+          ?.sourceDurationSec ??
+        existing.video?.clips.find((c) => c.sceneId === clip.sceneId)
+          ?.durationSec ??
+        clip.durationSec;
+      const durationSec = Math.min(
+        Math.max(0.5, clip.durationSec),
+        source,
+      );
+      return {
+        ...clip,
+        durationSec,
+        sourceDurationSec: source,
+        caption: clip.caption ?? "",
+      };
+    });
+
+    const durationSec = clips.reduce((sum, c) => sum + c.durationSec, 0);
+    const video = {
+      ...existing.video,
+      clips,
+      durationSec,
+    };
+
+    await creatives.update(id, { video });
+
+    if (parsed.data.reexport !== false) {
+      if (!hasServiceRole()) {
+        return NextResponse.json(
+          { error: "Jobs service is not configured." },
+          { status: 503 },
+        );
+      }
+      try {
+        const { creative, job } = await enqueueRenderCreativeVideoJob({
+          workspaceId: active.workspace.id,
+          createdBy: user.id,
+          trigger: "api",
+          creativeId: id,
+        });
+        return NextResponse.json({ creative, jobId: job.id });
+      } catch (err) {
+        const message = unknownErrorMessage(err, "Failed to re-export.");
+        logServerError("api.creatives.update_video_edits", err, {
+          creativeId: id,
+        });
+        return NextResponse.json({ error: message }, { status: 500 });
+      }
+    }
+
+    const creative = await creatives.getById(id);
+    return NextResponse.json({ creative: creative ?? existing });
+  }
+
   // accept
   if (existing.status !== "awaiting_review") {
     return NextResponse.json(
@@ -303,6 +484,7 @@ export async function PATCH(
         productId: existing.productId,
         stage: nextStage,
       },
+      rollbackStage: existing.stage,
     });
     const creative = await creatives.getById(id);
     return NextResponse.json({

@@ -181,6 +181,7 @@ async function createArtifactFromProposal(input: {
       plan: input.plan,
       campaignIds,
       countByCampaign: (id) => artifacts.countCreativesByCampaign(id),
+      kind: "ad_copy",
     });
   }
 

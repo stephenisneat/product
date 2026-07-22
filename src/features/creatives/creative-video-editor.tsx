@@ -1,8 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Player, type PlayerRef } from "@remotion/player";
 import type { Creative, VideoClip } from "@/domain";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { CreativeAd } from "@/remotion/CreativeAd";
 import {
   CREATIVE_AD_END_CARD_SEC,
@@ -26,11 +31,14 @@ function toRemotionClips(clips: VideoClip[]): CreativeAdClip[] {
   }));
 }
 
-function toRemotionProps(creative: Creative): CreativeAdProps | null {
+function toRemotionProps(
+  creative: Creative,
+  clips: VideoClip[],
+): CreativeAdProps | null {
   const video = creative.video;
-  if (!video?.clips?.length) return null;
+  if (!video || clips.length === 0) return null;
   return {
-    clips: toRemotionClips(video.clips),
+    clips: toRemotionClips(clips),
     productTitle: video.productTitle || creative.title,
     endCardSec: CREATIVE_AD_END_CARD_SEC,
   };
@@ -47,13 +55,42 @@ function activeClipIndex(clips: VideoClip[], frame: number): number {
   return Math.max(0, clips.length - 1);
 }
 
-/** Remotion Player + clip timeline for a completed video payload. */
+function normalizeClips(clips: VideoClip[]): VideoClip[] {
+  return clips.map((c) => ({
+    ...c,
+    caption: c.caption ?? "",
+    sourceDurationSec: c.sourceDurationSec ?? c.durationSec,
+  }));
+}
+
+/** Remotion Player + editable clip timeline for a completed video payload. */
 export function CreativeVideoEditor({ creative }: { creative: Creative }) {
+  const router = useRouter();
   const video = creative.video!;
   const playerRef = useRef<PlayerRef>(null);
   const [frame, setFrame] = useState(0);
+  const [clips, setClips] = useState(() => normalizeClips(video.clips ?? []));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const remotionProps = useMemo(() => toRemotionProps(creative), [creative]);
+  useEffect(() => {
+    setClips(normalizeClips(creative.video?.clips ?? []));
+  }, [creative.video]);
+
+  const baseline = useMemo(
+    () => JSON.stringify(normalizeClips(video.clips ?? [])),
+    [video.clips],
+  );
+  const dirty = JSON.stringify(clips) !== baseline;
+  const canEdit =
+    clips.length > 0 &&
+    creative.status !== "generating" &&
+    creative.status !== "rejected";
+
+  const remotionProps = useMemo(
+    () => toRemotionProps(creative, clips),
+    [creative, clips],
+  );
 
   useEffect(() => {
     const player = playerRef.current;
@@ -77,6 +114,59 @@ export function CreativeVideoEditor({ creative }: { creative: Creative }) {
     [remotionProps],
   );
 
+  function updateClip(index: number, patch: Partial<VideoClip>) {
+    setClips((prev) =>
+      prev.map((clip, i) => {
+        if (i !== index) return clip;
+        const source = clip.sourceDurationSec ?? clip.durationSec;
+        const next = { ...clip, ...patch, sourceDurationSec: source };
+        if (patch.durationSec != null) {
+          next.durationSec = Math.min(Math.max(0.5, patch.durationSec), source);
+        }
+        return next;
+      }),
+    );
+  }
+
+  function moveClip(index: number, direction: -1 | 1) {
+    setClips((prev) => {
+      const next = [...prev];
+      const target = index + direction;
+      if (target < 0 || target >= next.length) return prev;
+      const tmp = next[index]!;
+      next[index] = next[target]!;
+      next[target] = tmp;
+      return next;
+    });
+  }
+
+  async function saveAndReexport() {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/creatives/${creative.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_video_edits",
+          clips,
+          reexport: true,
+        }),
+      });
+      const body = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      if (!res.ok) {
+        throw new Error(body?.error ?? "Failed to save edits.");
+      }
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save edits.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   // Legacy stub / uploaded payloads without clips: fall back to plain HTML video.
   if (!remotionProps) {
     const aspectCss = video.aspectRatio.includes(":")
@@ -99,9 +189,9 @@ export function CreativeVideoEditor({ creative }: { creative: Creative }) {
   }
 
   const durationInFrames = creativeAdDurationInFrames(remotionProps);
-  const clips = video.clips;
   const active = activeClipIndex(clips, frame);
   const totalSec = clips.reduce((s, c) => s + c.durationSec, 0);
+  const activeClip = clips[active];
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-4 py-8">
@@ -122,14 +212,26 @@ export function CreativeVideoEditor({ creative }: { creative: Creative }) {
         />
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-baseline justify-between gap-3">
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm font-medium text-foreground">Timeline</p>
-          <p className="font-mono text-xs text-muted-foreground">
-            {totalSec}s clips · {video.durationSec.toFixed(1)}s final ·{" "}
-            {video.aspectRatio}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="font-mono text-xs text-muted-foreground">
+              {totalSec.toFixed(1)}s clips · {video.aspectRatio}
+            </p>
+            {canEdit ? (
+              <Button
+                size="sm"
+                disabled={!dirty || saving}
+                onClick={() => void saveAndReexport()}
+              >
+                {saving ? "Re-exporting…" : "Save & re-export"}
+              </Button>
+            ) : null}
+          </div>
         </div>
+
+        {error ? <p className="text-xs text-destructive">{error}</p> : null}
 
         <div className="flex gap-2 overflow-x-auto pb-1">
           {clips.map((clip, index) => {
@@ -152,7 +254,7 @@ export function CreativeVideoEditor({ creative }: { creative: Creative }) {
                   alt=""
                   className="aspect-[9/16] w-full object-cover"
                 />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 pb-1.5 pt-6">
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 pt-6 pb-1.5">
                   <p className="truncate text-[10px] font-medium text-white">
                     {clip.sceneId}
                   </p>
@@ -165,9 +267,70 @@ export function CreativeVideoEditor({ creative }: { creative: Creative }) {
           })}
         </div>
 
-        {clips[active]?.caption ? (
+        {canEdit && activeClip ? (
+          <div className="space-y-3 rounded-lg border border-border p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-medium">
+                Edit clip {active + 1} ({activeClip.sceneId})
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={active === 0 || saving}
+                onClick={() => moveClip(active, -1)}
+              >
+                Move left
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={active >= clips.length - 1 || saving}
+                onClick={() => moveClip(active, 1)}
+              >
+                Move right
+              </Button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor={`clip-duration-${active}`}>
+                  Duration (sec, max{" "}
+                  {(activeClip.sourceDurationSec ?? activeClip.durationSec).toFixed(
+                    1,
+                  )}
+                  )
+                </Label>
+                <Input
+                  id={`clip-duration-${active}`}
+                  type="number"
+                  min={0.5}
+                  step={0.1}
+                  max={activeClip.sourceDurationSec ?? activeClip.durationSec}
+                  value={activeClip.durationSec}
+                  disabled={saving}
+                  onChange={(e) =>
+                    updateClip(active, {
+                      durationSec: Number(e.target.value) || 0.5,
+                    })
+                  }
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor={`clip-caption-${active}`}>Caption</Label>
+              <Textarea
+                id={`clip-caption-${active}`}
+                rows={2}
+                value={activeClip.caption ?? ""}
+                disabled={saving}
+                onChange={(e) => updateClip(active, { caption: e.target.value })}
+              />
+            </div>
+          </div>
+        ) : activeClip?.caption ? (
           <p className="text-xs text-muted-foreground">
-            Clip {active + 1}: “{clips[active]!.caption}”
+            Clip {active + 1}: “{activeClip.caption}”
           </p>
         ) : null}
 

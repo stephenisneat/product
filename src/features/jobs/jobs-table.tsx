@@ -79,6 +79,8 @@ function typeLabel(type: JobRun["type"]): string {
       return "Generate storyboard";
     case "generate_creative_video":
       return "Generate video";
+    case "render_creative_video":
+      return "Re-export video";
     case "generate_insight":
       return "Generate insight";
     default:

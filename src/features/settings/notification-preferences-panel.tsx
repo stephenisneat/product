@@ -21,6 +21,11 @@ const ROWS: {
     description: "When background jobs finish or need attention.",
   },
   {
+    key: "creativeReview",
+    label: "Creative review",
+    description: "When a video creative stage is ready for Accept / Reject / Revise.",
+  },
+  {
     key: "workspaceInvites",
     label: "Workspace invites",
     description: "Invites to join workspaces and related membership emails.",

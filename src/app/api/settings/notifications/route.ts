@@ -12,6 +12,7 @@ export const runtime = "nodejs";
 type PrefsRow = {
   product_updates: boolean;
   job_completions: boolean;
+  creative_review: boolean | null;
   workspace_invites: boolean;
   billing_alerts: boolean;
   marketing: boolean;
@@ -21,6 +22,7 @@ function rowToPrefs(row: PrefsRow): NotificationPreferences {
   return {
     productUpdates: row.product_updates,
     jobCompletions: row.job_completions,
+    creativeReview: row.creative_review ?? row.job_completions,
     workspaceInvites: row.workspace_invites,
     billingAlerts: row.billing_alerts,
     marketing: row.marketing,
@@ -31,12 +33,16 @@ function prefsToRow(prefs: NotificationPreferences) {
   return {
     product_updates: prefs.productUpdates,
     job_completions: prefs.jobCompletions,
+    creative_review: prefs.creativeReview,
     workspace_invites: prefs.workspaceInvites,
     billing_alerts: prefs.billingAlerts,
     marketing: prefs.marketing,
     updated_at: new Date().toISOString(),
   };
 }
+
+const SELECT_COLS =
+  "product_updates, job_completions, creative_review, workspace_invites, billing_alerts, marketing";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -47,9 +53,7 @@ export async function GET() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("notification_preferences")
-    .select(
-      "product_updates, job_completions, workspace_invites, billing_alerts, marketing",
-    )
+    .select(SELECT_COLS)
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -79,9 +83,7 @@ export async function PATCH(request: Request) {
   const supabase = await createClient();
   const { data: existing } = await supabase
     .from("notification_preferences")
-    .select(
-      "product_updates, job_completions, workspace_invites, billing_alerts, marketing",
-    )
+    .select(SELECT_COLS)
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -99,9 +101,7 @@ export async function PATCH(request: Request) {
       },
       { onConflict: "user_id" },
     )
-    .select(
-      "product_updates, job_completions, workspace_invites, billing_alerts, marketing",
-    )
+    .select(SELECT_COLS)
     .single();
 
   if (error) {

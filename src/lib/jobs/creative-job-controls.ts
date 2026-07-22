@@ -254,7 +254,8 @@ export async function cancelJobRun(opts: {
     creativeId &&
     (job.type === "generate_creative_screenplay" ||
       job.type === "generate_creative_storyboard" ||
-      job.type === "generate_creative_video")
+      job.type === "generate_creative_video" ||
+      job.type === "render_creative_video")
   ) {
     return applyCreativeJobCanceled({
       jobRunId: job.id,

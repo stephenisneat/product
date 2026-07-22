@@ -6,6 +6,7 @@ import type {
   CommerceConnection,
   CommerceProvider,
   Creative,
+  CreativeExternalAdRefs,
   CreativeStage,
   CreativeStatus,
   JobRun,
@@ -123,6 +124,7 @@ export type CreativeUpdateInput = {
   storyboard?: StoryboardPayload | null;
   video?: VideoPayload | null;
   revisionFeedback?: string | null;
+  externalAdRefs?: CreativeExternalAdRefs;
   activeJobId?: string | null;
 };
 
@@ -138,6 +140,11 @@ export interface CreativeRepository {
   create(input: CreativeCreateInput): Promise<Creative>;
   update(id: string, patch: CreativeUpdateInput): Promise<Creative>;
   delete(id: string): Promise<void>;
+  getCreativePerformance(creativeId: string): Promise<PerformancePoint[]>;
+  upsertCreativePerformance(
+    creativeId: string,
+    points: PerformancePoint[],
+  ): Promise<void>;
 }
 
 export interface WorkspaceRepository {

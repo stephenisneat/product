@@ -610,6 +610,7 @@ export type AdminFeedback = z.infer<typeof adminFeedbackSchema>;
 export const notificationPreferencesSchema = z.object({
   productUpdates: z.boolean(),
   jobCompletions: z.boolean(),
+  creativeReview: z.boolean(),
   workspaceInvites: z.boolean(),
   billingAlerts: z.boolean(),
   marketing: z.boolean(),
@@ -621,6 +622,7 @@ export type NotificationPreferences = z.infer<
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   productUpdates: true,
   jobCompletions: true,
+  creativeReview: true,
   workspaceInvites: true,
   billingAlerts: true,
   marketing: false,
@@ -813,6 +815,8 @@ export const videoClipSchema = z.object({
   audioUrl: z.string().url().nullable(),
   thumbnailUrl: z.string().url().nullable(),
   durationSec: z.number().positive(),
+  /** Original clip length for trim caps in the editor. */
+  sourceDurationSec: z.number().positive().optional(),
   prompt: z.string().optional(),
   /** Spoken caption text for this clip (from screenplay dialogue). */
   caption: z.string().default(""),
@@ -831,6 +835,15 @@ export const videoPayloadSchema = z.object({
 });
 export type VideoPayload = z.infer<typeof videoPayloadSchema>;
 
+export const creativeExternalAdRefsSchema = z.object({
+  googleAssetId: z.string().trim().min(1).optional(),
+  metaAdId: z.string().trim().min(1).optional(),
+  tiktokAdId: z.string().trim().min(1).optional(),
+});
+export type CreativeExternalAdRefs = z.infer<
+  typeof creativeExternalAdRefsSchema
+>;
+
 export const creativeSchema = z.object({
   id: z.string().uuid(),
   workspaceId: z.string().uuid(),
@@ -845,6 +858,7 @@ export const creativeSchema = z.object({
   storyboard: storyboardPayloadSchema.nullable(),
   video: videoPayloadSchema.nullable(),
   revisionFeedback: z.string().nullable(),
+  externalAdRefs: creativeExternalAdRefsSchema.default({}),
   activeJobId: z.string().uuid().nullable(),
   createdBy: z.string(),
   createdAt: z.string().datetime(),
@@ -957,9 +971,18 @@ export const jobRunTypeSchema = z.enum([
   "generate_creative_screenplay",
   "generate_creative_storyboard",
   "generate_creative_video",
+  "render_creative_video",
   "generate_insight",
 ]);
 export type JobRunType = z.infer<typeof jobRunTypeSchema>;
+
+export const renderCreativeVideoJobInputSchema = z.object({
+  creativeId: z.string().uuid(),
+  productId: z.string(),
+});
+export type RenderCreativeVideoJobInput = z.infer<
+  typeof renderCreativeVideoJobInputSchema
+>;
 
 export const jobRunStatusSchema = z.enum([
   "pending",

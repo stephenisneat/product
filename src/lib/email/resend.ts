@@ -50,6 +50,41 @@ export async function sendWorkspaceInviteEmail(input: {
   }
 }
 
+export async function sendCreativeReviewEmail(input: {
+  to: string;
+  creativeTitle: string;
+  stage: string;
+  creativeUrl: string;
+}) {
+  if (!process.env.RESEND_API_KEY) return;
+
+  const resend = getResend();
+  const { error } = await resend.emails.send({
+    from: fromAddress(),
+    to: input.to,
+    subject: `Review ready: ${input.creativeTitle} (${input.stage})`,
+    html: `
+      <div style="font-family: system-ui, sans-serif; line-height: 1.5; max-width: 480px;">
+        <h1 style="font-size: 18px; margin: 0 0 12px;">Creative ready for review</h1>
+        <p style="margin: 0 0 12px;">
+          <strong>${escapeHtml(input.creativeTitle)}</strong> finished the
+          <strong>${escapeHtml(input.stage)}</strong> stage and is awaiting review.
+        </p>
+        <p style="margin: 0 0 20px;">
+          <a href="${escapeHtml(input.creativeUrl)}"
+             style="display:inline-block;background:#111;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;">
+            Open creative
+          </a>
+        </p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Failed to send creative review email");
+  }
+}
+
 function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")

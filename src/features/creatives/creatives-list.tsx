@@ -2,12 +2,32 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { SearchIcon, XIcon } from "@/components/icons";
-import type { Creative, Product } from "@/domain";
+import { CheckIcon, ListFilterIcon, SearchIcon, XIcon } from "@/components/icons";
+import type { Creative, CreativeStatus, Product } from "@/domain";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { CreateVideoAdDialog } from "@/features/creatives/create-video-ad-dialog";
 import { CreativeCard } from "@/features/creatives/creative-card";
 import { UploadVideoAdDialog } from "@/features/creatives/upload-video-ad-dialog";
 import { CatalogHeaderActions } from "@/features/products/catalog-toolbar";
+import { cn } from "@/lib/utils";
+
+export type CreativesStatusFilter = "all" | CreativeStatus;
+
+const STATUS_FILTERS: { value: CreativesStatusFilter; label: string }[] = [
+  { value: "all", label: "All statuses" },
+  { value: "awaiting_review", label: "Awaiting review" },
+  { value: "generating", label: "Generating" },
+  { value: "revising", label: "Revising" },
+  { value: "paused", label: "Paused" },
+  { value: "ready", label: "Ready" },
+  { value: "rejected", label: "Rejected" },
+];
 
 function matchesQuery(creative: Creative, query: string) {
   const q = query.trim().toLowerCase();
@@ -35,7 +55,12 @@ export function CreativesList({
   const [, startTransition] = useTransition();
   const [creatives, setCreatives] = useState(initialCreatives);
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] =
+    useState<CreativesStatusFilter>("all");
   const hasGenerating = creatives.some((c) => c.status === "generating");
+  const awaitingReviewCount = creatives.filter(
+    (c) => c.status === "awaiting_review",
+  ).length;
 
   useEffect(() => {
     if (!hasGenerating) return;
@@ -64,11 +89,15 @@ export function CreativesList({
     };
   }, [hasGenerating, router]);
 
-  const filtered = creatives.filter((c) => matchesQuery(c, query));
+  const filtered = creatives.filter(
+    (c) =>
+      matchesQuery(c, query) &&
+      (statusFilter === "all" || c.status === statusFilter),
+  );
 
   const headerActions = (
     <CatalogHeaderActions>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="relative w-44 sm:w-56">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -90,10 +119,75 @@ export function CreativesList({
             </button>
           ) : null}
         </div>
+
+        <Popover>
+          <PopoverTrigger
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                className="relative aspect-square"
+                aria-label="Filter creatives"
+              />
+            }
+          >
+            <ListFilterIcon />
+            {awaitingReviewCount > 0 && statusFilter === "all" ? (
+              <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-foreground text-[9px] font-medium text-background">
+                {awaitingReviewCount > 9 ? "9+" : awaitingReviewCount}
+              </span>
+            ) : null}
+          </PopoverTrigger>
+          <PopoverContent align="end" className="min-w-48 p-2">
+            <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
+              Status
+            </p>
+            <div className="space-y-0.5">
+              {STATUS_FILTERS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-md py-1.5 pr-2 pl-2 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => setStatusFilter(option.value)}
+                >
+                  <CheckIcon
+                    className={cn(
+                      "size-4 shrink-0",
+                      statusFilter === option.value
+                        ? "opacity-100"
+                        : "opacity-0",
+                    )}
+                  />
+                  {option.label}
+                  {option.value === "awaiting_review" &&
+                  awaitingReviewCount > 0 ? (
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {awaitingReviewCount}
+                    </span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <CreateVideoAdDialog
+          products={products}
+          onCreated={(creative) =>
+            setCreatives((prev) => [
+              creative,
+              ...prev.filter((c) => c.id !== creative.id),
+            ])
+          }
+        />
         <UploadVideoAdDialog
           products={products}
           onUploaded={(creative) =>
-            setCreatives((prev) => [creative, ...prev.filter((c) => c.id !== creative.id)])
+            setCreatives((prev) => [
+              creative,
+              ...prev.filter((c) => c.id !== creative.id),
+            ])
           }
         />
       </div>
@@ -105,8 +199,8 @@ export function CreativesList({
       <>
         {headerActions}
         <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          No video creatives yet. Upload your own video ad, or describe an idea
-          in chat to generate screenplay → storyboard → video.
+          No video creatives yet. Create one to generate screenplay → storyboard
+          → video, upload your own MP4, or describe an idea in chat.
         </div>
       </>
     );
@@ -120,7 +214,7 @@ export function CreativesList({
         <div className="rounded-lg border border-dashed border-border px-4 py-16 text-center">
           <p className="text-sm font-medium">No matching creatives</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Try a different search.
+            Try a different search or status filter.
           </p>
         </div>
       ) : (

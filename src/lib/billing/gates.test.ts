@@ -27,7 +27,10 @@ describe("plan gates", () => {
     );
     expect(() => assertCanCreateCreative("growth", 2)).not.toThrow();
     expect(() => assertCanCreateCreative("growth", 3)).toThrow(
-      /3 creatives/,
+      /3 video creatives/,
+    );
+    expect(() => assertCanCreateCreative("growth", 3, "ad_copy")).toThrow(
+      /3 ad copy/,
     );
     expect(() => assertHasInsights("growth")).toThrow(PlanEntitlementError);
   });

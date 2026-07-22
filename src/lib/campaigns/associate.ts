@@ -52,7 +52,7 @@ export async function resolveProductCampaignIds(
 
 /**
  * Enforce plan creative caps for each campaign being linked.
- * Empty list still gates Free (maxCreativesPerCampaign === 0).
+ * Empty list still gates Free (max === 0).
  */
 export async function assertCanLinkCreativesToCampaigns(opts: {
   plan: WorkspacePlan;
@@ -60,9 +60,11 @@ export async function assertCanLinkCreativesToCampaigns(opts: {
   countByCampaign: (campaignId: string) => Promise<number>;
   /** Campaigns the creative is already linked to (excluded from increment check). */
   alreadyLinked?: string[];
+  kind?: "video" | "ad_copy";
 }): Promise<void> {
+  const kind = opts.kind ?? "video";
   if (opts.campaignIds.length === 0) {
-    assertCanCreateCreative(opts.plan, 0);
+    assertCanCreateCreative(opts.plan, 0, kind);
     return;
   }
 
@@ -71,6 +73,6 @@ export async function assertCanLinkCreativesToCampaigns(opts: {
     const count = await opts.countByCampaign(campaignId);
     // Re-linking to an existing campaign shouldn't consume an extra slot.
     const effective = already.has(campaignId) ? Math.max(0, count - 1) : count;
-    assertCanCreateCreative(opts.plan, effective);
+    assertCanCreateCreative(opts.plan, effective, kind);
   }
 }

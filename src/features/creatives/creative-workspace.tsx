@@ -20,6 +20,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAgentContext } from "@/features/agent/agent-context";
@@ -193,30 +195,117 @@ function VideoView({ creative }: { creative: Creative }) {
 function PerformanceView({
   creative,
   performance,
+  onCreativeChange,
 }: {
   creative: Creative;
   performance: PerformancePoint[];
+  onCreativeChange?: (creative: Creative) => void;
 }) {
-  if (creative.status !== "ready") {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 text-sm text-muted-foreground">
-        Performance unlocks when this creative is ready for campaigns.
-      </div>
-    );
+  const [googleAssetId, setGoogleAssetId] = useState(
+    creative.externalAdRefs.googleAssetId ?? "",
+  );
+  const [savingRefs, setSavingRefs] = useState(false);
+  const [refsError, setRefsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setGoogleAssetId(creative.externalAdRefs.googleAssetId ?? "");
+  }, [creative.externalAdRefs.googleAssetId]);
+
+  async function saveExternalRefs() {
+    setSavingRefs(true);
+    setRefsError(null);
+    try {
+      const res = await fetch(`/api/creatives/${creative.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "set_external_ad_refs",
+          externalAdRefs: {
+            googleAssetId: googleAssetId.trim() || undefined,
+            metaAdId: creative.externalAdRefs.metaAdId,
+            tiktokAdId: creative.externalAdRefs.tiktokAdId,
+          },
+        }),
+      });
+      const body = (await res.json().catch(() => null)) as {
+        error?: string;
+        creative?: Creative;
+      } | null;
+      if (!res.ok || !body?.creative) {
+        throw new Error(body?.error ?? "Failed to save ad IDs.");
+      }
+      onCreativeChange?.(body.creative);
+    } catch (err) {
+      setRefsError(err instanceof Error ? err.message : "Failed to save.");
+    } finally {
+      setSavingRefs(false);
+    }
   }
 
-  if (performance.length === 0) {
+  if (creative.status !== "ready") {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-sm text-muted-foreground">
-        No performance data yet. Launch this creative in a campaign to track
-        results.
+      <div className="mx-auto flex max-w-md flex-col items-center justify-center gap-2 px-4 py-24 text-center text-sm text-muted-foreground">
+        <p>Performance unlocks when this creative is ready.</p>
+        <p className="text-xs">
+          Download the MP4 and link campaigns from the workspace once generation
+          finishes.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-8">
-      <PerformanceChartLazy data={performance} />
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-8">
+      <div className="space-y-3 rounded-lg border border-border p-4">
+        <div>
+          <p className="text-sm font-medium">External ad IDs</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Paste platform ad/asset IDs after you upload the MP4 yourself. Sync
+            pulls creative-level metrics from connected Google Ads accounts.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-[12rem] flex-1 space-y-1.5">
+            <Label htmlFor="google-asset-id">Google ad / asset ID</Label>
+            <Input
+              id="google-asset-id"
+              value={googleAssetId}
+              onChange={(e) => setGoogleAssetId(e.target.value)}
+              placeholder="1234567890"
+              disabled={savingRefs}
+            />
+          </div>
+          <Button
+            size="sm"
+            disabled={savingRefs}
+            onClick={() => void saveExternalRefs()}
+          >
+            {savingRefs ? "Saving…" : "Save"}
+          </Button>
+        </div>
+        {refsError ? (
+          <p className="text-xs text-destructive">{refsError}</p>
+        ) : null}
+      </div>
+
+      {performance.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-16 text-center text-sm text-muted-foreground">
+          <p>No creative-level performance data yet.</p>
+          <p className="max-w-lg text-xs leading-relaxed">
+            Download the MP4, link this creative to a campaign, and connect an ad
+            account in Settings. After ads run, save a Google ad ID above and sync
+            via the API — we do not upload videos to Meta, Google, or TikTok from
+            here.
+          </p>
+        </div>
+      ) : (
+        <div>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Creative-level performance (from linked external ad IDs).
+          </p>
+          <PerformanceChartLazy data={performance} />
+        </div>
+      )}
     </div>
   );
 }
@@ -238,8 +327,67 @@ function ReviewBar({
   error: string | null;
   onFeedbackChange: (value: string) => void;
   onReviseToggle: (open: boolean) => void;
-  onAction: (action: "accept" | "reject" | "revise") => void;
+  onAction: (
+    action: "accept" | "reject" | "revise" | "resubmit" | "reopen",
+  ) => void;
 }) {
+  if (creative.status === "rejected") {
+    return (
+      <div className="shrink-0 border-t border-border bg-black px-4 py-3">
+        <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center gap-2">
+          {error ? <p className="w-full text-xs text-destructive">{error}</p> : null}
+          <Button
+            size="sm"
+            disabled={pending}
+            onClick={() => onAction("reopen")}
+          >
+            Reopen
+          </Button>
+          <span className="ml-auto text-xs text-muted-foreground">
+            Rejected — reopen to resume or resubmit
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (creative.status === "revising") {
+    return (
+      <div className="shrink-0 border-t border-border bg-black px-4 py-3">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-2">
+          {error ? <p className="text-xs text-destructive">{error}</p> : null}
+          <Textarea
+            className="text-xs"
+            rows={3}
+            placeholder="What should change?"
+            value={feedback}
+            onChange={(e) => onFeedbackChange(e.target.value)}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              disabled={pending}
+              onClick={() => onAction("resubmit")}
+            >
+              Resubmit
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              onClick={() => onAction("reject")}
+            >
+              Reject
+            </Button>
+            <span className="ml-auto text-xs text-muted-foreground">
+              Revising {stageLabel(creative.stage).toLowerCase()}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (creative.status !== "awaiting_review") return null;
 
   return (
@@ -275,6 +423,13 @@ function ReviewBar({
           </Button>
           {revising ? (
             <>
+              <Button
+                size="sm"
+                disabled={pending}
+                onClick={() => onAction("resubmit")}
+              >
+                Resubmit
+              </Button>
               <Button
                 size="sm"
                 variant="secondary"
@@ -375,7 +530,14 @@ export function CreativeWorkspace({
   }, [creative.id, creative.status, router]);
 
   async function mutate(
-    action: "accept" | "reject" | "revise" | "pause" | "resume",
+    action:
+      | "accept"
+      | "reject"
+      | "revise"
+      | "resubmit"
+      | "reopen"
+      | "pause"
+      | "resume",
   ) {
     setError(null);
     const res = await fetch(`/api/creatives/${creative.id}`, {
@@ -383,7 +545,10 @@ export function CreativeWorkspace({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action,
-        feedback: action === "revise" ? feedback.trim() || undefined : undefined,
+        feedback:
+          action === "revise" || action === "resubmit"
+            ? feedback.trim() || undefined
+            : undefined,
       }),
     });
 
@@ -408,6 +573,11 @@ export function CreativeWorkspace({
 
     if (action === "revise" && body.revisePrompt) {
       setComposePrefill(body.revisePrompt);
+      setRevising(false);
+      setFeedback("");
+    }
+
+    if (action === "resubmit") {
       setRevising(false);
       setFeedback("");
     }
@@ -628,6 +798,7 @@ export function CreativeWorkspace({
               <PerformanceView
                 creative={creative}
                 performance={performance}
+                onCreativeChange={setCreative}
               />
             </TabsContent>
           </div>
