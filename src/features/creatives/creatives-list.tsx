@@ -2,7 +2,13 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckIcon, ListFilterIcon, SearchIcon, XIcon } from "@/components/icons";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ListFilterIcon,
+  SearchIcon,
+  XIcon,
+} from "@/components/icons";
 import type { Creative, CreativeStatus, Product } from "@/domain";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,14 +28,30 @@ import { cn } from "@/lib/utils";
 
 export type CreativesStatusFilter = "all" | CreativeStatus;
 
+const CREATIVE_STATUS_ORDER: CreativeStatus[] = [
+  "awaiting_review",
+  "generating",
+  "revising",
+  "paused",
+  "ready",
+  "rejected",
+];
+
+const CREATIVE_STATUS_LABELS: Record<CreativeStatus, string> = {
+  awaiting_review: "Awaiting review",
+  generating: "Generating",
+  revising: "Revising",
+  paused: "Paused",
+  ready: "Ready",
+  rejected: "Rejected",
+};
+
 const STATUS_FILTERS: { value: CreativesStatusFilter; label: string }[] = [
   { value: "all", label: "All statuses" },
-  { value: "awaiting_review", label: "Awaiting review" },
-  { value: "generating", label: "Generating" },
-  { value: "revising", label: "Revising" },
-  { value: "paused", label: "Paused" },
-  { value: "ready", label: "Ready" },
-  { value: "rejected", label: "Rejected" },
+  ...CREATIVE_STATUS_ORDER.map((value) => ({
+    value,
+    label: CREATIVE_STATUS_LABELS[value],
+  })),
 ];
 
 function matchesQuery(creative: Creative, query: string) {
@@ -38,6 +60,57 @@ function matchesQuery(creative: Creative, query: string) {
   return (
     creative.title.toLowerCase().includes(q) ||
     creative.brief.toLowerCase().includes(q)
+  );
+}
+
+function CreativeStatusGroup({
+  status,
+  creatives,
+  onDeleted,
+}: {
+  status: CreativeStatus;
+  creatives: Creative[];
+  onDeleted: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(true);
+  const label = CREATIVE_STATUS_LABELS[status];
+
+  return (
+    <section className="space-y-3">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center gap-2 rounded-md py-1 text-left outline-none hover:bg-muted/50 focus-visible:bg-muted/50"
+      >
+        <ChevronDownIcon
+          className={cn(
+            "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
+            !open && "-rotate-90",
+          )}
+          aria-hidden
+        />
+        <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          {label}
+        </h2>
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {creatives.length}
+        </span>
+      </button>
+      {open ? (
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {creatives.map((creative) => (
+            <li key={creative.id}>
+              <CreativeCard
+                creative={creative}
+                pollWhileGenerating={false}
+                onDeleted={onDeleted}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
   );
 }
 
@@ -97,6 +170,15 @@ export function CreativesList({
       matchesQuery(c, query) &&
       (statusFilter === "all" || c.status === statusFilter),
   );
+
+  const grouped = CREATIVE_STATUS_ORDER.map((status) => ({
+    status,
+    creatives: filtered.filter((c) => c.status === status),
+  })).filter((group) => group.creatives.length > 0);
+
+  const handleDeleted = (id: string) => {
+    setCreatives((prev) => prev.filter((c) => c.id !== id));
+  };
 
   const headerActions = (
     <CatalogHeaderActions>
@@ -248,19 +330,16 @@ export function CreativesList({
           </p>
         </div>
       ) : (
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((creative) => (
-            <li key={creative.id}>
-              <CreativeCard
-                creative={creative}
-                pollWhileGenerating={false}
-                onDeleted={(id) =>
-                  setCreatives((prev) => prev.filter((c) => c.id !== id))
-                }
-              />
-            </li>
+        <div className="space-y-8">
+          {grouped.map((group) => (
+            <CreativeStatusGroup
+              key={group.status}
+              status={group.status}
+              creatives={group.creatives}
+              onDeleted={handleDeleted}
+            />
           ))}
-        </ul>
+        </div>
       )}
     </>
   );
