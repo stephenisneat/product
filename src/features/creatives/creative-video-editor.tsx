@@ -171,7 +171,7 @@ export function CreativeVideoEditor({ creative }: { creative: Creative }) {
   if (!remotionProps) {
     const aspectCss = video.aspectRatio.includes(":")
       ? video.aspectRatio.replace(":", " / ")
-      : "9 / 16";
+      : "16 / 9";
     return (
       <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 px-4 py-10">
         <video
@@ -195,7 +195,7 @@ export function CreativeVideoEditor({ creative }: { creative: Creative }) {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-4 py-8">
-      <div className="mx-auto w-full max-w-sm overflow-hidden rounded-lg bg-black shadow-sm ring-1 ring-border">
+      <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-lg bg-black shadow-sm ring-1 ring-border">
         <Player
           ref={playerRef}
           component={CreativeAd}
@@ -204,7 +204,7 @@ export function CreativeVideoEditor({ creative }: { creative: Creative }) {
           compositionWidth={CREATIVE_AD_WIDTH}
           compositionHeight={CREATIVE_AD_HEIGHT}
           fps={CREATIVE_AD_FPS}
-          style={{ width: "100%", aspectRatio: "9 / 16" }}
+          style={{ width: "100%", aspectRatio: "16 / 9" }}
           controls
           clickToPlay
           loop={false}
@@ -252,7 +252,7 @@ export function CreativeVideoEditor({ creative }: { creative: Creative }) {
                 <img
                   src={clip.thumbnailUrl || video.thumbnailUrl}
                   alt=""
-                  className="aspect-[9/16] w-full object-cover"
+                  className="aspect-video w-full object-cover"
                 />
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 pt-6 pb-1.5">
                   <p className="truncate text-[10px] font-medium text-white">

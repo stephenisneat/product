@@ -1,6 +1,6 @@
 export const CREATIVE_AD_FPS = 30;
-export const CREATIVE_AD_WIDTH = 720;
-export const CREATIVE_AD_HEIGHT = 1280;
+export const CREATIVE_AD_WIDTH = 1280;
+export const CREATIVE_AD_HEIGHT = 720;
 export const CREATIVE_AD_ID = "CreativeAd";
 /** Hold on product end card after the last clip. */
 export const CREATIVE_AD_END_CARD_SEC = 2;

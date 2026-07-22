@@ -823,7 +823,7 @@ export const screenplayPayloadSchema = z.object({
   logline: z.string(),
   script: z.string(),
   scenes: z.array(screenplaySceneSchema),
-  aspectRatio: z.string().default("9:16"),
+  aspectRatio: z.string().default("16:9"),
   targetDurationSec: z.number().positive().default(15),
 });
 export type ScreenplayPayload = z.infer<typeof screenplayPayloadSchema>;
@@ -860,7 +860,7 @@ export const videoPayloadSchema = z.object({
   url: z.string().url(),
   thumbnailUrl: z.string().url(),
   durationSec: z.number().positive(),
-  aspectRatio: z.string().default("9:16"),
+  aspectRatio: z.string().default("16:9"),
   /** Per-scene Veo clips used by the timeline editor / Remotion composition. */
   clips: z.array(videoClipSchema).default([]),
   /** Product title for Remotion end card. */

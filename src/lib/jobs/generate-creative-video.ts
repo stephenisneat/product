@@ -135,7 +135,7 @@ export async function generateVideo(
     url: rendered.videoUrl,
     thumbnailUrl: rendered.thumbnailUrl,
     durationSec: rendered.durationSec,
-    aspectRatio: opts.screenplay.aspectRatio || "9:16",
+    aspectRatio: opts.screenplay.aspectRatio || "16:9",
     clips,
     productTitle: opts.product.title,
   };

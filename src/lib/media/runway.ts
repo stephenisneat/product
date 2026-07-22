@@ -46,14 +46,14 @@ export async function generateVeoClip(opts: {
   const duration = clampVeoDuration(opts.durationSec);
   const promptText =
     opts.promptText.trim().slice(0, 1000) ||
-    "Subtle camera motion, cinematic product ad, vertical framing.";
+    "Subtle camera motion, cinematic product ad, landscape framing.";
 
   const task = await client.imageToVideo
     .create({
       model: "veo3.1",
       promptImage: opts.promptImageUrl,
       promptText,
-      ratio: "720:1280",
+      ratio: "1280:720",
       duration,
       // Native Veo audio off — we mux ElevenLabs in Remotion.
       audio: false,

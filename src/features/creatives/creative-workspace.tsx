@@ -270,7 +270,7 @@ function StoryboardView({ creative }: { creative: Creative }) {
             <img
               src={frame.imageUrl}
               alt={frame.shotDescription}
-              className="aspect-[9/16] w-full object-cover"
+              className="aspect-video w-full object-cover"
             />
             <figcaption className="space-y-1 p-2.5">
               <p className="line-clamp-3 text-xs leading-snug text-foreground">

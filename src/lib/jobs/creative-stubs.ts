@@ -21,7 +21,7 @@ export function buildTemplateScreenplay(
   productTitle?: string,
 ): ScreenplayPayload {
   const subject = productTitle?.trim() || "the product";
-  const idea = brief.trim() || `A short vertical ad for ${subject}`;
+  const idea = brief.trim() || `A short 16:9 video ad for ${subject}`;
 
   const scenes = [
     {
@@ -80,7 +80,7 @@ export function buildTemplateScreenplay(
     logline: idea.slice(0, 200),
     script,
     scenes,
-    aspectRatio: "9:16",
+    aspectRatio: "16:9",
     targetDurationSec: scenes.reduce((sum, s) => sum + s.durationSec, 0),
   };
 }
@@ -97,12 +97,12 @@ export function buildTemplateStoryboard(
         : index === screenplay.scenes.length - 1
           ? "Static end card, centered"
           : "Medium tracking shot",
-    imageUrl: `https://placehold.co/720x1280/1a1a1a/f5f5f5/png?text=${encodeURIComponent(scene.heading.slice(0, 18))}`,
+    imageUrl: `https://placehold.co/1280x720/1a1a1a/f5f5f5/png?text=${encodeURIComponent(scene.heading.slice(0, 18))}`,
   }));
 
   return {
     styleBrief:
-      "Clean commercial aesthetic, high-contrast lighting, vertical 9:16, modern product-ad pacing.",
+      "Clean commercial aesthetic, high-contrast lighting, landscape 16:9, modern product-ad pacing.",
     frames,
   };
 }
@@ -122,7 +122,7 @@ export function buildStubVideo(screenplay: ScreenplayPayload | null): VideoPaylo
     url: STUB_VIDEO_URL,
     thumbnailUrl: STUB_THUMBNAIL_URL,
     durationSec: screenplay?.targetDurationSec ?? 15,
-    aspectRatio: screenplay?.aspectRatio ?? "9:16",
+    aspectRatio: screenplay?.aspectRatio ?? "16:9",
     clips,
   };
 }

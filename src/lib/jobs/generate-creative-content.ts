@@ -118,7 +118,7 @@ export async function generateScreenplay(opts: {
   const result = await generateText({
     model: CREATIVE_TEXT_MODEL,
     output: Output.object({ schema: generatedScreenplaySchema }),
-    system: `You write vertical (9:16) short-form video ad screenplays for DTC products.
+    system: `You write landscape (16:9) short-form video ad screenplays for DTC products.
 
 Rules:
 - Every action line must be concrete and filmable: name the subject, location, props, motion, and camera-relevant detail. Never use vague marketing language like "show the friction", "highlight the benefit", "everyday struggle", or "reveal the product confidently".
@@ -137,9 +137,9 @@ Product:
 ${productContext(opts.product)}
 
 Creative brief:
-${opts.brief.trim() || `A short vertical ad for ${opts.product.title}`}
+${opts.brief.trim() || `A short 16:9 video ad for ${opts.product.title}`}
 
-Return aspectRatio "9:16". Give each scene a stable id like "scene-1".`,
+Return aspectRatio "16:9". Give each scene a stable id like "scene-1".`,
   });
 
   await maybeCharge({
@@ -167,7 +167,7 @@ Return aspectRatio "9:16". Give each scene a stable id like "scene-1".`,
     logline: raw.logline.trim(),
     script: buildScriptFromScenes(scenes),
     scenes,
-    aspectRatio: raw.aspectRatio || "9:16",
+    aspectRatio: raw.aspectRatio || "16:9",
     targetDurationSec: scenes.reduce((sum, s) => sum + s.durationSec, 0),
   };
 
@@ -212,7 +212,7 @@ async function generateFrameImage(opts: {
   userId: string | null;
 }): Promise<string> {
   const productImage = opts.product.images[0];
-  const textPrompt = `Create a single vertical 9:16 commercial storyboard still (no collage, no text overlays, no watermarks, no UI chrome).
+  const textPrompt = `Create a single landscape 16:9 commercial storyboard still (no collage, no text overlays, no watermarks, no UI chrome).
 
 Style: ${opts.styleBrief}
 
@@ -289,7 +289,7 @@ export async function generateStoryboard(opts: {
   const planResult = await generateText({
     model: CREATIVE_TEXT_MODEL,
     output: Output.object({ schema: generatedStoryboardPlanSchema }),
-    system: `You plan vertical 9:16 storyboard frames for a product video ad.
+    system: `You plan landscape 16:9 storyboard frames for a product video ad.
 For each screenplay scene, produce one frame with:
 - shotDescription: concrete visual description of the still
 - camera: lens/framing/movement note
@@ -333,7 +333,7 @@ Return one frame per scene (matching sceneId). Include a cohesive styleBrief for
       const camera = planned?.camera?.trim() || "Medium shot, locked off";
       const imagePrompt =
         planned?.imagePrompt?.trim() ||
-        `${scene.heading}: ${scene.action}. Vertical 9:16 commercial still featuring ${opts.product.title}.`;
+        `${scene.heading}: ${scene.action}. Landscape 16:9 commercial still featuring ${opts.product.title}.`;
 
       const imageUrl = await generateFrameImage({
         styleBrief: plan.styleBrief,
