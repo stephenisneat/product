@@ -71,27 +71,44 @@ export async function markFeedbackFulfilledAndNotify(input: {
 }): Promise<{ notified: boolean; feedbackId: string | null }> {
   const service = createServiceClient();
 
-  let query = service
-    .from("admin_feedback")
-    .select(ADMIN_FEEDBACK_SELECT)
-    .limit(1);
+  async function loadRow(): Promise<AdminFeedbackRow | null> {
+    if (input.feedbackId) {
+      const { data } = await service
+        .from("admin_feedback")
+        .select(ADMIN_FEEDBACK_SELECT)
+        .eq("id", input.feedbackId)
+        .maybeSingle();
+      return (data as AdminFeedbackRow | null) ?? null;
+    }
 
-  if (input.feedbackId) {
-    query = query.eq("id", input.feedbackId);
-  } else if (input.prUrl) {
-    query = query.eq("pr_url", input.prUrl);
-  } else if (input.prNumber != null) {
-    query = query.eq("pr_number", input.prNumber);
-  } else {
+    if (input.prUrl) {
+      const { data } = await service
+        .from("admin_feedback")
+        .select(ADMIN_FEEDBACK_SELECT)
+        .eq("pr_url", input.prUrl)
+        .maybeSingle();
+      if (data) return data as AdminFeedbackRow;
+    }
+
+    if (input.prNumber != null) {
+      const { data } = await service
+        .from("admin_feedback")
+        .select(ADMIN_FEEDBACK_SELECT)
+        .eq("pr_number", input.prNumber)
+        .order("agent_launched_at", { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+      if (data) return data as AdminFeedbackRow;
+    }
+
+    return null;
+  }
+
+  const row = await loadRow();
+  if (!row) {
     return { notified: false, feedbackId: null };
   }
 
-  const { data, error } = await query.maybeSingle();
-  if (error || !data) {
-    return { notified: false, feedbackId: null };
-  }
-
-  const row = data as AdminFeedbackRow;
   const now = new Date().toISOString();
 
   const { data: updated, error: updateError } = await service
