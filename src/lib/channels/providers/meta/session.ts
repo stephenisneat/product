@@ -1,13 +1,17 @@
 import { decryptSecret, encryptSecret } from "@/lib/commerce/crypto";
 import { MetaClient, type MetaClientCredentials } from "./client";
 import { refreshMetaAccessToken } from "./oauth";
-import type { AdConnectionRecord } from "@/repositories/ad-connections";
+import type {
+  AdConnectionRecord,
+  AdConnectionRepository,
+} from "@/repositories/ad-connections";
 import { getAdConnectionRepository } from "@/repositories";
 
 export { toPublicAdConnection } from "@/lib/channels/ad-connection";
 
 export async function createMetaClientFromConnection(
   connection: AdConnectionRecord,
+  connectionRepo?: AdConnectionRepository,
 ): Promise<MetaClient> {
   if (!connection.externalAccountId) {
     throw new Error("Meta connection has no ad account selected.");
@@ -26,7 +30,7 @@ export async function createMetaClientFromConnection(
   const needsRefresh =
     !accessToken || !expiresAt || expiresAt < Date.now() + 60_000;
 
-  const repo = await getAdConnectionRepository();
+  const repo = connectionRepo ?? (await getAdConnectionRepository());
 
   const persistTokens = async (tokens: {
     accessToken: string;

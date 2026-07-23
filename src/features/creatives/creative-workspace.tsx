@@ -712,12 +712,65 @@ function DistributionView({
   const [googleAssetId, setGoogleAssetId] = useState(
     creative.externalAdRefs.googleAssetId ?? "",
   );
+  const [metaAdId, setMetaAdId] = useState(
+    creative.externalAdRefs.metaAdId ?? "",
+  );
   const [savingRefs, setSavingRefs] = useState(false);
   const [refsError, setRefsError] = useState<string | null>(null);
+  const [provider, setProvider] = useState<"google" | "meta">("google");
+  const [connectionId, setConnectionId] = useState("");
+  const [connections, setConnections] = useState<
+    { id: string; provider: string; accountName: string; status: string }[]
+  >([]);
+  const [finalUrl, setFinalUrl] = useState(
+    creative.copy?.finalUrl ?? "",
+  );
+  const [metaPageId, setMetaPageId] = useState("");
+  const [youtubeVideoId, setYoutubeVideoId] = useState("");
+  const [dailyBudget, setDailyBudget] = useState("20");
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [publishOk, setPublishOk] = useState<string | null>(null);
 
   useEffect(() => {
     setGoogleAssetId(creative.externalAdRefs.googleAssetId ?? "");
-  }, [creative.externalAdRefs.googleAssetId]);
+    setMetaAdId(creative.externalAdRefs.metaAdId ?? "");
+  }, [
+    creative.externalAdRefs.googleAssetId,
+    creative.externalAdRefs.metaAdId,
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/integrations/connections");
+        const body = (await res.json().catch(() => null)) as {
+          adConnections?: {
+            id: string;
+            provider: string;
+            accountName: string;
+            status: string;
+          }[];
+        } | null;
+        if (cancelled || !body?.adConnections) return;
+        setConnections(
+          body.adConnections.filter(
+            (c) =>
+              c.status === "active" &&
+              (c.provider === "google" || c.provider === "meta"),
+          ),
+        );
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const providerConnections = connections.filter((c) => c.provider === provider);
 
   async function saveExternalRefs() {
     setSavingRefs(true);
@@ -730,7 +783,7 @@ function DistributionView({
           action: "set_external_ad_refs",
           externalAdRefs: {
             googleAssetId: googleAssetId.trim() || undefined,
-            metaAdId: creative.externalAdRefs.metaAdId,
+            metaAdId: metaAdId.trim() || undefined,
             tiktokAdId: creative.externalAdRefs.tiktokAdId,
           },
         }),
@@ -750,13 +803,62 @@ function DistributionView({
     }
   }
 
+  async function publishCreative() {
+    setPublishing(true);
+    setPublishError(null);
+    setPublishOk(null);
+    try {
+      if (!connectionId) throw new Error("Select a connected ad account.");
+      if (!finalUrl.trim()) throw new Error("Final URL is required.");
+      const res = await fetch(`/api/creatives/${creative.id}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider,
+          connectionId,
+          finalUrl: finalUrl.trim(),
+          dailyBudget: Number(dailyBudget) || 20,
+          chargeSpend: false,
+          metaPageId: provider === "meta" ? metaPageId.trim() || undefined : undefined,
+          youtubeVideoId:
+            provider === "google" && creative.kind === "video_ad"
+              ? youtubeVideoId.trim() || undefined
+              : undefined,
+        }),
+      });
+      const body = (await res.json().catch(() => null)) as {
+        error?: string;
+        externalAdId?: string;
+        externalCampaignId?: string;
+        creative?: Creative;
+      } | null;
+      if (!res.ok) {
+        throw new Error(body?.error ?? "Publish failed.");
+      }
+      if (body?.creative) onCreativeChange?.(body.creative);
+      setPublishOk(
+        `Published as paused campaign ${body?.externalCampaignId ?? ""} / ad ${body?.externalAdId ?? ""}.`,
+      );
+      if (body?.creative?.externalAdRefs.googleAssetId) {
+        setGoogleAssetId(body.creative.externalAdRefs.googleAssetId);
+      }
+      if (body?.creative?.externalAdRefs.metaAdId) {
+        setMetaAdId(body.creative.externalAdRefs.metaAdId);
+      }
+    } catch (err) {
+      setPublishError(err instanceof Error ? err.message : "Publish failed.");
+    } finally {
+      setPublishing(false);
+    }
+  }
+
   if (creative.status !== "ready") {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center justify-center gap-2 px-4 py-24 text-center text-sm text-muted-foreground">
         <p>No distribution yet.</p>
         <p className="text-xs leading-relaxed">
           Distribution opens once this creative is ready — accept the final stage
-          to unlock ad IDs, downloads, and performance.
+          to unlock publish, ad IDs, downloads, and performance.
         </p>
       </div>
     );
@@ -766,10 +868,131 @@ function DistributionView({
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-8">
       <div className="space-y-3 rounded-lg border border-border p-4">
         <div>
+          <p className="text-sm font-medium">Publish to ad channel</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Create a paused campaign + ad on a connected Google or Meta account
+            from this creative. Activate spend from the campaign when you are
+            ready to launch.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="publish-provider">Channel</Label>
+            <select
+              id="publish-provider"
+              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
+              value={provider}
+              onChange={(e) => {
+                const next = e.target.value as "google" | "meta";
+                setProvider(next);
+                setConnectionId("");
+              }}
+              disabled={publishing}
+            >
+              <option value="google">Google Ads</option>
+              <option value="meta">Meta Ads</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="publish-connection">Account</Label>
+            <select
+              id="publish-connection"
+              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
+              value={connectionId}
+              onChange={(e) => setConnectionId(e.target.value)}
+              disabled={publishing || providerConnections.length === 0}
+            >
+              <option value="">
+                {providerConnections.length === 0
+                  ? "No connected account"
+                  : "Select account"}
+              </option>
+              {providerConnections.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.accountName}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="publish-final-url">Final URL</Label>
+            <Input
+              id="publish-final-url"
+              value={finalUrl}
+              onChange={(e) => setFinalUrl(e.target.value)}
+              placeholder="https://example.com/product"
+              disabled={publishing}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="publish-budget">Daily budget</Label>
+            <Input
+              id="publish-budget"
+              type="number"
+              min={1}
+              step={1}
+              value={dailyBudget}
+              onChange={(e) => setDailyBudget(e.target.value)}
+              disabled={publishing}
+            />
+          </div>
+          {provider === "meta" ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="meta-page-id">Facebook Page ID</Label>
+              <Input
+                id="meta-page-id"
+                value={metaPageId}
+                onChange={(e) => setMetaPageId(e.target.value)}
+                placeholder="Page ID for the ad"
+                disabled={publishing}
+              />
+            </div>
+          ) : creative.kind === "video_ad" ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="youtube-video-id">YouTube video ID</Label>
+              <Input
+                id="youtube-video-id"
+                value={youtubeVideoId}
+                onChange={(e) => setYoutubeVideoId(e.target.value)}
+                placeholder="Required for Google video ads"
+                disabled={publishing}
+              />
+            </div>
+          ) : (
+            <div />
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            disabled={publishing || providerConnections.length === 0}
+            onClick={() => void publishCreative()}
+          >
+            {publishing ? "Publishing…" : "Publish paused campaign"}
+          </Button>
+          {providerConnections.length === 0 ? (
+            <Link
+              href="/settings/connections"
+              className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+            >
+              Connect an ad account in Settings
+            </Link>
+          ) : null}
+        </div>
+        {publishError ? (
+          <p className="text-xs text-destructive">{publishError}</p>
+        ) : null}
+        {publishOk ? (
+          <p className="text-xs text-muted-foreground">{publishOk}</p>
+        ) : null}
+      </div>
+
+      <div className="space-y-3 rounded-lg border border-border p-4">
+        <div>
           <p className="text-sm font-medium">External ad IDs</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Paste platform ad/asset IDs after you upload the MP4 yourself. Sync
-            pulls creative-level metrics from connected Google Ads accounts.
+            Saved automatically on publish, or paste IDs if you uploaded ads
+            outside Product Agent.
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
@@ -780,6 +1003,16 @@ function DistributionView({
               value={googleAssetId}
               onChange={(e) => setGoogleAssetId(e.target.value)}
               placeholder="1234567890"
+              disabled={savingRefs}
+            />
+          </div>
+          <div className="min-w-[12rem] flex-1 space-y-1.5">
+            <Label htmlFor="meta-ad-id">Meta ad ID</Label>
+            <Input
+              id="meta-ad-id"
+              value={metaAdId}
+              onChange={(e) => setMetaAdId(e.target.value)}
+              placeholder="1202…"
               disabled={savingRefs}
             />
           </div>
@@ -800,10 +1033,8 @@ function DistributionView({
         <div className="flex flex-col items-center justify-center gap-3 py-16 text-center text-sm text-muted-foreground">
           <p>No creative-level performance data yet.</p>
           <p className="max-w-lg text-xs leading-relaxed">
-            Download the MP4, link this creative to a campaign, and connect an ad
-            account in Settings. After ads run, save a Google ad ID above and sync
-            via the API — we do not upload videos to Meta, Google, or TikTok from
-            here.
+            Publish above or paste an external ad ID, then sync performance from
+            Settings → Connections. Metrics appear after ads start serving.
           </p>
         </div>
       ) : (

@@ -2,7 +2,13 @@
 
 import { createHash, randomBytes } from "node:crypto";
 
-const DEFAULT_SCOPES = ["offline.access", "tweet.read", "users.read"].join(" ");
+const DEFAULT_SCOPES = [
+  "offline.access",
+  "tweet.read",
+  "users.read",
+  "ads.read",
+  "ads.write",
+].join(" ");
 
 export const X_ADS_STATE_COOKIE = "x_ads_oauth_state";
 

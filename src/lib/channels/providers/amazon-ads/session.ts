@@ -4,13 +4,17 @@ import {
   type AmazonAdsClientCredentials,
 } from "./client";
 import { refreshAmazonAdsAccessToken } from "./oauth";
-import type { AdConnectionRecord } from "@/repositories/ad-connections";
+import type {
+  AdConnectionRecord,
+  AdConnectionRepository,
+} from "@/repositories/ad-connections";
 import { getAdConnectionRepository } from "@/repositories";
 
 export { toPublicAdConnection } from "@/lib/channels/ad-connection";
 
 export async function createAmazonAdsClientFromConnection(
   connection: AdConnectionRecord,
+  connectionRepo?: AdConnectionRepository,
 ): Promise<AmazonAdsClient> {
   if (!connection.externalAccountId) {
     throw new Error("Amazon Ads connection has no profile selected.");
@@ -29,7 +33,7 @@ export async function createAmazonAdsClientFromConnection(
   const needsRefresh =
     !accessToken || !expiresAt || expiresAt < Date.now() + 60_000;
 
-  const repo = await getAdConnectionRepository();
+  const repo = connectionRepo ?? (await getAdConnectionRepository());
 
   const persistTokens = async (tokens: {
     accessToken: string;

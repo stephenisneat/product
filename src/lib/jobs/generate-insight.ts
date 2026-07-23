@@ -4,11 +4,13 @@ import {
   clarifyTriggerSupabaseError,
 } from "@/lib/jobs/assert-trigger-env";
 import { unknownErrorMessage } from "@/lib/errors";
-import { buildStubInsight } from "@/lib/jobs/insight-stubs";
+import { generateInsightContent } from "@/lib/jobs/generate-insight-content";
+import { syncDateRange } from "@/lib/performance/date-range";
 import {
   getGoalWriteRepository,
   getInsightWriteRepository,
   getJobWriteRepository,
+  getPerformanceWriteRepository,
   getProductWriteRepository,
 } from "@/repositories";
 
@@ -41,10 +43,6 @@ export function payloadFromGenerateInsightInput(
   };
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export async function runGenerateInsightJob(
   payload: GenerateInsightJobPayload,
 ): Promise<{ insightId: string }> {
@@ -54,6 +52,7 @@ export async function runGenerateInsightJob(
   const insights = getInsightWriteRepository();
   const goals = getGoalWriteRepository();
   const products = getProductWriteRepository();
+  const performance = getPerformanceWriteRepository();
 
   await jobs.update(payload.jobRunId, {
     status: "running",
@@ -67,14 +66,13 @@ export async function runGenerateInsightJob(
     }
 
     const productId = payload.productId ?? insight.productId;
+    let product = null;
     if (productId) {
-      const product = await products.getProduct(productId);
+      product = await products.getProduct(productId);
       if (!product || product.workspaceId !== payload.workspaceId) {
         throw new Error("Product not found in workspace.");
       }
     }
-
-    await sleep(600);
 
     const activeGoals = await goals.listActiveByWorkspace(payload.workspaceId);
     let sourceJob = null;
@@ -87,12 +85,26 @@ export async function runGenerateInsightJob(
       sourceJob = await jobs.getById(sourceJobId);
     }
 
-    const content = buildStubInsight({
+    const range = syncDateRange({ backfill: true, lastSyncedAt: null });
+    const performanceResult = await performance
+      .queryPerformance({
+        workspaceId: payload.workspaceId,
+        productId,
+        startDate: range.startDate,
+        endDate: range.endDate,
+        groupBy: "campaign",
+      })
+      .catch(() => null);
+
+    const content = await generateInsightContent({
       goals: activeGoals,
       sourceJob,
-      revisionFeedback:
-        payload.revisionFeedback ?? insight.revisionFeedback,
+      revisionFeedback: payload.revisionFeedback ?? insight.revisionFeedback,
       productId,
+      product,
+      performance: performanceResult,
+      workspaceId: payload.workspaceId,
+      userId: payload.createdBy,
     });
 
     await insights.update(insight.id, {

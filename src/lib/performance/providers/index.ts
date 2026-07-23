@@ -1,11 +1,9 @@
 import type { AdChannelProvider } from "@/domain";
+import { amazonPerformanceProvider } from "@/lib/performance/providers/amazon";
 import { googlePerformanceProvider } from "@/lib/performance/providers/google";
-import {
-  amazonPerformanceProvider,
-  metaPerformanceProvider,
-  tiktokPerformanceProvider,
-  xPerformanceProvider,
-} from "@/lib/performance/providers/stubs";
+import { metaPerformanceProvider } from "@/lib/performance/providers/meta";
+import { tiktokPerformanceProvider } from "@/lib/performance/providers/tiktok";
+import { xPerformanceProvider } from "@/lib/performance/providers/x";
 import type { PerformanceProvider } from "@/lib/performance/types";
 
 const providers: Record<AdChannelProvider, PerformanceProvider> = {

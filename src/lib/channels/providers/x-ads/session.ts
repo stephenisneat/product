@@ -1,13 +1,17 @@
 import { decryptSecret, encryptSecret } from "@/lib/commerce/crypto";
 import { XAdsClient, type XAdsClientCredentials } from "./client";
 import { refreshXAdsAccessToken } from "./oauth";
-import type { AdConnectionRecord } from "@/repositories/ad-connections";
+import type {
+  AdConnectionRecord,
+  AdConnectionRepository,
+} from "@/repositories/ad-connections";
 import { getAdConnectionRepository } from "@/repositories";
 
 export { toPublicAdConnection } from "@/lib/channels/ad-connection";
 
 export async function createXAdsClientFromConnection(
   connection: AdConnectionRecord,
+  connectionRepo?: AdConnectionRepository,
 ): Promise<XAdsClient> {
   if (!connection.externalAccountId) {
     throw new Error("X Ads connection has no account selected.");
@@ -26,7 +30,7 @@ export async function createXAdsClientFromConnection(
   const needsRefresh =
     !accessToken || !expiresAt || expiresAt < Date.now() + 60_000;
 
-  const repo = await getAdConnectionRepository();
+  const repo = connectionRepo ?? (await getAdConnectionRepository());
 
   const persistTokens = async (tokens: {
     accessToken: string;
@@ -38,7 +42,6 @@ export async function createXAdsClientFromConnection(
       tokenExpiresAt: tokens.expiresAt,
     });
     if (tokens.refreshToken) {
-      // X rotates refresh tokens; persist via upsert of encrypted refresh.
       await repo.upsertConnection({
         ...connection,
         refreshToken: encryptSecret(tokens.refreshToken),

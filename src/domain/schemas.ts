@@ -1208,6 +1208,10 @@ export const createCampaignJobInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
   objective: z.string().trim().max(500).optional(),
   channels: z.array(z.string().trim().min(1)).max(20).optional(),
+  /** Daily budget in account currency major units when launching externally. */
+  dailyBudget: z.number().positive().max(1_000_000).optional(),
+  /** Create paused campaigns on connected ad accounts (default true). */
+  launchExternal: z.boolean().optional(),
 });
 export type CreateCampaignJobInput = z.infer<
   typeof createCampaignJobInputSchema

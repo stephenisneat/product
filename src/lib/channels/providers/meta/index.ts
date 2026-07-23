@@ -11,5 +11,7 @@ export {
   MetaApiError,
   MetaClient,
   type MetaAdAccount,
+  type MetaCampaign,
   type MetaClientCredentials,
+  type MetaCreateCampaignInput,
 } from "./client";

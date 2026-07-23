@@ -9,8 +9,10 @@ AI marketing workspace for commerce products — [product.ag](https://product.ag
 - Marketing site for logged-out visitors; product catalog when authenticated (server-side, no flash)
 - Manual product creation (title, handle, description, price, images, status, SKU, category)
 - Shopify, WooCommerce, BigCommerce, Amazon, and Squarespace connect + selective product import (variants, inventory, collections)
-- Ad channel OAuth connect for Google Ads (with campaign management), Meta, TikTok, Amazon Ads, and X
-- Product workspace with intelligence, campaigns, performance chart, and reviewable insights
+- Ad channel OAuth connect for Google Ads (with campaign management), Meta (campaigns + publish), TikTok, Amazon Ads, and X
+- Performance sync for Google, Meta, TikTok, Amazon Ads, and X into workspace reporting
+- Product workspace with intelligence, campaigns (local + external launch), performance chart, and AI reviewable insights
+- Creative publish to Google Ads / Meta (paused campaign + ad) from ready creatives
 - Streaming agent composer (OpenAI when configured; deterministic offline stream otherwise)
 - Multi-tenant workspaces with roles (owner/admin/member) and email invites via Resend
 - Supabase schema + repository adapters
