@@ -145,6 +145,12 @@ export class TikTokClient {
     return mapAdvertiserResponse(await response.json());
   }
 
+  private advertiserId(): string {
+    const id = this.creds.advertiserId;
+    if (!id) throw new Error("TikTok client has no advertiser selected.");
+    return id;
+  }
+
   async getAdvertiser(advertiserId: string): Promise<TikTokAdvertiser> {
     const data = await this.request<{
       list?: {
@@ -168,7 +174,157 @@ export class TikTokClient {
       timeZone: row.timezone ?? null,
     };
   }
+
+  async listCampaigns(): Promise<TikTokCampaign[]> {
+    const queried = await this.request<{
+      list?: {
+        campaign_id?: string | number;
+        campaign_name?: string;
+        operation_status?: string;
+        secondary_status?: string;
+        budget?: number;
+        objective_type?: string;
+      }[];
+    }>(
+      `/campaign/get/?advertiser_id=${encodeURIComponent(this.advertiserId())}&page_size=100`,
+    );
+
+    return (queried.list ?? []).map((row) => ({
+      id: String(row.campaign_id ?? ""),
+      name: row.campaign_name ?? `Campaign ${row.campaign_id ?? ""}`,
+      status: row.operation_status ?? row.secondary_status ?? "UNKNOWN",
+      objective: row.objective_type ?? null,
+      dailyBudget: row.budget != null ? Number(row.budget) : null,
+    }));
+  }
+
+  async createCampaign(input: {
+    name: string;
+    objectiveType?: string;
+    budget?: number;
+    budgetMode?: string;
+    status?: "ENABLE" | "DISABLE";
+  }): Promise<{ id: string }> {
+    const data = await this.request<{ campaign_id?: string | number }>(
+      "/campaign/create/",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          advertiser_id: this.advertiserId(),
+          campaign_name: input.name,
+          objective_type: input.objectiveType ?? "TRAFFIC",
+          budget_mode: input.budgetMode ?? "BUDGET_MODE_DAY",
+          budget: input.budget ?? 50,
+          operation_status: input.status ?? "DISABLE",
+        }),
+      },
+    );
+    if (data.campaign_id == null) {
+      throw new TikTokApiError("TikTok campaign create returned no id", 502, data);
+    }
+    return { id: String(data.campaign_id) };
+  }
+
+  async updateCampaignStatus(
+    campaignId: string,
+    status: "ENABLE" | "DISABLE",
+  ): Promise<void> {
+    await this.request("/campaign/status/update/", {
+      method: "POST",
+      body: JSON.stringify({
+        advertiser_id: this.advertiserId(),
+        campaign_ids: [campaignId],
+        operation_status: status,
+      }),
+    });
+  }
+
+  async getCampaignPerformanceDaily(opts: {
+    startDate: string;
+    endDate: string;
+  }): Promise<TikTokCampaignPerformanceDaily[]> {
+    const data = await this.request<{
+      list?: {
+        dimensions?: {
+          campaign_id?: string;
+          stat_time_day?: string;
+        };
+        metrics?: {
+          campaign_name?: string;
+          spend?: string;
+          impressions?: string;
+          clicks?: string;
+          conversion?: string;
+          total_complete_payment_rate?: string;
+          currency?: string;
+        };
+      }[];
+    }>("/report/integrated/get/", {
+      method: "POST",
+      body: JSON.stringify({
+        advertiser_id: this.advertiserId(),
+        report_type: "BASIC",
+        data_level: "AUCTION_CAMPAIGN",
+        dimensions: ["campaign_id", "stat_time_day"],
+        metrics: [
+          "campaign_name",
+          "spend",
+          "impressions",
+          "clicks",
+          "conversion",
+          "total_complete_payment_rate",
+        ],
+        start_date: opts.startDate,
+        end_date: opts.endDate,
+        page_size: 1000,
+      }),
+    });
+
+    return (data.list ?? [])
+      .map((row) => {
+        const campaignId = String(row.dimensions?.campaign_id ?? "");
+        const date = String(row.dimensions?.stat_time_day ?? "").slice(0, 10);
+        if (!campaignId || !date) return null;
+        return {
+          date,
+          campaignId,
+          campaignName:
+            row.metrics?.campaign_name ?? `Campaign ${campaignId}`,
+          campaignStatus: "ENABLE",
+          channelType: "TIKTOK",
+          impressions: Number(row.metrics?.impressions ?? 0),
+          clicks: Number(row.metrics?.clicks ?? 0),
+          spend: Number(row.metrics?.spend ?? 0),
+          conversions: Number(row.metrics?.conversion ?? 0),
+          conversionsValue: Number(
+            row.metrics?.total_complete_payment_rate ?? 0,
+          ),
+        } satisfies TikTokCampaignPerformanceDaily;
+      })
+      .filter((row): row is TikTokCampaignPerformanceDaily => row != null);
+  }
 }
+
+export type TikTokCampaign = {
+  id: string;
+  name: string;
+  status: string;
+  objective: string | null;
+  dailyBudget: number | null;
+};
+
+export type TikTokCampaignPerformanceDaily = {
+  date: string;
+  campaignId: string;
+  campaignName: string;
+  campaignStatus: string;
+  channelType: string;
+  impressions: number;
+  clicks: number;
+  spend: number;
+  conversions: number;
+  conversionsValue: number;
+};
 
 function mapAdvertiserResponse(body: unknown): TikTokAdvertiser[] {
   const parsed = body as {

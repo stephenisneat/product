@@ -3,6 +3,7 @@ import {
   PlanEntitlementError,
   assertCanCreateCampaign,
 } from "@/lib/billing/gates";
+import { launchCampaignToConnectedChannels } from "@/lib/channels/launch-campaign";
 import {
   assertTriggerJobEnv,
   clarifyTriggerSupabaseError,
@@ -22,6 +23,9 @@ export type CreateCampaignJobPayload = {
   name: string;
   objective?: string;
   channels?: string[];
+  dailyBudget?: number;
+  /** When true (default), also create paused campaigns on connected ad accounts. */
+  launchExternal?: boolean;
 };
 
 export function payloadFromCreateCampaignInput(
@@ -38,12 +42,21 @@ export function payloadFromCreateCampaignInput(
     name: input.name,
     objective: input.objective,
     channels: input.channels,
+    dailyBudget: input.dailyBudget,
+    launchExternal: input.launchExternal,
   };
 }
 
 export async function runCreateCampaignJob(
   payload: CreateCampaignJobPayload,
-): Promise<{ campaignId: string }> {
+): Promise<{
+  campaignId: string;
+  externalLaunches: {
+    provider: string;
+    connectionId: string;
+    externalCampaignId: string;
+  }[];
+}> {
   assertTriggerJobEnv();
 
   const jobs = getJobWriteRepository();
@@ -82,7 +95,25 @@ export async function runCreateCampaignJob(
       updatedAt: now,
     });
 
-    const result = { campaignId: campaign.id };
+    const launchExternal = payload.launchExternal !== false;
+    const externalLaunches = launchExternal
+      ? await launchCampaignToConnectedChannels({
+          workspaceId: payload.workspaceId,
+          productId: payload.productId,
+          campaign,
+          channels: payload.channels,
+          dailyBudget: payload.dailyBudget,
+        })
+      : [];
+
+    const result = {
+      campaignId: campaign.id,
+      externalLaunches: externalLaunches.map((row) => ({
+        provider: row.provider,
+        connectionId: row.connectionId,
+        externalCampaignId: row.externalCampaignId,
+      })),
+    };
     await jobs.update(payload.jobRunId, {
       status: "succeeded",
       result,

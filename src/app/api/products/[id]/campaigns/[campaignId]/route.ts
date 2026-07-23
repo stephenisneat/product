@@ -6,6 +6,7 @@ import {
   PlanEntitlementError,
   assertCanSpendAndLaunch,
 } from "@/lib/billing/gates";
+import { activateCampaignSpend } from "@/lib/channels/launch-campaign";
 import { getProductRepository } from "@/repositories";
 
 export const runtime = "nodejs";
@@ -16,6 +17,8 @@ const patchSchema = z
     objective: z.string().trim().max(500).optional(),
     channels: z.array(z.string().trim().min(1)).max(20).optional(),
     status: z.enum(["draft", "active", "paused"]).optional(),
+    /** First-day ad spend to debit when activating (cents). Default $20. */
+    launchBudgetCents: z.number().int().positive().max(10_000_000).optional(),
   })
   .refine(
     (data) =>
@@ -70,11 +73,49 @@ export async function PATCH(req: Request, { params }: Params) {
   }
 
   try {
+    const existing = (await products.listCampaigns(productId)).find(
+      (c) => c.id === campaignId,
+    );
+    if (!existing) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const becomingActive =
+      parsed.data.status === "active" && existing.status !== "active";
+
     const campaign = await products.updateCampaign(
       productId,
       campaignId,
       parsed.data,
     );
+
+    if (becomingActive) {
+      const amountCents = parsed.data.launchBudgetCents ?? 2000;
+      try {
+        await activateCampaignSpend({
+          workspaceId: active.workspace.id,
+          plan,
+          productId,
+          campaignId,
+          userId: user.id,
+          amountCents,
+        });
+      } catch (err) {
+        if (err instanceof PlanEntitlementError) {
+          return NextResponse.json(
+            { error: err.message, code: err.code, campaign },
+            { status: err.status },
+          );
+        }
+        const message =
+          err instanceof Error ? err.message : "Failed to activate ad spend";
+        return NextResponse.json(
+          { error: message, campaign },
+          { status: 502 },
+        );
+      }
+    }
+
     return NextResponse.json({ campaign });
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

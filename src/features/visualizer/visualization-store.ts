@@ -1,5 +1,4 @@
 import type { Visualization } from "@/domain";
-import { seedRecents } from "@/features/visualizer/dummy-data";
 import type { VizExploreConfig } from "@/features/visualizer/explore/types";
 
 export type VisualizationStore = {
@@ -60,28 +59,14 @@ export function loadVisualizationStore(
   try {
     const raw = window.localStorage.getItem(storageKey(workspaceId));
     if (!raw) {
-      const seeded = seedRecents();
-      const store: VisualizationStore = {
-        visualizations: seeded,
-        openTabIds: [],
-        lastPath: DEFAULT_VISUALIZER_PATH,
-        seeded: true,
-        explores: {},
-      };
+      const store = emptyStore();
       saveVisualizationStore(workspaceId, store);
       return store;
     }
 
     const parsed = JSON.parse(raw) as VisualizationStore;
     if (!parsed || !Array.isArray(parsed.visualizations)) {
-      const seeded = seedRecents();
-      const store: VisualizationStore = {
-        visualizations: seeded,
-        openTabIds: [],
-        lastPath: DEFAULT_VISUALIZER_PATH,
-        seeded: true,
-        explores: {},
-      };
+      const store = emptyStore();
       saveVisualizationStore(workspaceId, store);
       return store;
     }
@@ -101,7 +86,7 @@ export function loadVisualizationStore(
           )
         : {};
 
-    let store: VisualizationStore = {
+    return {
       visualizations: parsed.visualizations,
       openTabIds,
       lastPath: normalizeLastPath(
@@ -112,28 +97,8 @@ export function loadVisualizationStore(
       seeded: parsed.seeded === true,
       explores,
     };
-
-    if (!store.seeded && store.visualizations.length === 0) {
-      store = {
-        visualizations: seedRecents(),
-        openTabIds: [],
-        lastPath: DEFAULT_VISUALIZER_PATH,
-        seeded: true,
-        explores: {},
-      };
-      saveVisualizationStore(workspaceId, store);
-    }
-
-    return store;
   } catch {
-    const seeded = seedRecents();
-    const store: VisualizationStore = {
-      visualizations: seeded,
-      openTabIds: [],
-      lastPath: DEFAULT_VISUALIZER_PATH,
-      seeded: true,
-      explores: {},
-    };
+    const store = emptyStore();
     saveVisualizationStore(workspaceId, store);
     return store;
   }

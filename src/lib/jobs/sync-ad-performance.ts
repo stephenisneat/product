@@ -6,12 +6,17 @@ import {
 import { unknownErrorMessage } from "@/lib/errors";
 import { syncDateRange } from "@/lib/performance/date-range";
 import { getPerformanceProvider } from "@/lib/performance/providers";
+import { createAmazonAdsClientFromConnection } from "@/lib/channels/providers/amazon-ads/session";
 import { createGoogleAdsClientFromConnection } from "@/lib/channels/providers/google-ads/session";
+import { createMetaClientFromConnection } from "@/lib/channels/providers/meta/session";
+import { createTikTokClientFromConnection } from "@/lib/channels/providers/tiktok/session";
+import { createXAdsClientFromConnection } from "@/lib/channels/providers/x-ads/session";
 import {
   getAdConnectionWriteRepository,
   getJobWriteRepository,
   getPerformanceWriteRepository,
 } from "@/repositories";
+import type { AdConnectionRecord } from "@/repositories/ad-connections";
 
 export type SyncAdPerformanceJobPayload = {
   jobRunId: string;
@@ -34,6 +39,26 @@ export function payloadFromSyncAdPerformanceInput(
     connectionId: input.connectionId,
     backfill: input.backfill,
   };
+}
+
+async function credentialsForConnection(
+  connection: AdConnectionRecord,
+): Promise<unknown> {
+  const connections = getAdConnectionWriteRepository();
+  switch (connection.provider) {
+    case "google":
+      return createGoogleAdsClientFromConnection(connection, connections);
+    case "meta":
+      return createMetaClientFromConnection(connection, connections);
+    case "tiktok":
+      return createTikTokClientFromConnection(connection, connections);
+    case "amazon":
+      return createAmazonAdsClientFromConnection(connection, connections);
+    case "x":
+      return createXAdsClientFromConnection(connection, connections);
+    default:
+      return null;
+  }
 }
 
 export async function runSyncAdPerformanceJob(
@@ -75,14 +100,7 @@ export async function runSyncAdPerformanceJob(
     });
 
     const provider = getPerformanceProvider(connection.provider);
-    let credentials: unknown = null;
-
-    if (connection.provider === "google") {
-      credentials = await createGoogleAdsClientFromConnection(
-        connection,
-        connections,
-      );
-    }
+    const credentials = await credentialsForConnection(connection);
 
     const fetchResult = await provider.fetchDailyCampaignMetrics(
       {

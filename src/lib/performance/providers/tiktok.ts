@@ -1,0 +1,34 @@
+import type { TikTokClient } from "@/lib/channels/providers/tiktok";
+import type {
+  PerformanceFetchContext,
+  PerformanceFetchResult,
+  PerformanceProvider,
+} from "@/lib/performance/types";
+
+export const tiktokPerformanceProvider: PerformanceProvider = {
+  provider: "tiktok",
+  async fetchDailyCampaignMetrics(
+    ctx: PerformanceFetchContext,
+    range: { startDate: string; endDate: string },
+  ): Promise<PerformanceFetchResult> {
+    const client = ctx.credentials as TikTokClient;
+    const rows = await client.getCampaignPerformanceDaily(range);
+    return {
+      supported: true,
+      rows: rows
+        .filter((row) => row.date && row.campaignId)
+        .map((row) => ({
+          externalCampaignId: row.campaignId,
+          name: row.campaignName,
+          status: row.campaignStatus || null,
+          channelType: row.channelType || null,
+          date: row.date,
+          impressions: row.impressions,
+          clicks: row.clicks,
+          spend: row.spend,
+          conversions: row.conversions,
+          revenue: row.conversionsValue,
+        })),
+    };
+  },
+};

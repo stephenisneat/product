@@ -119,6 +119,45 @@ export class SupabasePerformanceRepository {
     return ((data ?? []) as DbExternalCampaign[]).map(mapExternalCampaign);
   }
 
+  /** Upsert a single external campaign with optional product/campaign links. */
+  async upsertLinkedExternalCampaign(input: {
+    workspaceId: string;
+    connectionId: string;
+    provider: AdChannelProvider;
+    externalId: string;
+    name: string;
+    status: string | null;
+    channelType: string | null;
+    currencyCode: string | null;
+    productId?: string | null;
+    campaignId?: string | null;
+  }): Promise<ExternalCampaign> {
+    const now = new Date().toISOString();
+    const { data, error } = await this.client
+      .from("external_campaigns")
+      .upsert(
+        {
+          workspace_id: input.workspaceId,
+          connection_id: input.connectionId,
+          provider: input.provider,
+          external_id: input.externalId,
+          name: input.name,
+          status: input.status,
+          channel_type: input.channelType,
+          currency_code: input.currencyCode,
+          product_id: input.productId ?? null,
+          campaign_id: input.campaignId ?? null,
+          last_synced_at: now,
+          updated_at: now,
+        },
+        { onConflict: "connection_id,external_id" },
+      )
+      .select("*")
+      .single();
+    if (error) throw error;
+    return mapExternalCampaign(data as DbExternalCampaign);
+  }
+
   /**
    * Upsert mirrored campaigns and daily points from a provider sync.
    * Groups rows by external campaign id, upserts campaigns, then points.
