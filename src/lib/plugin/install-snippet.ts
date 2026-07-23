@@ -5,11 +5,11 @@ export function getPluginBaseUrl() {
   );
 }
 
-export function buildInstallSnippet(workspaceId: string) {
+export function buildInstallSnippet(pluginId: string) {
   const base = getPluginBaseUrl();
   return `<script
   src="${base}/v1/plugin.js"
-  data-workspace="${workspaceId}"
+  data-plugin="${pluginId}"
   async
 ></script>`;
 }

@@ -24,9 +24,23 @@ export type PluginConsentCategory =
   | "marketing"
   | "preferences";
 
+export type PluginPlatform =
+  | "nextjs"
+  | "shopify"
+  | "bigcommerce"
+  | "woocommerce"
+  | "squarespace"
+  | "amazon"
+  | "ios"
+  | "android"
+  | "custom";
+
 export type PluginContainer = {
   id: string;
   workspace_id: string;
+  name: string;
+  platform: PluginPlatform;
+  domain: string | null;
   published_version: number;
   draft_version: number;
   published_at: string | null;
@@ -86,6 +100,12 @@ export type PluginContainerPayload = {
   installSnippet: string;
 };
 
+export type PluginListItem = {
+  container: PluginContainer;
+  installSnippet: string;
+  status: PluginInstallStatus;
+};
+
 export type PluginInstallStatus = {
   has_ever_received: boolean;
   last_event_at: string | null;
@@ -93,8 +113,8 @@ export type PluginInstallStatus = {
   last_event_name: string | null;
   last_hour_count: number;
   last_day_count: number;
-  primary_domain: string | null;
-  detected_provider: string | null;
+  domain: string | null;
+  platform: PluginPlatform | string | null;
 };
 
 export type PluginPingResult = {

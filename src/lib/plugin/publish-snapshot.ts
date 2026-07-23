@@ -5,6 +5,7 @@ export type PublishPluginSnapshotOpts = {
   publishedBy?: string | null;
   enabledTagsOnly?: boolean;
   workspaceId?: string;
+  pluginId?: string;
 };
 
 export async function publishPluginContainerSnapshot(
@@ -36,6 +37,7 @@ export async function publishPluginContainerSnapshot(
     ]);
 
   const snapshot = {
+    plugin_id: opts.pluginId ?? containerId,
     ...(opts.workspaceId ? { workspace_id: opts.workspaceId } : {}),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     tags: (allTags || []).map((t: any) => ({

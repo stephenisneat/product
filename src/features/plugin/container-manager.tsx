@@ -23,6 +23,9 @@ import { InstallPanel } from "@/features/plugin/install-panel";
 interface Container {
   id: string;
   workspace_id: string;
+  name: string;
+  platform: string;
+  domain: string | null;
   published_version: number;
   draft_version: number;
   published_at: string | null;
@@ -456,14 +459,14 @@ function VariableConfigFields({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export interface ContainerManagerProps {
-  /** Base API path for container CRUD. Defaults to `/api/plugin/container`. */
-  apiBase?: string;
-  /** Optional display name (e.g. workspace name) for the header. */
+  /** Base API path for this plugin's container CRUD. Required. */
+  apiBase: string;
+  /** Optional display name (e.g. plugin name) for the header. */
   displayName?: string;
 }
 
 export function ContainerManager({
-  apiBase = "/api/plugin/container",
+  apiBase,
   displayName,
 }: ContainerManagerProps) {
   const [loading, setLoading] = useState(true);

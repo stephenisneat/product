@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth/session";
-import { getActiveWorkspace } from "@/lib/auth/workspace";
-import { ensurePluginContainer } from "@/lib/plugin/ensure-container";
+import { requirePluginContainer } from "@/lib/plugin/auth";
 import { getPluginBaseUrl } from "@/lib/plugin/install-snippet";
 import { loadPluginInstallStatus } from "@/lib/plugin/install-status";
 import type { PluginPingResult } from "@/lib/plugin/types";
-import { createServiceClient, hasServiceRole } from "@/lib/supabase/service";
-import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+type RouteContext = { params: Promise<{ pluginId: string }> };
 
 async function probe(url: string): Promise<{ ok: boolean; json?: unknown }> {
   try {
@@ -23,7 +21,6 @@ async function probe(url: string): Promise<{ ok: boolean; json?: unknown }> {
     if (contentType.includes("application/json")) {
       return { ok: true, json: await res.json() };
     }
-    // Consume body so the connection can close cleanly.
     await res.arrayBuffer();
     return { ok: true };
   } catch {
@@ -31,39 +28,23 @@ async function probe(url: string): Promise<{ ok: boolean; json?: unknown }> {
   }
 }
 
-export async function POST() {
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const active = await getActiveWorkspace();
-  if (!active) {
-    return NextResponse.json({ error: "No workspace available" }, { status: 400 });
-  }
-
-  const client = hasServiceRole()
-    ? createServiceClient()
-    : await createClient();
-
-  const ensured = await ensurePluginContainer(client, active.workspace.id);
-  if (!ensured.id) {
-    return NextResponse.json(
-      { error: "Failed to resolve plugin container" },
-      { status: 500 },
-    );
+export async function POST(_req: Request, context: RouteContext) {
+  const { pluginId } = await context.params;
+  const auth = await requirePluginContainer(pluginId);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const base = getPluginBaseUrl();
-  const workspaceId = active.workspace.id;
 
   const [scriptProbe, containerProbe, status] = await Promise.all([
     probe(`${base}/v1/plugin.js`),
-    probe(`${base}/api/t/container/ws/${workspaceId}`),
+    probe(`${base}/api/t/container/p/${auth.containerId}`),
     loadPluginInstallStatus({
-      client,
-      workspaceId,
-      primaryDomain: active.workspace.primaryDomain ?? null,
+      client: auth.client,
+      pluginId: auth.containerId,
+      domain: auth.container.domain,
+      platform: auth.container.platform,
     }),
   ]);
 
