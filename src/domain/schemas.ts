@@ -612,6 +612,17 @@ export const adminFeedbackKindSchema = z.enum([
 ]);
 export type AdminFeedbackKind = z.infer<typeof adminFeedbackKindSchema>;
 
+export const adminFeedbackStatusSchema = z.enum([
+  "pending",
+  "prompt_ready",
+  "dispatched",
+  "pr_open",
+  "fulfilled",
+  "rejected",
+  "failed",
+]);
+export type AdminFeedbackStatus = z.infer<typeof adminFeedbackStatusSchema>;
+
 export const createAdminFeedbackSchema = z.object({
   kind: adminFeedbackKindSchema,
   title: z.string().trim().min(1).max(200),
@@ -619,6 +630,20 @@ export const createAdminFeedbackSchema = z.object({
   screenshotUrl: z.string().url().max(2000).optional(),
 });
 export type CreateAdminFeedbackInput = z.infer<typeof createAdminFeedbackSchema>;
+
+export const updateAdminFeedbackPromptSchema = z.object({
+  prompt: z.string().trim().min(1).max(50000),
+});
+export type UpdateAdminFeedbackPromptInput = z.infer<
+  typeof updateAdminFeedbackPromptSchema
+>;
+
+export const dispatchAdminFeedbackSchema = z.object({
+  prompt: z.string().trim().min(1).max(50000).optional(),
+});
+export type DispatchAdminFeedbackInput = z.infer<
+  typeof dispatchAdminFeedbackSchema
+>;
 
 export const adminFeedbackSchema = z.object({
   id: z.string().uuid(),
@@ -628,6 +653,22 @@ export const adminFeedbackSchema = z.object({
   title: z.string(),
   body: z.string().nullable(),
   screenshotUrl: z.string().nullable(),
+  status: adminFeedbackStatusSchema,
+  generatedPrompt: z.string().nullable(),
+  approvedPrompt: z.string().nullable(),
+  cursorAgentId: z.string().nullable(),
+  cursorAgentUrl: z.string().nullable(),
+  branchName: z.string().nullable(),
+  prUrl: z.string().nullable(),
+  prNumber: z.number().int().nullable(),
+  agentSummary: z.string().nullable(),
+  errorMessage: z.string().nullable(),
+  approvedAt: z.string().datetime().nullable(),
+  promptApprovedAt: z.string().datetime().nullable(),
+  agentLaunchedAt: z.string().datetime().nullable(),
+  fulfilledAt: z.string().datetime().nullable(),
+  fulfillmentEmailSentAt: z.string().datetime().nullable(),
+  rejectedAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
 });
 export type AdminFeedback = z.infer<typeof adminFeedbackSchema>;

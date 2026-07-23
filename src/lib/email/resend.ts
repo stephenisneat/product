@@ -85,6 +85,63 @@ export async function sendCreativeReviewEmail(input: {
   }
 }
 
+export async function sendFeedbackFulfilledEmail(input: {
+  to: string;
+  title: string;
+  kind: string;
+  prUrl?: string | null;
+}) {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn(
+      "[email] RESEND_API_KEY unset; skipping feedback fulfillment email",
+    );
+    return;
+  }
+
+  const kindLabel =
+    input.kind === "channel_request"
+      ? "channel request"
+      : input.kind === "bug"
+        ? "bug report"
+        : input.kind === "feature"
+          ? "feature request"
+          : "feedback";
+
+  const resend = getResend();
+  const { error } = await resend.emails.send({
+    from: fromAddress(),
+    to: input.to,
+    subject: `Your feedback was fulfilled: ${input.title}`,
+    html: `
+      <div style="font-family: system-ui, sans-serif; line-height: 1.5; max-width: 480px;">
+        <h1 style="font-size: 18px; margin: 0 0 12px;">Request fulfilled</h1>
+        <p style="margin: 0 0 12px;">
+          Your ${escapeHtml(kindLabel)}
+          <strong>${escapeHtml(input.title)}</strong>
+          has been completed and merged.
+        </p>
+        ${
+          input.prUrl
+            ? `<p style="margin: 0 0 20px;">
+          <a href="${escapeHtml(input.prUrl)}"
+             style="display:inline-block;background:#111;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;">
+            View pull request
+          </a>
+        </p>`
+            : ""
+        }
+        <p style="margin: 0; color: #666; font-size: 12px;">
+          Thanks for helping improve Product Agent.
+        </p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Failed to send fulfillment email");
+  }
+}
+
 function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")
