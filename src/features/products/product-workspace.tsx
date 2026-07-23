@@ -10,8 +10,8 @@ import type {
 } from "@/domain";
 import { PageCanvas } from "@/components/layout/page-canvas";
 import {
-  ProductBackLink,
   ProductChrome,
+  ProductPageHeader,
 } from "@/features/products/product-chrome";
 import {
   ProductPulse,
@@ -57,7 +57,7 @@ export function ProductWorkspace({
   });
 
   return (
-    <PageCanvas header={<ProductBackLink />}>
+    <PageCanvas header={<ProductPageHeader product={product} />}>
       <div className="mx-auto max-w-6xl space-y-10 px-4 py-6">
         <ProductChrome product={product} plan={plan} />
 

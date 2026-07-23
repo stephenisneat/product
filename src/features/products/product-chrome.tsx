@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { ArrowLeft, Ellipsis, Loader2, SparklesIcon } from "@/components/icons";
+import {
+  ArrowLeft02Icon,
+  Ellipsis,
+  Loader2,
+  SparklesIcon,
+} from "@/components/icons";
 import type { Product, WorkspacePlan } from "@/domain";
 import { ProductImage } from "@/components/product-image";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +23,7 @@ import {
 import { useAgentContext } from "@/features/agent/agent-context";
 import { UpgradeButton } from "@/features/billing/upgrade-button";
 import { EditProductDialog } from "@/features/products/edit-product-dialog";
+import { ProductImageLightbox } from "@/features/products/product-image-lightbox";
 import { getEntitlements } from "@/lib/billing/entitlements";
 import {
   productSummaryLine,
@@ -109,26 +115,8 @@ export function ProductChrome({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start gap-4">
-        <div className="relative size-20 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
-          {product.images[0] ? (
-            <ProductImage
-              src={product.images[0]}
-              avgColor={product.imageAvgColors[0]}
-              className="size-full"
-              sizes="80px"
-            />
-          ) : (
-            <div className="flex size-full items-center justify-center font-mono text-[10px] uppercase text-muted-foreground">
-              {productTypeLabel(product.type).slice(0, 3)}
-            </div>
-          )}
-        </div>
-
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-heading text-lg font-semibold tracking-tight">
-              {product.title}
-            </h1>
             <Badge variant="outline" className="text-[10px] uppercase">
               {productTypeLabel(product.type)}
             </Badge>
@@ -268,16 +256,70 @@ export function ProductChrome({
   );
 }
 
-export function ProductBackLink() {
+export function ProductPageHeader({ product }: { product: Product }) {
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const hasImages = product.images.length > 0;
+
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="-ml-2 gap-1.5 text-muted-foreground"
-      render={<Link href="/" />}
-    >
-      <ArrowLeft className="size-3.5" />
-      Back
-    </Button>
+    <>
+      <div className="relative flex w-full items-center">
+        <div className="z-10 flex min-w-0 max-w-[34%] items-center">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="-ml-1 size-7 shrink-0 rounded-md text-muted-foreground"
+            aria-label="Back to products"
+            render={<Link href="/" />}
+          >
+            <ArrowLeft02Icon className="size-4" />
+          </Button>
+        </div>
+
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-14 sm:px-28">
+          <div className="flex min-w-0 max-w-full items-center gap-2.5">
+            {hasImages ? (
+              <button
+                type="button"
+                className="pointer-events-auto relative size-8 shrink-0 cursor-pointer overflow-hidden rounded-md border border-border bg-muted transition-opacity hover:opacity-90"
+                aria-label={`View ${product.title} images`}
+                onClick={() => setGalleryOpen(true)}
+              >
+                <ProductImage
+                  src={product.images[0]}
+                  avgColor={product.imageAvgColors[0]}
+                  className="size-full"
+                  sizes="32px"
+                />
+              </button>
+            ) : (
+              <div className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted font-mono text-[9px] uppercase text-muted-foreground">
+                {productTypeLabel(product.type).slice(0, 3)}
+              </div>
+            )}
+            {hasImages ? (
+              <h1 className="min-w-0 truncate text-sm font-medium">
+                <button
+                  type="button"
+                  className="pointer-events-auto max-w-full cursor-pointer truncate"
+                  onClick={() => setGalleryOpen(true)}
+                >
+                  {product.title}
+                </button>
+              </h1>
+            ) : (
+              <h1 className="truncate text-sm font-medium">{product.title}</h1>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <ProductImageLightbox
+        open={galleryOpen}
+        onOpenChange={setGalleryOpen}
+        images={product.images}
+        avgColors={product.imageAvgColors}
+        title={product.title}
+      />
+    </>
   );
 }
