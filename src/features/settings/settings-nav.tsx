@@ -56,7 +56,7 @@ const settingsGroups = [
         label: "Connections",
         icon: Link2Icon,
       },
-      { href: "/settings/plugin", label: "Plugin", icon: PuzzleIcon },
+      { href: "/settings/plugin", label: "Plugins", icon: PuzzleIcon },
     ],
   },
 ] as const;

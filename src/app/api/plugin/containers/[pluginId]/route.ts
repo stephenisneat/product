@@ -1,64 +1,31 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth/session";
-import { getActiveWorkspace } from "@/lib/auth/workspace";
-import { ensurePluginContainer } from "@/lib/plugin/ensure-container";
+import {
+  bumpPluginDraft,
+  PLUGIN_CONTAINER_SELECT,
+  requirePluginContainer,
+} from "@/lib/plugin/auth";
 import { buildInstallSnippet } from "@/lib/plugin/install-snippet";
 import { publishPluginContainerSnapshot } from "@/lib/plugin/publish-snapshot";
-import { createServiceClient, hasServiceRole } from "@/lib/supabase/service";
-import { createClient } from "@/lib/supabase/server";
+import { isPluginInstallPlatform } from "@/features/plugin/install-platforms";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function requireWorkspaceContainer() {
-  const user = await getCurrentUser();
-  if (!user) {
-    return { ok: false as const, status: 401, error: "Unauthorized" };
-  }
-
-  const active = await getActiveWorkspace();
-  if (!active) {
-    return { ok: false as const, status: 400, error: "No workspace available" };
-  }
-
-  const client = hasServiceRole()
-    ? createServiceClient()
-    : await createClient();
-
-  const ensured = await ensurePluginContainer(client, active.workspace.id);
-  if (!ensured.id) {
-    return {
-      ok: false as const,
-      status: 500,
-      error: "Failed to resolve plugin container",
-    };
-  }
-
-  return {
-    ok: true as const,
-    user,
-    workspaceId: active.workspace.id,
-    containerId: ensured.id,
-    client,
-  };
-}
+type RouteContext = { params: Promise<{ pluginId: string }> };
 
 async function fetchContainerPayload(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   client: any,
   containerId: string,
-  workspaceId: string,
 ) {
   const { data: container, error: cErr } = await client
     .from("plugin_containers")
-    .select(
-      "id, workspace_id, published_version, draft_version, published_at, created_at, updated_at",
-    )
+    .select(PLUGIN_CONTAINER_SELECT)
     .eq("id", containerId)
     .maybeSingle();
 
   if (cErr || !container) {
-    return { error: "Container not found", status: 404 as const };
+    return { error: "Plugin not found", status: 404 as const };
   }
 
   const [
@@ -96,21 +63,18 @@ async function fetchContainerPayload(
     triggers: triggers ?? [],
     variables: variables ?? [],
     versions: versions ?? [],
-    installSnippet: buildInstallSnippet(workspaceId),
+    installSnippet: buildInstallSnippet(containerId),
   };
 }
 
-export async function GET() {
-  const auth = await requireWorkspaceContainer();
+export async function GET(_req: Request, context: RouteContext) {
+  const { pluginId } = await context.params;
+  const auth = await requirePluginContainer(pluginId);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const payload = await fetchContainerPayload(
-    auth.client,
-    auth.containerId,
-    auth.workspaceId,
-  );
+  const payload = await fetchContainerPayload(auth.client, auth.containerId);
   if ("error" in payload) {
     return NextResponse.json({ error: payload.error }, { status: payload.status });
   }
@@ -118,8 +82,9 @@ export async function GET() {
   return NextResponse.json(payload);
 }
 
-export async function POST(req: Request) {
-  const auth = await requireWorkspaceContainer();
+export async function POST(req: Request, context: RouteContext) {
+  const { pluginId } = await context.params;
+  const auth = await requirePluginContainer(pluginId);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -150,7 +115,7 @@ export async function POST(req: Request) {
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
-      await bumpDraft(client, containerId);
+      await bumpPluginDraft(client, containerId);
       return NextResponse.json({ tag });
     }
 
@@ -168,7 +133,7 @@ export async function POST(req: Request) {
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
-      await bumpDraft(client, containerId);
+      await bumpPluginDraft(client, containerId);
       return NextResponse.json({ trigger });
     }
 
@@ -186,7 +151,7 @@ export async function POST(req: Request) {
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
-      await bumpDraft(client, containerId);
+      await bumpPluginDraft(client, containerId);
       return NextResponse.json({ variable });
     }
 
@@ -200,6 +165,7 @@ export async function POST(req: Request) {
             publishedBy: user.id,
             enabledTagsOnly: true,
             workspaceId,
+            pluginId: containerId,
           },
         );
         return NextResponse.json({ published: true, version });
@@ -217,19 +183,64 @@ export async function POST(req: Request) {
   }
 }
 
-export async function PATCH(req: Request) {
-  const auth = await requireWorkspaceContainer();
+export async function PATCH(req: Request, context: RouteContext) {
+  const { pluginId } = await context.params;
+  const auth = await requirePluginContainer(pluginId);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const { client, containerId } = auth;
   const body = (await req.json()) as {
-    entity: string;
-    id: string;
+    entity?: string;
+    id?: string;
+    name?: string;
+    platform?: string;
+    domain?: string | null;
     [key: string]: unknown;
   };
+
+  // Meta update (name / platform / domain) when entity is omitted.
+  if (!body.entity) {
+    const updates: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (typeof body.name === "string") {
+      const trimmed = body.name.trim();
+      if (!trimmed) {
+        return NextResponse.json({ error: "Name is required" }, { status: 400 });
+      }
+      updates.name = trimmed;
+    }
+    if (typeof body.platform === "string") {
+      if (!isPluginInstallPlatform(body.platform)) {
+        return NextResponse.json({ error: "Invalid platform" }, { status: 400 });
+      }
+      updates.platform = body.platform;
+    }
+    if (body.domain !== undefined) {
+      updates.domain =
+        typeof body.domain === "string" && body.domain.trim()
+          ? body.domain.trim()
+          : null;
+    }
+
+    const { data, error } = await client
+      .from("plugin_containers")
+      .update(updates)
+      .eq("id", containerId)
+      .select(PLUGIN_CONTAINER_SELECT)
+      .single();
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ container: data });
+  }
+
   const { entity, id: entityId, ...updates } = body;
+  if (!entityId || typeof entityId !== "string") {
+    return NextResponse.json({ error: "Entity id required" }, { status: 400 });
+  }
 
   const table =
     entity === "tag"
@@ -253,35 +264,61 @@ export async function PATCH(req: Request) {
     .maybeSingle();
   if (rowErr || !row || row.container_id !== containerId) {
     return NextResponse.json(
-      { error: "Entity not found in this container" },
+      { error: "Entity not found in this plugin" },
       { status: 404 },
     );
   }
 
+  const { entity: _e, id: _i, ...entityUpdates } = updates as Record<
+    string,
+    unknown
+  > & { entity?: string; id?: string };
+
   const { data, error } = await client
     .from(table)
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update({ ...entityUpdates, updated_at: new Date().toISOString() })
     .eq("id", entityId)
     .select("*")
     .single();
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  await bumpDraft(client, containerId);
-  return NextResponse.json({ [entity]: data });
+  await bumpPluginDraft(client, containerId);
+  return NextResponse.json({ [entity as string]: data });
 }
 
-export async function DELETE(req: Request) {
-  const auth = await requireWorkspaceContainer();
+export async function DELETE(req: Request, context: RouteContext) {
+  const { pluginId } = await context.params;
+  const auth = await requirePluginContainer(pluginId);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const { client, containerId } = auth;
-  const { entity, id: entityId } = (await req.json()) as {
-    entity: string;
-    id: string;
-  };
+
+  let body: { entity?: string; id?: string } | null = null;
+  try {
+    body = (await req.json()) as { entity?: string; id?: string };
+  } catch {
+    body = null;
+  }
+
+  // No body / no entity → delete the whole plugin.
+  if (!body?.entity) {
+    const { error } = await client
+      .from("plugin_containers")
+      .delete()
+      .eq("id", containerId);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ deleted: true });
+  }
+
+  const { entity, id: entityId } = body;
+  if (!entityId) {
+    return NextResponse.json({ error: "Entity id required" }, { status: 400 });
+  }
 
   const table =
     entity === "tag"
@@ -305,7 +342,7 @@ export async function DELETE(req: Request) {
     .maybeSingle();
   if (!row || row.container_id !== containerId) {
     return NextResponse.json(
-      { error: "Entity not found in this container" },
+      { error: "Entity not found in this plugin" },
       { status: 404 },
     );
   }
@@ -314,31 +351,6 @@ export async function DELETE(req: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  await bumpDraft(client, containerId);
+  await bumpPluginDraft(client, containerId);
   return NextResponse.json({ deleted: true });
-}
-
-async function bumpDraft(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  client: any,
-  containerId: string,
-) {
-  const { data: container } = await client
-    .from("plugin_containers")
-    .select("draft_version, published_version")
-    .eq("id", containerId)
-    .maybeSingle();
-  if (!container) return;
-
-  const published = (container.published_version as number) ?? 0;
-  const draft = (container.draft_version as number) ?? 1;
-  const nextDraft = draft <= published ? published + 1 : draft;
-
-  await client
-    .from("plugin_containers")
-    .update({
-      draft_version: nextDraft,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", containerId);
 }
