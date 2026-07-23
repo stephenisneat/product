@@ -65,6 +65,14 @@ describe("visualization from performance", () => {
       revenue: 90,
     },
     campaignCount: 1,
+    campaigns: [
+      {
+        id: "00000000-0000-4000-8000-000000000001",
+        name: "Sample campaign",
+        provider: "google",
+        status: "ENABLED",
+      },
+    ],
   };
 
   it("builds timeseries points from series", () => {

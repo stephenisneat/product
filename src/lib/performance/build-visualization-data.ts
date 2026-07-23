@@ -203,6 +203,7 @@ function emptyResult(): PerformanceQueryResult {
       revenue: 0,
     },
     campaignCount: 0,
+    campaigns: [],
   };
 }
 

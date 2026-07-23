@@ -229,6 +229,7 @@ export function ProductChrome({
       >
         {(
           [
+            ["performance", "Performance"],
             ["pulse", "Pulse"],
             ["know", "Know"],
             ["decide", "Decide"],

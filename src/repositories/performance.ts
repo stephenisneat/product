@@ -48,6 +48,10 @@ export type PerformanceQueryInput = {
   workspaceId: string;
   productId?: string | null;
   provider?: AdChannelProvider | null;
+  /** When set, restricts to these providers (takes precedence over `provider`). */
+  providers?: AdChannelProvider[] | null;
+  /** When set, restricts metrics to these external campaign IDs. */
+  campaignIds?: string[] | null;
   connectionId?: string | null;
   startDate: string;
   endDate: string;
@@ -65,11 +69,20 @@ export type PerformanceBreakdownRow = {
   revenue: number;
 };
 
+export type PerformanceCampaignOption = {
+  id: string;
+  name: string;
+  provider: AdChannelProvider;
+  status: string | null;
+};
+
 export type PerformanceQueryResult = {
   series: PerformancePoint[];
   breakdown: PerformanceBreakdownRow[];
   totals: Omit<PerformancePoint, "date">;
   campaignCount: number;
+  /** All campaigns for the product/connection scope (before campaignIds filter). */
+  campaigns: PerformanceCampaignOption[];
 };
 
 function emptyTotals(): Omit<PerformancePoint, "date"> {
@@ -243,17 +256,47 @@ export class SupabasePerformanceRepository {
   async queryPerformance(
     input: PerformanceQueryInput,
   ): Promise<PerformanceQueryResult> {
-    const campaigns = await this.listExternalCampaigns(input.workspaceId, {
+    const allCampaigns = await this.listExternalCampaigns(input.workspaceId, {
       productId: input.productId,
-      provider: input.provider,
       connectionId: input.connectionId,
     });
+
+    const campaignOptions: PerformanceCampaignOption[] = allCampaigns.map(
+      (c) => ({
+        id: c.id,
+        name: c.name,
+        provider: c.provider,
+        status: c.status,
+      }),
+    );
+
+    const providerFilter =
+      input.providers && input.providers.length > 0
+        ? new Set(input.providers)
+        : input.provider
+          ? new Set([input.provider])
+          : null;
+
+    let campaigns = providerFilter
+      ? allCampaigns.filter((c) => providerFilter.has(c.provider))
+      : allCampaigns;
+
+    const campaignIdFilter =
+      input.campaignIds && input.campaignIds.length > 0
+        ? new Set(input.campaignIds)
+        : null;
+
+    if (campaignIdFilter) {
+      campaigns = campaigns.filter((c) => campaignIdFilter.has(c.id));
+    }
+
     if (campaigns.length === 0) {
       return {
         series: [],
         breakdown: [],
         totals: emptyTotals(),
         campaignCount: 0,
+        campaigns: campaignOptions,
       };
     }
 
@@ -340,6 +383,7 @@ export class SupabasePerformanceRepository {
       breakdown,
       totals,
       campaignCount: campaigns.length,
+      campaigns: campaignOptions,
     };
   }
 

@@ -13,6 +13,7 @@ import {
   ProductChrome,
   ProductPageHeader,
 } from "@/features/products/product-chrome";
+import { ProductPerformanceOverview } from "@/features/products/product-performance-overview";
 import {
   ProductPulse,
   resolveProductMaturity,
@@ -60,6 +61,8 @@ export function ProductWorkspace({
     <PageCanvas header={<ProductPageHeader product={product} />}>
       <div className="mx-auto max-w-6xl space-y-10 px-4 py-6">
         <ProductChrome product={product} plan={plan} />
+
+        <ProductPerformanceOverview productId={product.id} />
 
         <ProductPulse
           maturity={maturity}

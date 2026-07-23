@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import type { PerformancePoint } from "@/domain";
+import type { PerformanceMetricKey } from "@/features/reporting/performance-chart";
 
 const Chart = dynamic(
   () =>
@@ -18,6 +19,12 @@ const Chart = dynamic(
   },
 );
 
-export function PerformanceChartLazy({ data }: { data: PerformancePoint[] }) {
-  return <Chart data={data} />;
+export function PerformanceChartLazy({
+  data,
+  metric,
+}: {
+  data: PerformancePoint[];
+  metric?: PerformanceMetricKey;
+}) {
+  return <Chart data={data} metric={metric} />;
 }

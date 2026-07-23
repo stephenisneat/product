@@ -8,6 +8,32 @@ import { getPerformanceRepository } from "@/repositories";
 
 export const runtime = "nodejs";
 
+const uuidList = z
+  .string()
+  .optional()
+  .transform((raw) =>
+    raw
+      ? raw
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined,
+  )
+  .pipe(z.array(z.string().uuid()).optional());
+
+const providerList = z
+  .string()
+  .optional()
+  .transform((raw) =>
+    raw
+      ? raw
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined,
+  )
+  .pipe(z.array(adChannelProviderSchema).optional());
+
 const querySchema = z.object({
   startDate: z
     .string()
@@ -19,6 +45,8 @@ const querySchema = z.object({
     .optional(),
   productId: z.string().optional(),
   provider: adChannelProviderSchema.optional(),
+  providers: providerList,
+  campaignIds: uuidList,
   connectionId: z.string().optional(),
   groupBy: z.enum(["date", "provider", "campaign"]).optional(),
 });
@@ -41,6 +69,8 @@ export async function GET(request: Request) {
     endDate: searchParams.get("endDate") ?? undefined,
     productId: searchParams.get("productId") ?? undefined,
     provider: searchParams.get("provider") ?? undefined,
+    providers: searchParams.get("providers") ?? undefined,
+    campaignIds: searchParams.get("campaignIds") ?? undefined,
     connectionId: searchParams.get("connectionId") ?? undefined,
     groupBy: searchParams.get("groupBy") ?? undefined,
   });
@@ -56,6 +86,8 @@ export async function GET(request: Request) {
     workspaceId: active.workspace.id,
     productId: parsed.data.productId,
     provider: parsed.data.provider,
+    providers: parsed.data.providers,
+    campaignIds: parsed.data.campaignIds,
     connectionId: parsed.data.connectionId,
     startDate,
     endDate,

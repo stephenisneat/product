@@ -17,7 +17,6 @@ import { CreativeCard } from "@/features/creatives/creative-card";
 import { useAgentContext } from "@/features/agent/agent-context";
 import { UpgradeButton } from "@/features/billing/upgrade-button";
 import { InsightCard } from "@/features/insights/insight-card";
-import { PerformanceChartLazy } from "@/features/reporting/performance-chart-lazy";
 import { ProductImage } from "@/components/product-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -578,8 +577,13 @@ export function ProductStreamImprove({
             Performance
           </h3>
           {hasLivePerformance ? (
-            <div className="mt-3">
-              <PerformanceChartLazy data={performance} />
+            <div className="mt-2 space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Product-level campaign metrics live at the top of this page.
+              </p>
+              <Button size="sm" variant="outline" render={<a href="#performance" />}>
+                View performance
+              </Button>
             </div>
           ) : (
             <div className="mt-2 space-y-2">
