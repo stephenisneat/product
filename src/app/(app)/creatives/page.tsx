@@ -22,7 +22,7 @@ export default async function CreativesPage() {
 
   return (
     <PageCanvas>
-      <div className="mx-auto w-full max-w-[1600px] px-4 py-6">
+      <div className="mx-auto w-full max-w-[1600px] py-6">
         <CreativesList
           key={creatives.map((c) => `${c.id}:${c.status}`).join("|")}
           initialCreatives={creatives}

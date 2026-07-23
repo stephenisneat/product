@@ -42,9 +42,9 @@ export function InsightsPageClient({
         sort={sort}
         onSortChange={setSort}
       />
-      <div className="mx-auto w-full max-w-3xl px-4 py-6">
+      <div className="mx-auto w-full max-w-[1600px] py-6">
         {locked ? (
-          <div className="relative overflow-hidden rounded-xl border border-dashed border-border bg-muted/20 px-6 py-16 text-center">
+          <div className="relative mx-4 overflow-hidden rounded-xl border border-dashed border-border bg-muted/20 px-6 py-16 text-center">
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0 opacity-[0.35]"

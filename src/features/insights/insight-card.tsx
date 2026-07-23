@@ -32,12 +32,14 @@ export function InsightCard({
   insight: initial,
   compact = false,
   pollWhileGenerating = true,
+  rowOnDesktop = false,
   productTitle,
   goalTitle,
 }: {
   insight: Insight;
   compact?: boolean;
   pollWhileGenerating?: boolean;
+  rowOnDesktop?: boolean;
   productTitle?: string | null;
   goalTitle?: string | null;
 }) {
@@ -164,15 +166,27 @@ export function InsightCard({
       className={cn(
         "rounded-lg border border-border bg-card/40 p-3",
         compact && "max-w-md",
+        rowOnDesktop &&
+          "md:rounded-none md:border-x-0 md:border-t-0 md:bg-transparent md:px-4 md:py-3 md:hover:bg-white/[0.06]",
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
+      <div
+        className={cn(
+          "flex items-start justify-between gap-2",
+          rowOnDesktop && "md:items-center",
+        )}
+      >
+        <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-medium">
             {insight.title || "Untitled insight"}
           </h3>
           {insight.summary ? (
-            <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">
+            <p
+              className={cn(
+                "mt-1 line-clamp-3 text-xs text-muted-foreground",
+                rowOnDesktop && "md:line-clamp-1",
+              )}
+            >
               {insight.summary}
             </p>
           ) : null}
@@ -185,7 +199,12 @@ export function InsightCard({
         </Badge>
       </div>
 
-      <div className="mt-2 flex flex-wrap gap-1">
+      <div
+        className={cn(
+          "mt-2 flex flex-wrap gap-1",
+          rowOnDesktop && "md:mt-1.5",
+        )}
+      >
         {goalTitle ? (
           <Badge variant="secondary" className="text-[10px]">
             {goalTitle}
@@ -207,13 +226,23 @@ export function InsightCard({
       </div>
 
       {insight.rationale ? (
-        <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+        <p
+          className={cn(
+            "mt-3 text-xs leading-relaxed text-muted-foreground",
+            rowOnDesktop && "md:mt-1.5 md:line-clamp-2",
+          )}
+        >
           {insight.rationale}
         </p>
       ) : null}
 
       {deliverablePayload ? (
-        <pre className="mt-3 max-h-40 overflow-auto rounded-md bg-muted/50 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+        <pre
+          className={cn(
+            "mt-3 max-h-40 overflow-auto rounded-md bg-muted/50 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground",
+            rowOnDesktop && "md:hidden",
+          )}
+        >
           {JSON.stringify(deliverablePayload, null, 2)}
         </pre>
       ) : null}

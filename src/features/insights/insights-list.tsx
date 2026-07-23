@@ -140,7 +140,7 @@ export function InsightsList({
 
   if (visible.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+      <div className="mx-4 rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
         No insights match this filter. Generate one or wait for a job/heartbeat.
       </div>
     );
@@ -159,18 +159,22 @@ export function InsightsList({
               <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                 {INSIGHT_KIND_LABELS[group.kind]}
               </span>
-              <Badge variant="secondary" className="tabular-nums">
-                {group.insights.length}
-              </Badge>
+                  <Badge
+                    variant="secondary"
+                    className="border-0 bg-white/10 tabular-nums text-muted-foreground"
+                  >
+                    {group.insights.length}
+                  </Badge>
             </span>
           </AccordionTrigger>
-          <AccordionContent className="pb-4 [&_a]:no-underline">
-            <ul className="space-y-3">
+          <AccordionContent className="pb-4 md:pb-0 [&_a]:no-underline">
+            <ul className="space-y-3 px-4 md:space-y-0 md:px-0">
               {group.insights.map((insight) => (
                 <li key={insight.id}>
                   <InsightCard
                     insight={insight}
                     pollWhileGenerating={false}
+                    rowOnDesktop
                     productTitle={
                       insight.productId
                         ? productTitleById[insight.productId] ?? null

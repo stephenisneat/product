@@ -160,7 +160,7 @@ function CardFooterActions({
       <Button
         size="sm"
         variant="outline"
-        className="w-full"
+        className="w-full md:w-auto"
         render={<Link href={`/creatives/${creative.id}?tab=distribution`} />}
       >
         View distribution
@@ -173,7 +173,7 @@ function CardFooterActions({
       <Button
         size="sm"
         variant="outline"
-        className="w-full"
+        className="w-full md:w-auto"
         disabled={pending}
         onClick={() => onAction("reopen")}
       >
@@ -289,11 +289,13 @@ export function CreativeCard({
   creative: initial,
   compact = false,
   pollWhileGenerating = true,
+  rowOnDesktop = false,
   onDeleted,
 }: {
   creative: Creative;
   compact?: boolean;
   pollWhileGenerating?: boolean;
+  rowOnDesktop?: boolean;
   onDeleted?: (id: string) => void;
 }) {
   const router = useRouter();
@@ -412,73 +414,101 @@ export function CreativeCard({
       className={cn(
         "overflow-hidden rounded-lg border border-border bg-card/40",
         compact && "max-w-md",
+        rowOnDesktop &&
+          "md:rounded-none md:border-x-0 md:border-t-0 md:bg-transparent",
       )}
     >
-      <div className="relative aspect-video bg-muted">
-        <Link
-          href={`/creatives/${creative.id}`}
-          className="absolute inset-0 block"
-          aria-label={`Open ${creative.title}`}
+      <div
+        className={cn(
+          rowOnDesktop &&
+            "md:flex md:items-center md:gap-4 md:px-4 md:py-3 md:hover:bg-white/[0.06]",
+        )}
+      >
+        <div
+          className={cn(
+            "relative aspect-video bg-muted",
+            rowOnDesktop &&
+              "md:aspect-auto md:h-16 md:w-28 md:shrink-0 md:overflow-hidden md:rounded-md",
+          )}
         >
-          <CreativePreviewMedia creative={creative} />
-        </Link>
+          <Link
+            href={`/creatives/${creative.id}`}
+            className="absolute inset-0 block"
+            aria-label={`Open ${creative.title}`}
+          >
+            <CreativePreviewMedia creative={creative} />
+          </Link>
 
-        <div className="absolute top-2 right-2 z-10">
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="secondary"
-                  size="icon-xs"
-                  className="bg-background/90 shadow-sm backdrop-blur supports-backdrop-filter:bg-background/75"
-                  aria-label="Creative actions"
-                />
-              }
-            >
-              <Ellipsis className="size-3.5" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-36">
-              <DropdownMenuItem
-                variant="destructive"
-                disabled={pending || deleting}
-                onClick={() => setDeleteOpen(true)}
+          <div className="absolute top-2 right-2 z-10">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="secondary"
+                    size="icon-xs"
+                    className="bg-background/90 shadow-sm backdrop-blur supports-backdrop-filter:bg-background/75"
+                    aria-label="Creative actions"
+                  />
+                }
               >
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      <div className="space-y-2 p-3">
-        <div className="flex items-center gap-1.5">
-          <h3 className="min-w-0 flex-1 truncate text-sm font-medium">
-            <Link
-              href={`/creatives/${creative.id}`}
-              className="hover:underline"
-            >
-              {creative.title}
-            </Link>
-          </h3>
-          <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-            {kindBadgeLabel(creative.kind)}
-          </span>
+                <Ellipsis className="size-3.5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-36">
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={pending || deleting}
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
-        {error ? <p className="text-xs text-destructive">{error}</p> : null}
+        <div
+          className={cn(
+            "space-y-2 p-3",
+            rowOnDesktop &&
+              "md:flex md:min-w-0 md:flex-1 md:items-center md:gap-4 md:space-y-0 md:p-0",
+          )}
+        >
+          <div
+            className={cn(
+              "flex items-center gap-1.5",
+              rowOnDesktop && "md:min-w-0 md:flex-1",
+            )}
+          >
+            <h3 className="min-w-0 flex-1 truncate text-sm font-medium">
+              <Link
+                href={`/creatives/${creative.id}`}
+                className="hover:underline"
+              >
+                {creative.title}
+              </Link>
+            </h3>
+            <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] tracking-wide text-muted-foreground uppercase">
+              {kindBadgeLabel(creative.kind)}
+            </span>
+          </div>
 
-        <CardFooterActions
-          creative={creative}
-          pending={pending}
-          revising={revising}
-          feedback={feedback}
-          onFeedbackChange={setFeedback}
-          onReviseToggle={(open) => {
-            setRevising(open);
-            if (!open) setFeedback("");
-          }}
-          onAction={(action) => void mutate(action)}
-        />
+          {error ? <p className="text-xs text-destructive">{error}</p> : null}
+
+          <div className={cn(rowOnDesktop && "md:shrink-0")}>
+            <CardFooterActions
+              creative={creative}
+              pending={pending}
+              revising={revising}
+              feedback={feedback}
+              onFeedbackChange={setFeedback}
+              onReviseToggle={(open) => {
+                setRevising(open);
+                if (!open) setFeedback("");
+              }}
+              onAction={(action) => void mutate(action)}
+            />
+          </div>
+        </div>
       </div>
 
       <ConfirmDeleteDialog

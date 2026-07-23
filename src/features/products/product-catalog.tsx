@@ -116,28 +116,57 @@ const addProductsButtonClass =
 
 function ProductCard({ product }: { product: Product }) {
   return (
-    <li className="bg-card overflow-hidden rounded-lg border border-border">
+    <li
+      className={cn(
+        "overflow-hidden rounded-lg border border-border bg-card",
+        "md:rounded-none md:border-x-0 md:border-t-0 md:bg-transparent",
+      )}
+    >
       <Link
         href={`/products/${product.id}`}
-        className="group flex h-full flex-col outline-none transition-colors focus-visible:bg-muted/40"
+        className={cn(
+          "group flex h-full flex-col outline-none transition-colors focus-visible:bg-white/[0.06]",
+          "md:flex-row md:items-center md:gap-4 md:px-4 md:py-3 md:hover:bg-white/[0.06]",
+        )}
       >
         {product.images[0] ? (
           <ProductImage
             src={product.images[0]}
             avgColor={product.imageAvgColors[0]}
-            className="aspect-[4/3]"
+            className="aspect-[4/3] md:size-14 md:shrink-0 md:rounded-md"
             imageClassName="transition-transform duration-300 group-hover:scale-[1.02]"
-            sizes="(max-width: 640px) 100vw, 25vw"
+            sizes="(max-width: 768px) 100vw, 56px"
           />
         ) : (
-          <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden text-xs text-muted-foreground">
+          <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden text-xs text-muted-foreground md:size-14 md:shrink-0 md:rounded-md md:bg-muted">
             No image
           </div>
         )}
-        <div className="flex flex-1 flex-col gap-2 p-3">
-          <div className="flex items-start justify-between gap-2">
-            <h2 className="text-sm leading-snug font-medium">{product.title}</h2>
-            <div className="flex shrink-0 flex-col items-end gap-1">
+        <div className="flex flex-1 flex-col gap-2 p-3 md:min-w-0 md:flex-row md:items-center md:gap-4 md:p-0">
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex items-start justify-between gap-2 md:items-center">
+              <h2 className="text-sm leading-snug font-medium">{product.title}</h2>
+              <div className="flex shrink-0 flex-col items-end gap-1 md:hidden">
+                <Badge
+                  variant="outline"
+                  className="text-[10px] tracking-wide uppercase"
+                >
+                  {productTypeLabel(product.type)}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] tracking-wide uppercase"
+                >
+                  {product.status}
+                </Badge>
+              </div>
+            </div>
+            <p className="line-clamp-2 text-xs text-muted-foreground md:line-clamp-1">
+              {product.description}
+            </p>
+          </div>
+          <div className="mt-auto flex items-center justify-between gap-2 pt-2 text-xs text-muted-foreground md:mt-0 md:shrink-0 md:justify-end md:gap-3 md:pt-0">
+            <div className="hidden items-center gap-1.5 md:flex">
               <Badge
                 variant="outline"
                 className="text-[10px] tracking-wide uppercase"
@@ -151,11 +180,6 @@ function ProductCard({ product }: { product: Product }) {
                 {product.status}
               </Badge>
             </div>
-          </div>
-          <p className="line-clamp-2 text-xs text-muted-foreground">
-            {product.description}
-          </p>
-          <div className="mt-auto flex items-center justify-between gap-2 pt-2 text-xs text-muted-foreground">
             <span className="min-w-0 truncate font-mono">
               {productSummaryLine(product)}
             </span>
@@ -353,9 +377,9 @@ export function ProductCatalog({
           Add products
         </Button>
       </CatalogHeaderActions>
-      <div className="mx-auto max-w-[1600px] px-4 py-6">
+      <div className="mx-auto max-w-[1600px] py-6">
         {filtered.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border px-4 py-16 text-center">
+          <div className="mx-4 rounded-lg border border-dashed border-border px-4 py-16 text-center">
             <p className="text-sm font-medium">No matching products</p>
             <p className="mt-1 text-xs text-muted-foreground">
               Try a different search, filter, or clear the query to see all
@@ -375,13 +399,16 @@ export function ProductCatalog({
                     <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                       {CATALOG_STATUS_LABELS[group.status]}
                     </span>
-                    <Badge variant="secondary" className="tabular-nums">
+                    <Badge
+                      variant="secondary"
+                      className="border-0 bg-white/10 tabular-nums text-muted-foreground"
+                    >
                       {group.products.length}
                     </Badge>
                   </span>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4 [&_a]:no-underline">
-                  <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <AccordionContent className="pb-4 md:pb-0 [&_a]:no-underline">
+                  <ul className="grid gap-4 px-4 sm:grid-cols-2 md:grid-cols-1 md:gap-0 md:px-0">
                     {group.products.map((product) => (
                       <ProductCard key={product.id} product={product} />
                     ))}

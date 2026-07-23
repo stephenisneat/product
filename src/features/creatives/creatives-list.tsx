@@ -240,7 +240,7 @@ export function CreativesList({
       {headerActions}
 
       {filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border px-4 py-16 text-center">
+        <div className="mx-4 rounded-lg border border-dashed border-border px-4 py-16 text-center">
           <p className="text-sm font-medium">No matching creatives</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Try a different search or status filter.
@@ -259,18 +259,22 @@ export function CreativesList({
                   <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                     {CREATIVE_STATUS_LABELS[group.status]}
                   </span>
-                  <Badge variant="secondary" className="tabular-nums">
+                  <Badge
+                    variant="secondary"
+                    className="border-0 bg-white/10 tabular-nums text-muted-foreground"
+                  >
                     {group.creatives.length}
                   </Badge>
                 </span>
               </AccordionTrigger>
-              <AccordionContent className="pb-4 [&_a]:no-underline">
-                <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <AccordionContent className="pb-4 md:pb-0 [&_a]:no-underline">
+                <ul className="grid grid-cols-1 gap-4 px-4 sm:grid-cols-2 md:grid-cols-1 md:gap-0 md:px-0">
                   {group.creatives.map((creative) => (
                     <li key={creative.id}>
                       <CreativeCard
                         creative={creative}
                         pollWhileGenerating={false}
+                        rowOnDesktop
                         onDeleted={handleDeleted}
                       />
                     </li>
