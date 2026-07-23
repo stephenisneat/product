@@ -126,26 +126,28 @@ function ProductCard({ product }: { product: Product }) {
         href={`/products/${product.id}`}
         className={cn(
           "group flex h-full flex-col outline-none transition-colors focus-visible:bg-white/[0.06]",
-          "md:flex-row md:items-center md:gap-4 md:px-4 md:py-3 md:hover:bg-white/[0.06]",
+          "md:h-12 md:flex-row md:items-center md:gap-3 md:overflow-hidden md:px-4 md:hover:bg-white/[0.06]",
         )}
       >
         {product.images[0] ? (
           <ProductImage
             src={product.images[0]}
             avgColor={product.imageAvgColors[0]}
-            className="aspect-[4/3] md:size-14 md:shrink-0 md:rounded-md"
+            className="aspect-[4/3] md:size-8 md:shrink-0 md:rounded-md"
             imageClassName="transition-transform duration-300 group-hover:scale-[1.02]"
-            sizes="(max-width: 768px) 100vw, 56px"
+            sizes="(max-width: 768px) 100vw, 32px"
           />
         ) : (
-          <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden text-xs text-muted-foreground md:size-14 md:shrink-0 md:rounded-md md:bg-muted">
+          <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden text-xs text-muted-foreground md:size-8 md:shrink-0 md:rounded-md md:bg-muted">
             No image
           </div>
         )}
-        <div className="flex flex-1 flex-col gap-2 p-3 md:min-w-0 md:flex-row md:items-center md:gap-4 md:p-0">
-          <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex flex-1 flex-col gap-2 p-3 md:min-w-0 md:flex-row md:items-center md:gap-3 md:overflow-hidden md:p-0">
+          <div className="min-w-0 flex-1 space-y-1 md:space-y-0">
             <div className="flex items-start justify-between gap-2 md:items-center">
-              <h2 className="text-sm leading-snug font-medium">{product.title}</h2>
+              <h2 className="text-sm leading-snug font-medium md:truncate">
+                {product.title}
+              </h2>
               <div className="flex shrink-0 flex-col items-end gap-1 md:hidden">
                 <Badge
                   variant="outline"
@@ -161,7 +163,7 @@ function ProductCard({ product }: { product: Product }) {
                 </Badge>
               </div>
             </div>
-            <p className="line-clamp-2 text-xs text-muted-foreground md:line-clamp-1">
+            <p className="line-clamp-2 text-xs text-muted-foreground md:hidden">
               {product.description}
             </p>
           </div>
