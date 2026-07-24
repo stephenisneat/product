@@ -259,8 +259,34 @@ export function ProductPageHeader({ product }: { product: Product }) {
   const pathname = usePathname();
   const [galleryOpen, setGalleryOpen] = useState(false);
   const hasImages = product.images.length > 0;
-  const contextHref = `/products/${product.id}/context`;
+  const productHref = `/products/${product.id}`;
+  const contextHref = `${productHref}/context`;
   const onContext = pathname === contextHref;
+
+  if (onContext) {
+    return (
+      <div className="relative flex w-full items-center">
+        <div className="z-10 flex min-w-0 max-w-[40%] items-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-1 gap-1.5 truncate px-2 text-muted-foreground"
+            aria-label={`Back to ${product.title}`}
+            render={<Link href={productHref} />}
+          >
+            <ArrowLeft02Icon className="size-4 shrink-0" />
+            <span className="truncate">{product.title}</span>
+          </Button>
+        </div>
+
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-14 sm:px-40">
+          <h1 className="truncate text-lg font-semibold tracking-tight">
+            Context
+          </h1>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -270,8 +296,8 @@ export function ProductPageHeader({ product }: { product: Product }) {
             variant="ghost"
             size="icon-sm"
             className="-ml-1 size-7 shrink-0 rounded-md text-muted-foreground"
-            aria-label={onContext ? "Back to product" : "Back to products"}
-            render={<Link href={onContext ? `/products/${product.id}` : "/"} />}
+            aria-label="Back to products"
+            render={<Link href="/" />}
           >
             <ArrowLeft02Icon className="size-4" />
           </Button>
@@ -315,11 +341,7 @@ export function ProductPageHeader({ product }: { product: Product }) {
         </div>
 
         <div className="z-10 ml-auto flex items-center">
-          <Button
-            size="sm"
-            variant={onContext ? "secondary" : "outline"}
-            render={<Link href={contextHref} />}
-          >
+          <Button size="sm" variant="outline" render={<Link href={contextHref} />}>
             Context
           </Button>
         </div>
