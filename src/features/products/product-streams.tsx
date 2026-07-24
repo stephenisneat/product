@@ -258,7 +258,7 @@ export function ProductStreamDecide({
   const empty = awaitingInsights.length === 0;
 
   return (
-    <section id="decide" aria-label="Decide" className="space-y-4 flex items-center justify-center">
+    <section id="decide" aria-label="Decide" className="w-full space-y-4">
       {empty ? (
         <div className="rounded-lg border border-dashed border-border px-4 py-6">
           <p className="text-sm text-muted-foreground">

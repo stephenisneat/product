@@ -10,7 +10,7 @@ import { InsightCard } from "@/features/insights/insight-card";
 import { cn } from "@/lib/utils";
 
 const VISIBLE_DEPTH = 3;
-const CARD_HEIGHT_PX = 420;
+const CARD_HEIGHT_PX = 520;
 const SWIPE_THRESHOLD = 110;
 const EXIT_DISTANCE = 520;
 const EXIT_MS = 280;
@@ -192,7 +192,7 @@ export function InsightCardStack({
   const rejectHint = Math.min(1, Math.max(0, -dragX / SWIPE_THRESHOLD));
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col items-center gap-5">
+    <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-5">
       <div
         className="relative w-full"
         style={{ height: CARD_HEIGHT_PX + (VISIBLE_DEPTH - 1) * 12 }}
