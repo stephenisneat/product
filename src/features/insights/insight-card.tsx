@@ -51,6 +51,8 @@ export function InsightCard({
   rowOnDesktop = false,
   productTitle,
   goalTitle,
+  className,
+  hideReviewActions = false,
 }: {
   insight: Insight;
   compact?: boolean;
@@ -58,6 +60,9 @@ export function InsightCard({
   rowOnDesktop?: boolean;
   productTitle?: string | null;
   goalTitle?: string | null;
+  className?: string;
+  /** Hide Accept/Reject (and revise UI); stack or parent owns those actions. */
+  hideReviewActions?: boolean;
 }) {
   const router = useRouter();
   const { setComposePrefill } = useAgentContext();
@@ -184,6 +189,7 @@ export function InsightCard({
         compact && "max-w-md",
         rowOnDesktop &&
           "md:rounded-none md:border-x-0 md:border-t-0 md:bg-transparent md:px-4 md:py-3 md:hover:bg-white/[0.06]",
+        className,
       )}
     >
       <div
@@ -275,7 +281,7 @@ export function InsightCard({
         <p className="mt-2 text-xs text-muted-foreground">{actionNote}</p>
       ) : null}
 
-      {canReview ? (
+      {canReview && !hideReviewActions ? (
         <div className="mt-3 space-y-2">
           {revising ? (
             <Textarea

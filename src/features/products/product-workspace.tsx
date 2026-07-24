@@ -20,7 +20,7 @@ export function ProductWorkspace({
 
   return (
     <PageCanvas header={<ProductPageHeader product={product} />}>
-      <div className="mx-auto w-full max-w-6xl space-y-4 px-4 py-6 min-h-full">
+      <div className="w-full min-h-full flex items-center justify-center">
         <ProductStreamDecide
           awaitingInsights={awaitingInsights}
           productTitle={product.title}

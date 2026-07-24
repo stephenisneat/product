@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
 import type {
   Campaign,
   Creative,
@@ -17,39 +16,13 @@ import { CreativeCard } from "@/features/creatives/creative-card";
 import { useAgentContext } from "@/features/agent/agent-context";
 import { UpgradeButton } from "@/features/billing/upgrade-button";
 import { InsightCard } from "@/features/insights/insight-card";
+import { InsightCardStack } from "@/features/insights/insight-card-stack";
 import { ProductImage } from "@/components/product-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getEntitlements } from "@/lib/billing/entitlements";
 import { formatMoney } from "@/lib/format";
 import { productTypeLabel } from "@/lib/products/product-type";
-
-function StreamHeading({
-  id,
-  title,
-  description,
-  action,
-}: {
-  id: string;
-  title: string;
-  description: string;
-  action?: ReactNode;
-}) {
-  return (
-    <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-      <div>
-        <h2
-          id={id}
-          className="scroll-mt-16 text-xs font-medium uppercase tracking-wide text-muted-foreground"
-        >
-          {title}
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-      </div>
-      {action}
-    </div>
-  );
-}
 
 function typeCatalogLines(product: Product): string[] {
   switch (product.type) {
@@ -125,39 +98,34 @@ export function ProductStreamKnow({
   const catalog = typeCatalogLines(product);
 
   return (
-    <section aria-labelledby="know" className="space-y-4">
-      <StreamHeading
-        id="know"
-        title="Know"
-        description="Identity and intelligence — the source of truth for this product."
-        action={
-          !intelligence?.positioning ? (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                setComposePrefill(
-                  `Propose positioning intelligence for ${product.title}: audience, value props, objections, and tone.`,
-                )
-              }
-            >
-              Build intelligence
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() =>
-                setComposePrefill(
-                  `Refine the positioning and audience for ${product.title}.`,
-                )
-              }
-            >
-              Refine with agent
-            </Button>
-          )
-        }
-      />
+    <section id="know" aria-label="Know" className="scroll-mt-16 space-y-4">
+      <div className="flex justify-end">
+        {!intelligence?.positioning ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              setComposePrefill(
+                `Propose positioning intelligence for ${product.title}: audience, value props, objections, and tone.`,
+              )
+            }
+          >
+            Build intelligence
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() =>
+              setComposePrefill(
+                `Refine the positioning and audience for ${product.title}.`,
+              )
+            }
+          >
+            Refine with agent
+          </Button>
+        )}
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-lg border border-border bg-card/30 p-4">
@@ -290,43 +258,31 @@ export function ProductStreamDecide({
   const empty = awaitingInsights.length === 0;
 
   return (
-    <section aria-labelledby="decide" className="space-y-4">
-      <StreamHeading
-        id="decide"
-        title="Decide"
-        description="Review queue — accept or reject insights for this product."
-        action={
-          empty ? (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                setComposePrefill(
-                  `Propose the next marketing insight for ${productTitle}.`,
-                )
-              }
-            >
-              Ask for an insight
-            </Button>
-          ) : null
-        }
-      />
-
+    <section id="decide" aria-label="Decide" className="space-y-4 flex items-center justify-center">
       {empty ? (
-        <p className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-          Nothing needs your review. Use the agent to generate positioning, ad
-          copy, campaign concepts, or listing updates as insights.
-        </p>
-      ) : (
-        <div className="grid gap-3 lg:grid-cols-2">
-          {awaitingInsights.map((insight) => (
-            <InsightCard
-              key={insight.id}
-              insight={insight}
-              productTitle={productTitle}
-            />
-          ))}
+        <div className="rounded-lg border border-dashed border-border px-4 py-6">
+          <p className="text-sm text-muted-foreground">
+            Nothing needs your review. Use the agent to generate positioning, ad
+            copy, campaign concepts, or listing updates as insights.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-3"
+            onClick={() =>
+              setComposePrefill(
+                `Propose the next marketing insight for ${productTitle}.`,
+              )
+            }
+          >
+            Ask for an insight
+          </Button>
         </div>
+      ) : (
+        <InsightCardStack
+          insights={awaitingInsights}
+          productTitle={productTitle}
+        />
       )}
     </section>
   );
@@ -354,29 +310,24 @@ export function ProductStreamRun({
   );
 
   return (
-    <section aria-labelledby="run" className="space-y-4">
-      <StreamHeading
-        id="run"
-        title="Run"
-        description="Campaigns and creatives — deep work opens in dedicated workspaces."
-        action={
-          campaignsLocked ? (
-            <UpgradeButton size="sm">Unlock campaigns</UpgradeButton>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                setComposePrefill(
-                  `Draft a campaign concept for ${product.title} and run create_campaign when ready.`,
-                )
-              }
-            >
-              New campaign
-            </Button>
-          )
-        }
-      />
+    <section id="run" aria-label="Run" className="scroll-mt-16 space-y-4">
+      <div className="flex justify-end">
+        {campaignsLocked ? (
+          <UpgradeButton size="sm">Unlock campaigns</UpgradeButton>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              setComposePrefill(
+                `Draft a campaign concept for ${product.title} and run create_campaign when ready.`,
+              )
+            }
+          >
+            New campaign
+          </Button>
+        )}
+      </div>
 
       {campaignsLocked ? (
         <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center">
@@ -508,29 +459,28 @@ export function ProductStreamImprove({
   const activeGoals = goals.filter((g) => g.status === "active");
 
   return (
-    <section aria-labelledby="improve" className="space-y-4">
-      <StreamHeading
-        id="improve"
-        title="Improve"
-        description="Goals, performance, and insight history for this product."
-        action={
-          ents.hasInsights ? (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                setComposePrefill(
-                  `Generate an insight for ${product.title} based on current goals and campaigns.`,
-                )
-              }
-            >
-              Generate insight
-            </Button>
-          ) : (
-            <UpgradeButton size="sm">Unlock insights</UpgradeButton>
-          )
-        }
-      />
+    <section
+      id="improve"
+      aria-label="Improve"
+      className="scroll-mt-16 space-y-4"
+    >
+      <div className="flex justify-end">
+        {ents.hasInsights ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              setComposePrefill(
+                `Generate an insight for ${product.title} based on current goals and campaigns.`,
+              )
+            }
+          >
+            Generate insight
+          </Button>
+        ) : (
+          <UpgradeButton size="sm">Unlock insights</UpgradeButton>
+        )}
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-lg border border-border bg-card/30 p-4">
@@ -630,13 +580,11 @@ export function ProductStreamImprove({
 
 export function ProductStreamLibrary({ product }: { product: Product }) {
   return (
-    <section aria-labelledby="library" className="space-y-4">
-      <StreamHeading
-        id="library"
-        title="Library"
-        description="Assets and listing truth as marketing sees them."
-      />
-
+    <section
+      id="library"
+      aria-label="Library"
+      className="scroll-mt-16 space-y-4"
+    >
       <div>
         <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Images
