@@ -28,6 +28,22 @@ function statusLabel(status: Insight["status"]): string {
   }
 }
 
+function elaboratePrompt(insight: Insight): string {
+  const parts = [
+    `Elaborate on insight "${insight.title}" (id ${insight.id}).`,
+  ];
+  if (insight.summary?.trim()) {
+    parts.push(`Summary: ${insight.summary.trim()}`);
+  }
+  if (insight.rationale?.trim()) {
+    parts.push(`Rationale: ${insight.rationale.trim()}`);
+  }
+  parts.push(
+    "Expand on the evidence, implications, and how we should act on this.",
+  );
+  return parts.join("\n\n");
+}
+
 export function InsightCard({
   insight: initial,
   compact = false,
@@ -311,14 +327,24 @@ export function InsightCard({
                 </Button>
               </>
             ) : (
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={pending}
-                onClick={() => setRevising(true)}
-              >
-                Revise
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={pending}
+                  onClick={() => setRevising(true)}
+                >
+                  Revise
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={pending}
+                  onClick={() => setComposePrefill(elaboratePrompt(insight))}
+                >
+                  Elaborate
+                </Button>
+              </>
             )}
           </div>
         </div>
