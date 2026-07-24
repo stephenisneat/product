@@ -59,10 +59,17 @@ export function ProductWorkspace({
 
   return (
     <PageCanvas header={<ProductPageHeader product={product} />}>
+      <div className="mx-auto w-full max-w-6xl space-y-4 px-4 py-6">
+        <ProductStreamDecide
+          awaitingInsights={awaitingInsights}
+          productTitle={product.title}
+        />
+      </div>
+      <div className="border-b border-border w-full min-h-96 bg-neutral-900">
+        <ProductPerformanceOverview productId={product.id} />
+      </div>
       <div className="mx-auto max-w-6xl space-y-10 px-4 py-6">
         <ProductChrome product={product} plan={plan} />
-
-        <ProductPerformanceOverview productId={product.id} />
 
         <ProductPulse
           maturity={maturity}
@@ -74,11 +81,6 @@ export function ProductWorkspace({
         />
 
         <ProductStreamKnow product={product} intelligence={intelligence} />
-
-        <ProductStreamDecide
-          awaitingInsights={awaitingInsights}
-          productTitle={product.title}
-        />
 
         <ProductStreamRun
           product={product}
