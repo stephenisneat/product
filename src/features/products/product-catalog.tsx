@@ -10,7 +10,7 @@ import {
   SearchIcon,
   XIcon,
 } from "@/components/icons";
-import type { Product, ProductStatus } from "@/domain";
+import type { PerformancePoint, Product, ProductStatus } from "@/domain";
 import {
   Accordion,
   AccordionContent,
@@ -34,11 +34,29 @@ import {
   CATALOG_STATUS_ORDER,
   type CatalogStatus,
 } from "@/features/products/catalog-status";
+import { formatMoney } from "@/lib/format";
 import {
   productSummaryLine,
   productTypeLabel,
 } from "@/lib/products/product-type";
 import { cn } from "@/lib/utils";
+
+type CatalogInsightPreview = {
+  title: string;
+  summary: string;
+  status: string;
+};
+
+type CatalogPerformanceTotals = Omit<PerformancePoint, "date">;
+
+function formatCatalogMetric(
+  key: "spend" | "revenue" | "roas",
+  value: number,
+): string {
+  if (key === "spend" || key === "revenue") return formatMoney(value);
+  if (!Number.isFinite(value)) return "—";
+  return `${value.toFixed(2)}x`;
+}
 
 const optionItemClass =
   "flex w-full items-center gap-2 rounded-md py-1.5 pr-2 pl-2 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground";
@@ -114,7 +132,55 @@ function sortProducts(products: Product[], sort: SortKey) {
 const addProductsButtonClass =
   "border-0 bg-[#288DFF] bg-clip-border text-white shadow-[0_0_0_1px_#288DFF,0_1px_2px_0_rgba(14,18,27,0.24),inset_0_1px_0_0_rgba(255,255,255,0.12)] hover:bg-[#1f7ff5] hover:text-white focus-visible:border-transparent focus-visible:ring-0 aria-expanded:bg-[#288DFF] aria-expanded:text-white dark:bg-[#288DFF] dark:text-white dark:hover:bg-[#1f7ff5]";
 
-function ProductCard({ product }: { product: Product }) {
+function insightDescription(insight: CatalogInsightPreview | undefined) {
+  if (!insight) return null;
+  const summary = insight.summary.trim();
+  if (summary) return summary;
+  const title = insight.title.trim();
+  if (title) return title;
+  if (insight.status === "generating") return "Generating insight…";
+  return null;
+}
+
+function CatalogMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="min-w-0 text-right">
+      <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+        {label}
+      </p>
+      <p className="tabular-nums text-xs font-medium">{value}</p>
+    </div>
+  );
+}
+
+function ProductCard({
+  product,
+  insight,
+  performance,
+}: {
+  product: Product;
+  insight?: CatalogInsightPreview;
+  performance?: CatalogPerformanceTotals;
+}) {
+  const insightText = insightDescription(insight);
+  const hasPerformance =
+    performance &&
+    (performance.spend > 0 ||
+      performance.revenue > 0 ||
+      performance.impressions > 0 ||
+      performance.clicks > 0 ||
+      performance.conversions > 0);
+  const roas =
+    performance && performance.spend > 0
+      ? performance.revenue / performance.spend
+      : 0;
+
   return (
     <li
       className={cn(
@@ -126,7 +192,7 @@ function ProductCard({ product }: { product: Product }) {
         href={`/products/${product.id}`}
         className={cn(
           "group flex h-full flex-col outline-none transition-colors focus-visible:bg-white/[0.06]",
-          "md:h-12 md:flex-row md:items-center md:gap-3 md:overflow-hidden md:px-4 md:hover:bg-white/[0.06]",
+          "md:h-12 md:flex-row md:items-center md:gap-3 md:overflow-hidden md:px-9 md:hover:bg-white/[0.06]",
         )}
       >
         {product.images[0] ? (
@@ -145,49 +211,51 @@ function ProductCard({ product }: { product: Product }) {
         <div className="flex flex-1 flex-col gap-2 p-3 md:min-w-0 md:flex-row md:items-center md:gap-3 md:overflow-hidden md:p-0">
           <div className="min-w-0 flex-1 space-y-1 md:space-y-0">
             <div className="flex items-start justify-between gap-2 md:items-center">
-              <h2 className="text-sm leading-snug font-medium md:truncate">
-                {product.title}
-              </h2>
-              <div className="flex shrink-0 flex-col items-end gap-1 md:hidden">
-                <Badge
-                  variant="outline"
-                  className="text-[10px] tracking-wide uppercase"
+              <div className="flex w-full min-w-0 items-center justify-start gap-4 relative">
+                <h2 className="w-80 shrink-0 text-sm leading-snug font-medium md:truncate">
+                  {product.title}
+                </h2>
+                <div
+                  className={cn(
+                    "hidden w-full truncate text-xs md:block",
+                    insightText
+                      ? "text-muted-foreground"
+                      : "text-muted-foreground/60",
+                  )}
+                  title={insightText ?? undefined}
                 >
-                  {productTypeLabel(product.type)}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="text-[10px] tracking-wide uppercase"
-                >
-                  {product.status}
-                </Badge>
+                  {insightText ?? "No insights yet"}
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center justify-end gap-3">
+                {hasPerformance && performance ? (
+                  <>
+                    <CatalogMetric
+                      label="Spend"
+                      value={formatCatalogMetric("spend", performance.spend)}
+                    />
+                    <CatalogMetric
+                      label="Revenue"
+                      value={formatCatalogMetric(
+                        "revenue",
+                        performance.revenue,
+                      )}
+                    />
+                    <CatalogMetric
+                      label="ROAS"
+                      value={formatCatalogMetric("roas", roas)}
+                    />
+                  </>
+                ) : (
+                  <span className="text-xs text-muted-foreground/60">
+                    No metrics
+                  </span>
+                )}
               </div>
             </div>
             <p className="line-clamp-2 text-xs text-muted-foreground md:hidden">
-              {product.description}
+              {insightText ?? product.description}
             </p>
-          </div>
-          <div className="mt-auto flex items-center justify-between gap-2 pt-2 text-xs text-muted-foreground md:mt-0 md:shrink-0 md:justify-end md:gap-3 md:pt-0">
-            <div className="hidden items-center gap-1.5 md:flex">
-              <Badge
-                variant="outline"
-                className="text-[10px] tracking-wide uppercase"
-              >
-                {productTypeLabel(product.type)}
-              </Badge>
-              <Badge
-                variant="outline"
-                className="text-[10px] tracking-wide uppercase"
-              >
-                {product.status}
-              </Badge>
-            </div>
-            <span className="min-w-0 truncate font-mono">
-              {productSummaryLine(product)}
-            </span>
-            <span className="shrink-0">
-              {product.channels.length} channels
-            </span>
           </div>
         </div>
       </Link>
@@ -198,9 +266,13 @@ function ProductCard({ product }: { product: Product }) {
 export function ProductCatalog({
   products,
   catalogStatusByProductId,
+  latestInsightByProductId = {},
+  performanceByProductId = {},
 }: {
   products: Product[];
   catalogStatusByProductId: Record<string, CatalogStatus>;
+  latestInsightByProductId?: Record<string, CatalogInsightPreview>;
+  performanceByProductId?: Record<string, CatalogPerformanceTotals>;
 }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -412,7 +484,12 @@ export function ProductCatalog({
                 <AccordionContent className="pb-4 md:pb-0 [&_a]:no-underline">
                   <ul className="grid gap-4 px-4 sm:grid-cols-2 md:grid-cols-1 md:gap-0 md:px-0">
                     {group.products.map((product) => (
-                      <ProductCard key={product.id} product={product} />
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        insight={latestInsightByProductId[product.id]}
+                        performance={performanceByProductId[product.id]}
+                      />
                     ))}
                   </ul>
                 </AccordionContent>

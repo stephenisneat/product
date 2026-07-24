@@ -276,8 +276,8 @@ export function ProductPerformanceOverview({
   const series = data?.series ?? [];
 
   return (
-    <section id="performance" className="scroll-mt-16 space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <section id="performance" className="scroll-mt-16 space-y-4 border border-red-500 h-full">
+      <div className="flex h-full flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Performance

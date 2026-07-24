@@ -2,10 +2,15 @@ import { PageCanvas } from "@/components/layout/page-canvas";
 import { MarketingHome } from "@/features/marketing/marketing-home";
 import { resolveCatalogStatus } from "@/features/products/catalog-status";
 import { ProductCatalog } from "@/features/products/product-catalog";
+import {
+  formatDateInput,
+  resolveDateRangeBounds,
+} from "@/features/visualizer/explore/date-range";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
 import {
   getInsightRepository,
+  getPerformanceRepository,
   getProductRepository,
 } from "@/repositories";
 
@@ -33,20 +38,38 @@ export default async function RootPage() {
     );
   }
 
-  const [products, insightsRepo] = await Promise.all([
+  const [products, insightsRepo, performanceRepo] = await Promise.all([
     getProductRepository(),
     getInsightRepository(),
+    getPerformanceRepository(),
   ]);
   const catalog = await products.listProducts(active.workspace.id);
   const productIds = catalog.map((product) => product.id);
 
-  const [campaigns, pendingInsights] = await Promise.all([
-    products.listCampaignsForProducts(productIds),
-    insightsRepo.listByWorkspace(active.workspace.id, {
-      status: ["awaiting_review", "revising", "generating"],
-      limit: 1000,
-    }),
-  ]);
+  const rangeBounds = resolveDateRangeBounds({
+    field: "date",
+    preset: "last_30_days",
+    start: null,
+    end: null,
+  });
+  const startDate = rangeBounds
+    ? formatDateInput(rangeBounds.start)
+    : formatDateInput(new Date());
+  const endDate = rangeBounds
+    ? formatDateInput(rangeBounds.end)
+    : formatDateInput(new Date());
+
+  const [campaigns, recentInsights, performanceByProductId] = await Promise.all(
+    [
+      products.listCampaignsForProducts(productIds),
+      insightsRepo.listByWorkspace(active.workspace.id, { limit: 1000 }),
+      performanceRepo.totalsByProduct(active.workspace.id, {
+        startDate,
+        endDate,
+        productIds,
+      }),
+    ],
+  );
 
   const campaignsByProduct = new Map<string, typeof campaigns>();
   for (const campaign of campaigns) {
@@ -56,9 +79,25 @@ export default async function RootPage() {
   }
 
   const needsAttentionIds = new Set<string>();
-  for (const insight of pendingInsights) {
-    if (insight.productId) {
+  const latestInsightByProductId: Record<
+    string,
+    { title: string; summary: string; status: string }
+  > = {};
+  for (const insight of recentInsights) {
+    if (!insight.productId) continue;
+    if (
+      insight.status === "awaiting_review" ||
+      insight.status === "revising" ||
+      insight.status === "generating"
+    ) {
       needsAttentionIds.add(insight.productId);
+    }
+    if (!(insight.productId in latestInsightByProductId)) {
+      latestInsightByProductId[insight.productId] = {
+        title: insight.title,
+        summary: insight.summary,
+        status: insight.status,
+      };
     }
   }
 
@@ -76,6 +115,8 @@ export default async function RootPage() {
     <ProductCatalog
       products={catalog}
       catalogStatusByProductId={catalogStatusByProductId}
+      latestInsightByProductId={latestInsightByProductId}
+      performanceByProductId={performanceByProductId}
     />
   );
 }

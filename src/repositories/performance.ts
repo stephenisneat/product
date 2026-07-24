@@ -423,4 +423,64 @@ export class SupabasePerformanceRepository {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, m]) => ({ date, ...m }));
   }
+
+  /**
+   * Aggregate campaign performance totals keyed by product id for a date range.
+   * Only includes campaigns linked to a product.
+   */
+  async totalsByProduct(
+    workspaceId: string,
+    opts: {
+      startDate: string;
+      endDate: string;
+      productIds?: string[];
+    },
+  ): Promise<Record<string, Omit<PerformancePoint, "date">>> {
+    let campaignQuery = this.client
+      .from("external_campaigns")
+      .select("id, product_id")
+      .eq("workspace_id", workspaceId)
+      .not("product_id", "is", null);
+
+    if (opts.productIds && opts.productIds.length > 0) {
+      campaignQuery = campaignQuery.in("product_id", opts.productIds);
+    }
+
+    const { data: campaigns, error: campaignError } = await campaignQuery;
+    if (campaignError) throw campaignError;
+
+    const productByCampaign = new Map<string, string>();
+    for (const row of campaigns ?? []) {
+      if (row.product_id) {
+        productByCampaign.set(String(row.id), String(row.product_id));
+      }
+    }
+
+    if (productByCampaign.size === 0) return {};
+
+    const campaignIds = [...productByCampaign.keys()];
+    const { data, error } = await this.client
+      .from("campaign_performance_points")
+      .select(
+        "external_campaign_id, impressions, clicks, spend, conversions, revenue",
+      )
+      .in("external_campaign_id", campaignIds)
+      .gte("date", opts.startDate)
+      .lte("date", opts.endDate);
+    if (error) throw error;
+
+    const byProduct: Record<string, Omit<PerformancePoint, "date">> = {};
+    for (const row of data ?? []) {
+      const productId = productByCampaign.get(String(row.external_campaign_id));
+      if (!productId) continue;
+      byProduct[productId] = addMetrics(byProduct[productId] ?? emptyTotals(), {
+        impressions: Number(row.impressions ?? 0),
+        clicks: Number(row.clicks ?? 0),
+        spend: Number(row.spend ?? 0),
+        conversions: Number(row.conversions ?? 0),
+        revenue: Number(row.revenue ?? 0),
+      });
+    }
+    return byProduct;
+  }
 }

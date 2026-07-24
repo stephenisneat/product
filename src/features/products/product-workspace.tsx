@@ -20,13 +20,13 @@ export function ProductWorkspace({
 
   return (
     <PageCanvas header={<ProductPageHeader product={product} />}>
-      <div className="mx-auto w-full max-w-6xl space-y-4 px-4 py-6">
+      <div className="mx-auto w-full max-w-6xl space-y-4 px-4 py-6 min-h-full">
         <ProductStreamDecide
           awaitingInsights={awaitingInsights}
           productTitle={product.title}
         />
       </div>
-      <div className="border-b border-border w-full min-h-96 bg-neutral-900">
+      <div className="border-t border-border w-full min-h-96 bg-neutral-900">
         <ProductPerformanceOverview productId={product.id} />
       </div>
     </PageCanvas>
