@@ -111,43 +111,45 @@ function AppShellFrame({
 
   return (
     <FeedbackProvider>
-      <FeedbackContextMenu className="flex h-svh flex-col overflow-hidden bg-black">
-        <AppHeader
+      <FeedbackContextMenu className="flex h-svh overflow-hidden bg-black">
+        <AppSidebar
           user={user}
-          workspaces={workspaces}
-          activeWorkspaceId={activeWorkspaceId}
-          activeRole={activeRole}
+          workspaceId={activeWorkspaceId}
+          isPlatformAdmin={isPlatformAdmin}
         />
-        <div className="flex min-h-0 flex-1 gap-2 pr-3 pb-3 pl-0">
-          <AppSidebar
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <AppHeader
             user={user}
-            workspaceId={activeWorkspaceId}
-            isPlatformAdmin={isPlatformAdmin}
+            workspaces={workspaces}
+            activeWorkspaceId={activeWorkspaceId}
+            activeRole={activeRole}
           />
-          <VisualizationDraftProvider>
-            <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-canvas">
-              <CatalogHeaderActionsProvider actionsNode={catalogActionsNode}>
-                {showCatalogNav ? (
-                  <>
-                    <div className="absolute top-0 z-10 flex h-12 w-full items-center border-b border-border bg-canvas/95 px-4 backdrop-blur supports-backdrop-filter:bg-canvas/80">
-                      <div
-                        ref={setCatalogActionsNode}
-                        className="ml-auto flex w-full flex-wrap items-center justify-end gap-2"
-                      />
-                    </div>
-                    <div className="absolute inset-x-0 top-12 bottom-0 min-h-0 overflow-hidden">
-                      {children}
-                    </div>
-                  </>
-                ) : (
-                  children
-                )}
-              </CatalogHeaderActionsProvider>
-            </main>
-            <aside className="relative hidden min-h-0 w-[360px] shrink-0 overflow-visible lg:block xl:w-[400px]">
-              <AgentComposer user={user} workspaceId={activeWorkspaceId} />
-            </aside>
-          </VisualizationDraftProvider>
+          <div className="flex min-h-0 flex-1 gap-2 pr-3 pb-3">
+            <VisualizationDraftProvider>
+              <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-canvas">
+                <CatalogHeaderActionsProvider actionsNode={catalogActionsNode}>
+                  {showCatalogNav ? (
+                    <>
+                      <div className="absolute top-0 z-10 flex h-12 w-full items-center border-b border-border bg-canvas/95 px-4 backdrop-blur supports-backdrop-filter:bg-canvas/80">
+                        <div
+                          ref={setCatalogActionsNode}
+                          className="ml-auto flex w-full flex-wrap items-center justify-end gap-2"
+                        />
+                      </div>
+                      <div className="absolute inset-x-0 top-12 bottom-0 min-h-0 overflow-hidden">
+                        {children}
+                      </div>
+                    </>
+                  ) : (
+                    children
+                  )}
+                </CatalogHeaderActionsProvider>
+              </main>
+              <aside className="relative hidden min-h-0 w-[360px] shrink-0 overflow-visible lg:block xl:w-[400px]">
+                <AgentComposer user={user} workspaceId={activeWorkspaceId} />
+              </aside>
+            </VisualizationDraftProvider>
+          </div>
         </div>
         <WalletBuyCreditsHost />
       </FeedbackContextMenu>

@@ -87,7 +87,7 @@ function SidebarLogo() {
           <Link
             href="/"
             aria-label="Product Agent"
-            className="mb-2 flex size-9 items-center justify-center rounded-lg bg-neutral-800 transition-colors hover:bg-neutral-700"
+            className="flex size-9 items-center justify-center rounded-lg bg-neutral-800 transition-colors hover:bg-neutral-700"
           />
         }
       >
@@ -233,8 +233,10 @@ export function AppSidebar({
   }, [workspaceId, pathname]);
 
   return (
-    <aside className="flex w-12 shrink-0 flex-col items-center bg-black pt-1 pb-2">
-      <SidebarLogo />
+    <aside className="flex h-full w-12 shrink-0 flex-col items-center bg-black pb-2">
+      <div className="flex h-12 shrink-0 items-center justify-center">
+        <SidebarLogo />
+      </div>
       <nav className="flex flex-col items-center gap-1" aria-label="Primary">
         {appNavItems.map(({ href, label, icon, attentionKey }) => (
           <SidebarNavLink
