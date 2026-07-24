@@ -8,7 +8,7 @@ import { getCreativeRepository } from "@/repositories";
 export default async function CreativesPage() {
   const user = await getCurrentUser();
   if (!user) {
-    redirect("/login?next=/creatives");
+    redirect("/login?next=/studio");
   }
 
   const active = await getActiveWorkspace();

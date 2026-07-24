@@ -4,65 +4,32 @@ import {
   createContext,
   type ReactNode,
   useContext,
-  useEffect,
-  useState,
 } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import {
-  BriefcaseIcon,
-  ChartNoAxesCombinedIcon,
-  ChevronRightIcon,
-  LightbulbIcon,
-  PackageIcon,
-  PaletteIcon,
-} from "@/components/icons";
-import { NavLink } from "@/components/layout/nav-link";
-import { getLastVisualizerPath } from "@/features/visualizer/visualization-store";
-import type { CatalogAttentionCounts } from "@/lib/catalog/attention-counts";
+import { ChevronRightIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
-const catalogPages = [
-  {
-    href: "/",
-    label: "Products",
-    icon: PackageIcon,
-    attentionKey: "products",
-  },
-  {
-    href: "/insights",
-    label: "Insights",
-    icon: LightbulbIcon,
-    attentionKey: "insights",
-  },
-  {
-    href: "/creatives",
-    label: "Creatives",
-    icon: PaletteIcon,
-    attentionKey: "creatives",
-  },
-  {
-    href: "/visualizer",
-    label: "Visualizer",
-    icon: ChartNoAxesCombinedIcon,
-    attentionKey: null,
-  },
-  {
-    href: "/jobs",
-    label: "Jobs",
-    icon: BriefcaseIcon,
-    attentionKey: null,
-  },
+/** Roots that show the in-canvas header actions slot. */
+export const CATALOG_PREFETCH_HREFS = [
+  "/",
+  "/insights",
+  "/studio",
+  "/visualizer",
+  "/logs",
 ] as const;
-
-/** Stable roots for idle `router.prefetch` from AppShell. */
-export const CATALOG_PREFETCH_HREFS = catalogPages.map((page) => page.href);
 
 const CatalogHeaderActionsContext = createContext<HTMLElement | null>(null);
 
+function isCatalogNavActive(pathname: string, href: string) {
+  if (href === "/" || href === "/studio") return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function isCatalogNavPath(pathname: string) {
-  return catalogPages.some(({ href }) => isCatalogNavActive(pathname, href));
+  return CATALOG_PREFETCH_HREFS.some((href) =>
+    isCatalogNavActive(pathname, href),
+  );
 }
 
 export function CatalogHeaderActionsProvider({
@@ -83,97 +50,6 @@ export function CatalogHeaderActions({ children }: { children: ReactNode }) {
   const slot = useContext(CatalogHeaderActionsContext);
   if (!slot) return null;
   return createPortal(children, slot);
-}
-
-function isCatalogNavActive(pathname: string, href: string) {
-  // Exact match for list roots that have their own detail chrome
-  // (product workspace lives under /products/[id], creative under /creatives/[id]).
-  if (href === "/" || href === "/creatives") return pathname === href;
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-export function CatalogNav({
-  children,
-  workspaceId,
-}: {
-  children?: ReactNode;
-  workspaceId?: string | null;
-}) {
-  const pathname = usePathname();
-  // Always start with the SSR-safe default; localStorage is only available
-  // after mount, so reading it in useState causes a hydration mismatch.
-  const [visualizerHref, setVisualizerHref] = useState("/visualizer");
-  const [attention, setAttention] = useState<CatalogAttentionCounts | null>(
-    null,
-  );
-
-  useEffect(() => {
-    if (!workspaceId) {
-      setVisualizerHref("/visualizer");
-      return;
-    }
-    function refresh() {
-      setVisualizerHref(getLastVisualizerPath(workspaceId!));
-    }
-    refresh();
-    window.addEventListener("visualizations-changed", refresh);
-    window.addEventListener("storage", refresh);
-    return () => {
-      window.removeEventListener("visualizations-changed", refresh);
-      window.removeEventListener("storage", refresh);
-    };
-  }, [workspaceId]);
-
-  useEffect(() => {
-    if (!workspaceId) {
-      setAttention(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        const res = await fetch("/api/catalog/attention");
-        if (!res.ok || cancelled) return;
-        const body = (await res.json()) as CatalogAttentionCounts;
-        if (cancelled) return;
-        setAttention(body);
-      } catch {
-        // ignore fetch errors
-      }
-    };
-
-    void load();
-    const onFocus = () => void load();
-    window.addEventListener("focus", onFocus);
-    const id = window.setInterval(() => void load(), 20_000);
-
-    return () => {
-      cancelled = true;
-      window.removeEventListener("focus", onFocus);
-      window.clearInterval(id);
-    };
-  }, [workspaceId, pathname]);
-
-  return (
-    <nav className="flex h-12 items-stretch" aria-label="Catalog">
-      {catalogPages.map(({ href, label, icon, attentionKey }) => (
-        <NavLink
-          key={href}
-          href={href === "/visualizer" ? visualizerHref : href}
-          label={label}
-          icon={icon}
-          isActive={isCatalogNavActive(pathname, href)}
-          badge={
-            attentionKey && attention ? attention[attentionKey] : undefined
-          }
-          prefetch
-        />
-      ))}
-      {children}
-    </nav>
-  );
 }
 
 export type CatalogBreadcrumb = {

@@ -17,7 +17,7 @@ import {
 export default async function JobsPage() {
   const user = await getCurrentUser();
   if (!user) {
-    redirect("/login?next=/jobs");
+    redirect("/login?next=/logs");
   }
 
   const active = await getActiveWorkspace();

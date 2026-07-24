@@ -36,6 +36,30 @@ const supabasePattern = supabaseImagePattern();
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  async redirects() {
+    return [
+      {
+        source: "/creatives",
+        destination: "/studio",
+        permanent: true,
+      },
+      {
+        source: "/creatives/:path*",
+        destination: "/studio/:path*",
+        permanent: true,
+      },
+      {
+        source: "/jobs",
+        destination: "/logs",
+        permanent: true,
+      },
+      {
+        source: "/jobs/:path*",
+        destination: "/logs/:path*",
+        permanent: true,
+      },
+    ];
+  },
   // Avoid Turbopack scope-hoisting TDZ crashes with Zod 4 during
   // `next build` page-data collection (vercel/next.js#82723).
   experimental: {

@@ -457,7 +457,7 @@ export function ProductStreamRun({
             Creatives
           </h3>
           <Link
-            href="/creatives"
+            href="/studio"
             className="text-xs text-muted-foreground underline-offset-4 hover:underline"
           >
             View all

@@ -13,10 +13,9 @@ import { WalletProvider, useWallet } from "@/features/wallet/wallet-context";
 import { UpgradeProvider } from "@/features/billing/upgrade-context";
 import {
   CatalogHeaderActionsProvider,
-  CatalogNav,
-  CATALOG_PREFETCH_HREFS,
   isCatalogNavPath,
 } from "@/features/products/catalog-toolbar";
+import { AppSidebar, APP_NAV_PREFETCH_HREFS } from "@/components/layout/app-sidebar";
 import { VisualizationDraftProvider } from "@/features/visualizer/visualization-draft-context";
 import { rememberSettingsReturnPath } from "@/features/settings/return-path";
 import type { WorkspaceWithRole } from "@/repositories/types";
@@ -94,7 +93,7 @@ function AppShellFrame({
     let cancelled = false;
     const prefetchAll = () => {
       if (cancelled) return;
-      for (const href of CATALOG_PREFETCH_HREFS) {
+      for (const href of APP_NAV_PREFETCH_HREFS) {
         void router.prefetch(href);
       }
     };
@@ -120,20 +119,18 @@ function AppShellFrame({
           activeRole={activeRole}
           isPlatformAdmin={isPlatformAdmin}
         />
-        <div className="flex min-h-0 flex-1 gap-2 px-3 pb-3">
+        <div className="flex min-h-0 flex-1 gap-2 pr-3 pb-3 pl-0">
+          <AppSidebar workspaceId={activeWorkspaceId} />
           <VisualizationDraftProvider>
             <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-canvas">
               <CatalogHeaderActionsProvider actionsNode={catalogActionsNode}>
                 {showCatalogNav ? (
                   <>
                     <div className="absolute top-0 z-10 flex h-12 w-full items-center border-b border-border bg-canvas/95 px-4 backdrop-blur supports-backdrop-filter:bg-canvas/80">
-                      <div className="flex w-full flex-wrap items-center gap-2">
-                        <CatalogNav workspaceId={activeWorkspaceId} />
-                        <div
-                          ref={setCatalogActionsNode}
-                          className="ml-auto flex flex-wrap items-center gap-2"
-                        />
-                      </div>
+                      <div
+                        ref={setCatalogActionsNode}
+                        className="ml-auto flex w-full flex-wrap items-center justify-end gap-2"
+                      />
                     </div>
                     <div className="absolute inset-x-0 top-12 bottom-0 min-h-0 overflow-hidden">
                       {children}

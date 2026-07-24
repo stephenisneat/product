@@ -57,7 +57,7 @@ export async function notifyCreativeAwaitingReview(
       to: email,
       creativeTitle: creative.title,
       stage: creative.stage,
-      creativeUrl: `${appUrl()}/creatives/${creative.id}`,
+      creativeUrl: `${appUrl()}/studio/${creative.id}`,
     });
   } catch (err) {
     logServerError("notifyCreativeAwaitingReview", err, {

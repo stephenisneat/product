@@ -1389,7 +1389,7 @@ export function CreativeWorkspace({
         throw new Error(message);
       }
       startTransition(() => {
-        router.push("/creatives");
+        router.push("/studio");
         router.refresh();
       });
     } finally {
@@ -1422,8 +1422,8 @@ export function CreativeWorkspace({
                 variant="ghost"
                 size="icon-sm"
                 className="-ml-1 size-7 shrink-0 rounded-md text-muted-foreground"
-                aria-label="Back to creatives"
-                render={<Link href="/creatives" />}
+                aria-label="Back to studio"
+                render={<Link href="/studio" />}
               >
                 <ArrowLeft02Icon className="size-4" />
               </Button>

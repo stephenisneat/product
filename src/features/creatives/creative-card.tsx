@@ -161,7 +161,7 @@ function CardFooterActions({
         size="sm"
         variant="outline"
         className="w-full md:w-auto"
-        render={<Link href={`/creatives/${creative.id}?tab=distribution`} />}
+        render={<Link href={`/studio/${creative.id}?tab=distribution`} />}
       >
         View distribution
       </Button>
@@ -400,7 +400,7 @@ export function CreativeCard({
       onDeleted?.(creative.id);
       startTransition(() => {
         if (!onDeleted) {
-          router.push("/creatives");
+          router.push("/studio");
         }
         router.refresh();
       });
@@ -432,7 +432,7 @@ export function CreativeCard({
           )}
         >
           <Link
-            href={`/creatives/${creative.id}`}
+            href={`/studio/${creative.id}`}
             className="absolute inset-0 block"
             aria-label={`Open ${creative.title}`}
           >
@@ -481,7 +481,7 @@ export function CreativeCard({
           >
             <h3 className="min-w-0 flex-1 truncate text-sm font-medium">
               <Link
-                href={`/creatives/${creative.id}`}
+                href={`/studio/${creative.id}`}
                 className="hover:underline"
               >
                 {creative.title}

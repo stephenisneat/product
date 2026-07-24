@@ -27,7 +27,7 @@ export default async function CreativeDetailPage({
 }) {
   const user = await getCurrentUser();
   if (!user) {
-    redirect("/login?next=/creatives");
+    redirect("/login?next=/studio");
   }
 
   const active = await getActiveWorkspace();

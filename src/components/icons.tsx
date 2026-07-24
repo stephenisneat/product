@@ -39,6 +39,7 @@ import {
   Globe02Icon,
   Idea01Icon,
   ImageAdd02Icon,
+  InboxIcon as InboxSolidIcon,
   InformationCircleIcon,
   LayoutThreeColumnIcon,
   LifebuoyIcon as LifebuoySolidIcon,
@@ -54,6 +55,7 @@ import {
   PuzzleIcon as PuzzleSolidIcon,
   RefreshIcon,
   SaveIcon as SaveSolidIcon,
+  ScrollIcon as ScrollSolidIcon,
   Search01Icon,
   SecurityIcon,
   SentIcon,
@@ -135,6 +137,7 @@ export const GitCompareArrowsIcon = createIcon(GitCompareIcon);
 export const GlobeIcon = createIcon(Globe02Icon);
 export const History = createIcon(Clock01Icon);
 export const ImagePlusIcon = createIcon(ImageAdd02Icon);
+export const InboxIcon = createIcon(InboxSolidIcon);
 export const InfoIcon = createIcon(InformationCircleIcon);
 export const LightbulbIcon = createIcon(Idea01Icon);
 export const LifebuoyIcon = createIcon(LifebuoySolidIcon);
@@ -158,6 +161,7 @@ export const PuzzleIcon = createIcon(PuzzleSolidIcon);
 export const RefreshCwIcon = createIcon(RefreshIcon);
 export const RotateCcwIcon = createIcon(Undo03Icon);
 export const SaveIcon = createIcon(SaveSolidIcon);
+export const ScrollTextIcon = createIcon(ScrollSolidIcon);
 export const Search = createIcon(Search01Icon);
 export const SearchIcon = Search;
 export const Send = createIcon(SentIcon);

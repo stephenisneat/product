@@ -698,7 +698,7 @@ export async function POST(req: Request) {
       tools: {
         run_job: tool({
           description:
-            "Start a background job. Use type create_campaign to create a draft campaign for the current product. Returns immediately with a jobId; progress appears on /jobs.",
+            "Start a background job. Use type create_campaign to create a draft campaign for the current product. Returns immediately with a jobId; progress appears on /logs.",
           inputSchema: z.object({
             type: z.literal("create_campaign"),
             name: z.string().trim().min(1).max(120),
@@ -727,7 +727,7 @@ export async function POST(req: Request) {
               return {
                 ok: true,
                 jobId: job.id,
-                message: `Campaign job started. Track it on /jobs (id ${job.id}).`,
+                message: `Campaign job started. Track it on /logs (id ${job.id}).`,
               };
             } catch (err) {
               return {
@@ -770,8 +770,8 @@ export async function POST(req: Request) {
                 ok: true,
                 creativeId: creative.id,
                 jobId: job.id,
-                href: `/creatives/${creative.id}`,
-                message: `Started video creative "${creative.title}". Screenplay, world, and storyboard will generate automatically — open /creatives/${creative.id} and click Generate video when ready.`,
+                href: `/studio/${creative.id}`,
+                message: `Started video creative "${creative.title}". Screenplay, world, and storyboard will generate automatically — open /studio/${creative.id} and click Generate video when ready.`,
               };
             } catch (err) {
               if (err instanceof PlanEntitlementError) {
@@ -824,8 +824,8 @@ export async function POST(req: Request) {
                 ok: true,
                 creativeId: creative.id,
                 jobId: job.id,
-                href: `/creatives/${creative.id}`,
-                message: `Started display creative "${creative.title}". Review it in chat or on /creatives/${creative.id}.`,
+                href: `/studio/${creative.id}`,
+                message: `Started display creative "${creative.title}". Review it in chat or on /studio/${creative.id}.`,
               };
             } catch (err) {
               if (err instanceof PlanEntitlementError) {
@@ -878,8 +878,8 @@ export async function POST(req: Request) {
                 ok: true,
                 creativeId: creative.id,
                 jobId: job.id,
-                href: `/creatives/${creative.id}`,
-                message: `Started search creative "${creative.title}". Review it in chat or on /creatives/${creative.id}.`,
+                href: `/studio/${creative.id}`,
+                message: `Started search creative "${creative.title}". Review it in chat or on /studio/${creative.id}.`,
               };
             } catch (err) {
               if (err instanceof PlanEntitlementError) {
@@ -932,8 +932,8 @@ export async function POST(req: Request) {
                 ok: true,
                 creativeId: creative.id,
                 jobId: job.id,
-                href: `/creatives/${creative.id}`,
-                message: `Started audio creative "${creative.title}". Review it in chat or on /creatives/${creative.id}.`,
+                href: `/studio/${creative.id}`,
+                message: `Started audio creative "${creative.title}". Review it in chat or on /studio/${creative.id}.`,
               };
             } catch (err) {
               if (err instanceof PlanEntitlementError) {
@@ -983,7 +983,7 @@ export async function POST(req: Request) {
                 creativeId: creative.id,
                 jobId: job.id,
                 stage: creative.stage,
-                href: `/creatives/${creative.id}`,
+                href: `/studio/${creative.id}`,
                 message: `Resubmitted ${creative.stage} generation for "${creative.title}".`,
               };
             } catch (err) {
@@ -1272,7 +1272,7 @@ export async function POST(req: Request) {
     tools: {
       run_job: tool({
         description:
-          "Start a background job for a product in the workspace. Use type create_campaign with productId from the catalog. Returns immediately with a jobId; progress appears on /jobs.",
+          "Start a background job for a product in the workspace. Use type create_campaign with productId from the catalog. Returns immediately with a jobId; progress appears on /logs.",
         inputSchema: z.object({
           type: z.literal("create_campaign"),
           productId: z.string(),
@@ -1308,7 +1308,7 @@ export async function POST(req: Request) {
             return {
               ok: true,
               jobId: job.id,
-              message: `Campaign job started. Track it on /jobs (id ${job.id}).`,
+              message: `Campaign job started. Track it on /logs (id ${job.id}).`,
             };
           } catch (err) {
             return {
@@ -1358,8 +1358,8 @@ export async function POST(req: Request) {
               ok: true,
               creativeId: creative.id,
               jobId: job.id,
-              href: `/creatives/${creative.id}`,
-              message: `Started video creative "${creative.title}". Screenplay, world, and storyboard will generate automatically — open /creatives/${creative.id} and click Generate video when ready.`,
+              href: `/studio/${creative.id}`,
+              message: `Started video creative "${creative.title}". Screenplay, world, and storyboard will generate automatically — open /studio/${creative.id} and click Generate video when ready.`,
             };
           } catch (err) {
             if (err instanceof PlanEntitlementError) {
@@ -1419,8 +1419,8 @@ export async function POST(req: Request) {
               ok: true,
               creativeId: creative.id,
               jobId: job.id,
-              href: `/creatives/${creative.id}`,
-              message: `Started display creative "${creative.title}". Review it in chat or on /creatives/${creative.id}.`,
+              href: `/studio/${creative.id}`,
+              message: `Started display creative "${creative.title}". Review it in chat or on /studio/${creative.id}.`,
             };
           } catch (err) {
             if (err instanceof PlanEntitlementError) {
@@ -1480,8 +1480,8 @@ export async function POST(req: Request) {
               ok: true,
               creativeId: creative.id,
               jobId: job.id,
-              href: `/creatives/${creative.id}`,
-              message: `Started search creative "${creative.title}". Review it in chat or on /creatives/${creative.id}.`,
+              href: `/studio/${creative.id}`,
+              message: `Started search creative "${creative.title}". Review it in chat or on /studio/${creative.id}.`,
             };
           } catch (err) {
             if (err instanceof PlanEntitlementError) {
@@ -1541,8 +1541,8 @@ export async function POST(req: Request) {
               ok: true,
               creativeId: creative.id,
               jobId: job.id,
-              href: `/creatives/${creative.id}`,
-              message: `Started audio creative "${creative.title}". Review it in chat or on /creatives/${creative.id}.`,
+              href: `/studio/${creative.id}`,
+              message: `Started audio creative "${creative.title}". Review it in chat or on /studio/${creative.id}.`,
             };
           } catch (err) {
             if (err instanceof PlanEntitlementError) {
@@ -1592,7 +1592,7 @@ export async function POST(req: Request) {
               creativeId: creative.id,
               jobId: job.id,
               stage: creative.stage,
-              href: `/creatives/${creative.id}`,
+              href: `/studio/${creative.id}`,
               message: `Resubmitted ${creative.stage} generation for "${creative.title}".`,
             };
           } catch (err) {
