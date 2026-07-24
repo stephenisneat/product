@@ -1,7 +1,6 @@
 import type { Insight, Product } from "@/domain";
 import { PageCanvas } from "@/components/layout/page-canvas";
 import { ProductPageHeader } from "@/features/products/product-chrome";
-import { ProductPerformanceOverview } from "@/features/products/product-performance-overview";
 import { ProductStreamDecide } from "@/features/products/product-streams";
 
 export function ProductWorkspace({
@@ -25,9 +24,6 @@ export function ProductWorkspace({
           awaitingInsights={awaitingInsights}
           productTitle={product.title}
         />
-      </div>
-      <div className="border-t border-border w-full min-h-96 bg-neutral-900">
-        <ProductPerformanceOverview productId={product.id} />
       </div>
     </PageCanvas>
   );

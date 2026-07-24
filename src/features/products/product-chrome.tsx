@@ -230,6 +230,7 @@ export function ProductChrome({
         {(
           [
             ["pulse", "Pulse"],
+            ["performance", "Performance"],
             ["know", "Know"],
             ["run", "Run"],
             ["improve", "Improve"],

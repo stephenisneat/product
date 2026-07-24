@@ -13,6 +13,7 @@ import {
   ProductChrome,
   ProductPageHeader,
 } from "@/features/products/product-chrome";
+import { ProductPerformanceOverview } from "@/features/products/product-performance-overview";
 import {
   ProductPulse,
   resolveProductMaturity,
@@ -68,6 +69,8 @@ export function ProductContextWorkspace({
           goals={goals}
           performance={performance}
         />
+
+        <ProductPerformanceOverview productId={product.id} />
 
         <ProductStreamKnow product={product} intelligence={intelligence} />
 
