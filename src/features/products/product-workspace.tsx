@@ -1,49 +1,15 @@
-import type {
-  Campaign,
-  Creative,
-  Goal,
-  Insight,
-  PerformancePoint,
-  Product,
-  ProductIntelligence,
-  WorkspacePlan,
-} from "@/domain";
+import type { Insight, Product } from "@/domain";
 import { PageCanvas } from "@/components/layout/page-canvas";
-import {
-  ProductChrome,
-  ProductPageHeader,
-} from "@/features/products/product-chrome";
+import { ProductPageHeader } from "@/features/products/product-chrome";
 import { ProductPerformanceOverview } from "@/features/products/product-performance-overview";
-import {
-  ProductPulse,
-  resolveProductMaturity,
-} from "@/features/products/product-pulse";
-import {
-  ProductStreamDecide,
-  ProductStreamImprove,
-  ProductStreamKnow,
-  ProductStreamLibrary,
-  ProductStreamRun,
-} from "@/features/products/product-streams";
+import { ProductStreamDecide } from "@/features/products/product-streams";
 
 export function ProductWorkspace({
   product,
-  intelligence,
-  creatives = [],
-  campaigns,
-  performance,
-  goals = [],
   insights = [],
-  plan = "free",
 }: {
   product: Product;
-  intelligence: ProductIntelligence | null;
-  creatives?: Creative[];
-  campaigns: Campaign[];
-  performance: PerformancePoint[];
-  goals?: Goal[];
   insights?: Insight[];
-  plan?: WorkspacePlan;
 }) {
   const awaitingInsights = insights.filter(
     (i) =>
@@ -51,11 +17,6 @@ export function ProductWorkspace({
       i.status === "revising" ||
       i.status === "generating",
   );
-  const maturity = resolveProductMaturity({
-    intelligence,
-    campaigns,
-    awaitingInsights,
-  });
 
   return (
     <PageCanvas header={<ProductPageHeader product={product} />}>
@@ -67,38 +28,6 @@ export function ProductWorkspace({
       </div>
       <div className="border-b border-border w-full min-h-96 bg-neutral-900">
         <ProductPerformanceOverview productId={product.id} />
-      </div>
-      <div className="mx-auto max-w-6xl space-y-10 px-4 py-6">
-        <ProductChrome product={product} plan={plan} />
-
-        <ProductPulse
-          maturity={maturity}
-          awaitingInsights={awaitingInsights}
-          campaigns={campaigns}
-          creatives={creatives}
-          goals={goals}
-          performance={performance}
-        />
-
-        <ProductStreamKnow product={product} intelligence={intelligence} />
-
-        <ProductStreamRun
-          product={product}
-          campaigns={campaigns}
-          creatives={creatives}
-          insights={insights}
-          plan={plan}
-        />
-
-        <ProductStreamImprove
-          product={product}
-          goals={goals}
-          insights={insights}
-          performance={performance}
-          plan={plan}
-        />
-
-        <ProductStreamLibrary product={product} />
       </div>
     </PageCanvas>
   );

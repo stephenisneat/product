@@ -3,12 +3,7 @@ import { AgentProductSync } from "@/features/agent/agent-context";
 import { ProductWorkspace } from "@/features/products/product-workspace";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getActiveWorkspace } from "@/lib/auth/workspace";
-import {
-  getCreativeRepository,
-  getGoalRepository,
-  getInsightRepository,
-  getProductRepository,
-} from "@/repositories";
+import { getInsightRepository, getProductRepository } from "@/repositories";
 
 export default async function ProductPage({
   params,
@@ -36,31 +31,16 @@ export default async function ProductPage({
     notFound();
   }
 
-  const [intelligence, campaigns, performance, creatives, goals, insights] =
-    await Promise.all([
-      products.getIntelligence(id),
-      products.listCampaigns(id),
-      products.getPerformance(id),
-      (await getCreativeRepository()).listByProduct(id),
-      (await getGoalRepository()).listByProduct(active.workspace.id, id),
-      (await getInsightRepository()).listByProduct(active.workspace.id, id, {
-        limit: 40,
-      }),
-    ]);
+  const insights = await (
+    await getInsightRepository()
+  ).listByProduct(active.workspace.id, id, {
+    limit: 40,
+  });
 
   return (
     <>
       <AgentProductSync productId={product.id} productTitle={product.title} />
-      <ProductWorkspace
-        product={product}
-        intelligence={intelligence}
-        creatives={creatives}
-        campaigns={campaigns}
-        performance={performance}
-        goals={goals}
-        insights={insights}
-        plan={active.workspace.plan ?? "free"}
-      />
+      <ProductWorkspace product={product} insights={insights} />
     </>
   );
 }

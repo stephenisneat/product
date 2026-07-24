@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   ArrowLeft02Icon,
@@ -229,8 +229,6 @@ export function ProductChrome({
       >
         {(
           [
-            ["decide", "Decide"],
-            ["performance", "Performance"],
             ["pulse", "Pulse"],
             ["know", "Know"],
             ["run", "Run"],
@@ -258,8 +256,11 @@ export function ProductChrome({
 }
 
 export function ProductPageHeader({ product }: { product: Product }) {
+  const pathname = usePathname();
   const [galleryOpen, setGalleryOpen] = useState(false);
   const hasImages = product.images.length > 0;
+  const contextHref = `/products/${product.id}/context`;
+  const onContext = pathname === contextHref;
 
   return (
     <>
@@ -269,8 +270,8 @@ export function ProductPageHeader({ product }: { product: Product }) {
             variant="ghost"
             size="icon-sm"
             className="-ml-1 size-7 shrink-0 rounded-md text-muted-foreground"
-            aria-label="Back to products"
-            render={<Link href="/" />}
+            aria-label={onContext ? "Back to product" : "Back to products"}
+            render={<Link href={onContext ? `/products/${product.id}` : "/"} />}
           >
             <ArrowLeft02Icon className="size-4" />
           </Button>
@@ -311,6 +312,16 @@ export function ProductPageHeader({ product }: { product: Product }) {
               <h1 className="truncate text-sm font-medium">{product.title}</h1>
             )}
           </div>
+        </div>
+
+        <div className="z-10 ml-auto flex items-center">
+          <Button
+            size="sm"
+            variant={onContext ? "secondary" : "outline"}
+            render={<Link href={contextHref} />}
+          >
+            Context
+          </Button>
         </div>
       </div>
 
