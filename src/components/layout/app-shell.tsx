@@ -117,10 +117,13 @@ function AppShellFrame({
           workspaces={workspaces}
           activeWorkspaceId={activeWorkspaceId}
           activeRole={activeRole}
-          isPlatformAdmin={isPlatformAdmin}
         />
         <div className="flex min-h-0 flex-1 gap-2 pr-3 pb-3 pl-0">
-          <AppSidebar workspaceId={activeWorkspaceId} />
+          <AppSidebar
+            user={user}
+            workspaceId={activeWorkspaceId}
+            isPlatformAdmin={isPlatformAdmin}
+          />
           <VisualizationDraftProvider>
             <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-canvas">
               <CatalogHeaderActionsProvider actionsNode={catalogActionsNode}>

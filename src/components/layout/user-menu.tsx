@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDownIcon } from "@/components/icons";
 import type { AppUser } from "@/domain";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +10,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { UserAvatar } from "@/features/avatars/user-avatar";
 import { cn } from "@/lib/utils";
 
@@ -19,11 +23,9 @@ const menuItemClass =
 
 export function UserMenu({
   user,
-  showLabel = false,
   isPlatformAdmin = false,
 }: {
   user: AppUser;
-  showLabel?: boolean;
   isPlatformAdmin?: boolean;
 }) {
   const router = useRouter();
@@ -38,35 +40,35 @@ export function UserMenu({
 
   return (
     <Popover>
-      <PopoverTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
+      <Tooltip>
+        <TooltipTrigger
+          delay={50}
+          render={
+            <PopoverTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-9 rounded-lg text-neutral-400"
+                  aria-label="Open account menu"
+                />
+              }
+            />
+          }
+        >
+          <UserAvatar
+            name={user.name}
+            email={user.email}
+            avatarUrl={user.avatarUrl}
             size="sm"
-            className={cn(
-              "text-xs",
-              showLabel && "h-8 gap-1.5 px-1.5 text-neutral-400",
-              !showLabel && "rounded-full px-1.5",
-            )}
           />
-        }
-      >
-        <UserAvatar
-          name={user.name}
-          email={user.email}
-          avatarUrl={user.avatarUrl}
-          size="sm"
-        />
-        {showLabel ? (
-          <>
-            <span className="max-w-40 truncate font-medium">{label}</span>
-            <ChevronDownIcon className="size-3 shrink-0 text-neutral-600 transition-[color,transform] duration-200 group-hover/button:text-neutral-300 group-aria-expanded/button:rotate-180 group-aria-expanded/button:text-neutral-300" />
-          </>
-        ) : null}
-        <span className="sr-only">Open account menu</span>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="min-w-56 p-2">
+        </TooltipTrigger>
+        <TooltipContent side="right" sideOffset={8}>
+          {label}
+        </TooltipContent>
+      </Tooltip>
+      <PopoverContent side="right" align="end" sideOffset={8} className="min-w-56 p-2">
         <div className="px-2 py-1.5">
           {user.name ? (
             <p className="text-sm font-medium text-foreground">{user.name}</p>

@@ -11,11 +11,13 @@ import {
   ScrollTextIcon,
   type IconComponent,
 } from "@/components/icons";
+import { UserMenu } from "@/components/layout/user-menu";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { AppUser } from "@/domain";
 import { runNavigationGuard } from "@/features/visualizer/navigation-guard";
 import { getLastVisualizerPath } from "@/features/visualizer/visualization-store";
 import type { CatalogAttentionCounts } from "@/lib/catalog/attention-counts";
@@ -73,6 +75,31 @@ function isPlainLeftClick(
     !e.ctrlKey &&
     !e.shiftKey &&
     !e.altKey
+  );
+}
+
+function SidebarLogo() {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        delay={50}
+        render={
+          <Link
+            href="/"
+            aria-label="Product Agent"
+            className="mb-2 flex size-9 items-center justify-center rounded-lg bg-neutral-800 transition-colors hover:bg-neutral-700"
+          />
+        }
+      >
+        <span
+          aria-hidden
+          className="size-3.5 rotate-45 rounded-[3px] bg-foreground"
+        />
+      </TooltipTrigger>
+      <TooltipContent side="right" sideOffset={8}>
+        Product Agent
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -142,9 +169,13 @@ function SidebarNavLink({
 }
 
 export function AppSidebar({
+  user,
   workspaceId,
+  isPlatformAdmin = false,
 }: {
+  user: AppUser;
   workspaceId?: string | null;
+  isPlatformAdmin?: boolean;
 }) {
   const pathname = usePathname();
   const [visualizerHref, setVisualizerHref] = useState("/visualizer");
@@ -202,7 +233,8 @@ export function AppSidebar({
   }, [workspaceId, pathname]);
 
   return (
-    <aside className="flex w-12 shrink-0 flex-col items-center bg-black pt-1">
+    <aside className="flex w-12 shrink-0 flex-col items-center bg-black pt-1 pb-2">
+      <SidebarLogo />
       <nav className="flex flex-col items-center gap-1" aria-label="Primary">
         {appNavItems.map(({ href, label, icon, attentionKey }) => (
           <SidebarNavLink
@@ -217,6 +249,9 @@ export function AppSidebar({
           />
         ))}
       </nav>
+      <div className="mt-auto flex flex-col items-center">
+        <UserMenu user={user} isPlatformAdmin={isPlatformAdmin} />
+      </div>
     </aside>
   );
 }

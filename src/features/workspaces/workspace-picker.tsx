@@ -203,7 +203,10 @@ export function WorkspacePicker({
             <ChevronsUpDownIcon data-icon="inline-end" />
           )}
         </PopoverTrigger>
-        <PopoverContent align="start" className="min-w-56 p-2">
+        <PopoverContent
+          align={variant === "header" ? "end" : "start"}
+          className="min-w-56 p-2"
+        >
           <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">
             Workspaces
           </p>
